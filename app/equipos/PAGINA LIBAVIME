@@ -1,0 +1,83 @@
+import Image from "next/image";
+
+export default function Equipos() {
+  return (
+    <main className="min-h-screen bg-slate-100 p-4 md:p-10">
+      <div className="max-w-6xl mx-auto">
+
+        <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
+          🏀 Equipos LIBAVIME
+        </h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+            <Image
+              src="/logos/Gladiadores.png"
+              alt="Gladiadores"
+              width={180}
+              height={180}
+              className="mx-auto"
+            />
+            <h2 className="text-2xl font-bold mt-4">
+              Gladiadores
+            </h2>
+            <p className="text-gray-800">
+              Récord: 0-0
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+            <Image
+              src="/logos/Espartanos.png"
+              alt="Espartanos"
+              width={180}
+              height={180}
+              className="mx-auto"
+            />
+            <h2 className="text-2xl font-bold mt-4">
+              Espartanos
+            </h2>
+            <p className="text-gray-800">
+              Récord: 0-0
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+            <Image
+              src="/logos/Titanes.JPG"
+              alt="Titanes"
+              width={180}
+              height={180}
+              className="mx-auto"
+            />
+            <h2 className="text-2xl font-bold mt-4">
+              Titanes
+            </h2>
+            <p className="text-gray-800">
+              Récord: 0-0
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+            <Image
+              src="/logos/Vikingos.JPG"
+              alt="Vikingos"
+              width={180}
+              height={180}
+              className="mx-auto"
+            />
+            <h2 className="text-2xl font-bold mt-4">
+              Vikingos
+            </h2>
+            <p className="text-gray-800">
+              Récord: 0-0
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  );
+}Ç
