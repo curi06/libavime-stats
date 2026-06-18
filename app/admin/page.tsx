@@ -1,3 +1,8 @@
+      </div>
+
+    </main>
+  );
+}
 import Link from "next/link";
 
 export default function AdminPage() {
@@ -58,3 +63,9 @@ export default function AdminPage() {
     </main>
   );
 }
+      </div>
+
+    </main>
+  );
+}
+
