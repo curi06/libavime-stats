@@ -30,9 +30,7 @@ console.log("ERROR:", error);
         <h1>Jugador no encontrado</h1>
       </main>
     );
-  }
-
-  return (
+  }  return (
     <main className="min-h-screen bg-slate-100 p-4 md:p-10">
       <div className="max-w-3xl mx-auto">
 
