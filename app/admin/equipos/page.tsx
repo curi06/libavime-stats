@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminEquipos() {
+  const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [slug, setSlug] = useState("");
   const [logo, setLogo] = useState("");
@@ -13,9 +15,20 @@ export default function AdminEquipos() {
   const [equipos, setEquipos] = useState<any[]>([]);
   const [editandoId, setEditandoId] = useState<number | null>(null);
 
-  useEffect(() => {
-    cargarEquipos();
-  }, []);
+ useEffect(() => {
+  verificarSesion();
+  cargarEquipos();
+}, []);
+
+async function verificarSesion() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    router.push("/login");
+  }
+}
 
   async function cargarEquipos() {
     const { data, error } = await supabase

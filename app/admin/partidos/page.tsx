@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPartidos() {
+  const router = useRouter();
   const [equipoLocal, setEquipoLocal] = useState("");
   const [equipoVisitante, setEquipoVisitante] = useState("");
   const [fecha, setFecha] = useState("");
@@ -14,11 +16,21 @@ export default function AdminPartidos() {
   const [partidos, setPartidos] = useState<any[]>([]);
   const [editandoId, setEditandoId] = useState<number | null>(null);
 
-  useEffect(() => {
-    cargarEquipos();
-    cargarPartidos();
-  }, []);
+ useEffect(() => {
+  verificarSesion();
+  cargarEquipos();
+  cargarPartidos();
+}, []);
 
+async function verificarSesion() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    router.push("/login");
+  }
+}
   async function cargarEquipos() {
     const { data } = await supabase
       .from("equipos")

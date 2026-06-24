@@ -154,6 +154,17 @@ setApg("");
     <main className="min-h-screen bg-slate-100 p-6 md:p-10">
 
       <div className="max-w-4xl mx-auto">
+        <div className="flex justify-end mb-4">
+  <button
+    onClick={async () => {
+      await supabase.auth.signOut();
+      router.push("/login");
+    }}
+    className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700"
+  >
+    🚪 Cerrar sesión
+  </button>
+</div>
 
         <h1 className="text-4xl font-black text-blue-900 mb-2 text-center">
   ⚙️ Panel Administrativo LIBAVIME
