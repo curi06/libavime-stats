@@ -11,6 +11,7 @@ export default function AdminJugadores() {
   const [posicion, setPosicion] = useState("");
   const [equipo, setEquipo] = useState("");
   const [foto, setFoto] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
   const [ppg, setPpg] = useState("");
   const [rpg, setRpg] = useState("");
   const [apg, setApg] = useState("");
@@ -40,6 +41,37 @@ async function cargarJugadores() {
   if (!error && data) {
     setJugadores(data);
   }
+}
+async function subirFoto(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const archivo = e.target.files?.[0];
+
+  if (!archivo) return;
+
+  setSubiendo(true);
+
+  const nombreArchivo =
+    Date.now() + "-" + archivo.name;
+
+  const { error } = await supabase.storage
+    .from("Jugadores")
+    .upload(nombreArchivo, archivo);
+
+  if (error) {
+  console.log("ERROR STORAGE:", error);
+  alert(error.message);
+  setSubiendo(false);
+  return;
+}
+
+  const { data } = supabase.storage
+    .from("Jugadores")
+    .getPublicUrl(nombreArchivo);
+
+  setFoto(data.publicUrl);
+
+  setSubiendo(false);
 }
 
 function editarJugador(jugador: any) {
@@ -221,14 +253,31 @@ setApg("");
   onChange={(e) => setEquipo(e.target.value)}
   className="border rounded-xl p-3"
 />
-            <input
-  type="text"
-  placeholder="Ruta de Foto"
-  value={foto}
-  onChange={(e) => setFoto(e.target.value)}
-  className="border rounded-xl p-3"
-/>
+            <div className="border rounded-xl p-3">
+  <label className="font-bold block mb-2">
+    📸 Foto del Jugador
+  </label>
 
+  <input
+    type="file"
+    accept="image/*"
+    onChange={subirFoto}
+  />
+
+  {subiendo && (
+    <p className="text-blue-600 mt-2">
+      Subiendo imagen...
+    </p>
+  )}
+
+  {foto && (
+    <img
+      src={foto}
+      alt="Vista previa"
+      className="mt-3 w-32 h-32 object-cover rounded-xl border"
+    />
+  )}
+</div>
             <input
   type="number"
   step="0.1"

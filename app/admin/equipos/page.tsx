@@ -9,6 +9,7 @@ export default function AdminEquipos() {
   const [nombre, setNombre] = useState("");
   const [slug, setSlug] = useState("");
   const [logo, setLogo] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
   const [colorPrincipal, setColorPrincipal] = useState("");
   const [colorSecundario, setColorSecundario] = useState("");
 
@@ -40,6 +41,36 @@ async function verificarSesion() {
       setEquipos(data);
     }
   }
+async function subirLogo(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const archivo = e.target.files?.[0];
+
+  if (!archivo) return;
+
+  setSubiendo(true);
+
+  const nombreArchivo =
+    Date.now() + "-" + archivo.name;
+
+  const { error } = await supabase.storage
+    .from("Equipos")
+    .upload(nombreArchivo, archivo);
+
+  if (error) {
+    alert(error.message);
+    setSubiendo(false);
+    return;
+  }
+
+  const { data } = supabase.storage
+    .from("Equipos")
+    .getPublicUrl(nombreArchivo);
+
+  setLogo(data.publicUrl);
+
+  setSubiendo(false);
+}
 
   async function guardarEquipo(e: React.FormEvent) {
     e.preventDefault();
@@ -187,15 +218,28 @@ async function eliminarEquipo(id: number) {
             />
 
             <input
-              type="text"
-              placeholder="Logo"
-              value={logo}
-              onChange={(e) =>
-                setLogo(e.target.value)
-              }
-              className="border rounded-xl p-3"
-            />
 
+  type="file"
+  accept="image/*"
+  onChange={subirLogo}
+  className="border rounded-xl p-3"
+/>
+
+{subiendo && (
+  <p className="text-blue-700 font-semibold">
+    Subiendo logo...
+  </p>
+)}
+
+{logo && (
+  <img
+    src={logo}
+    alt="Logo del equipo"
+    className="w-24 h-24 object-contain mx-auto"
+  />
+)}
+
+            
             <input
               type="text"
               placeholder="Color Principal"

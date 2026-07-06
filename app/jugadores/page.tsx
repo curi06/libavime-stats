@@ -51,7 +51,7 @@ export default function Jugadores() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {jugadores.map((jugador) => (
   <Link
-    key={jugador.nombre}
+    key={jugador.id}
     href={`/jugadores/${jugador.slug}`}
     className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
   >
@@ -59,7 +59,8 @@ export default function Jugadores() {
   <Image
   src={
     jugador.foto &&
-    jugador.foto.startsWith("/")
+    (jugador.foto.startsWith("http") ||
+      jugador.foto.startsWith("/"))
       ? jugador.foto
       : "/logos/LIBAVIME.png"
   }

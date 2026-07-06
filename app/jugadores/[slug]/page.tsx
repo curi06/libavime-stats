@@ -23,6 +23,7 @@ console.log("JUGADOR:", jugador);
 console.log("ERROR:", error);
 
   console.log("JUGADOR:", jugador);
+  console.log("FOTO:", jugador?.foto);
 
   if (!jugador) {
     return (
@@ -38,7 +39,7 @@ console.log("ERROR:", error);
 
           <Image
   src={
-    jugador.foto?.startsWith("/")
+    jugador.foto && jugador.foto.trim() !== ""
       ? jugador.foto
       : "/logos/LIBAVIME.png"
   }
