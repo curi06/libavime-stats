@@ -61,6 +61,23 @@ if (error || !jugador) {
 
 let colorEquipo = "#1E3A8A";
 
+let colorFondoClaro = "#DBEAFE";
+let colorTexto = "#1E3A8A";
+
+if (equipoNormalizado === "vikingos") {
+  colorFondoClaro = "#F3E8FF";
+  colorTexto = "#6B21A8";
+} else if (equipoNormalizado === "gladiadores") {
+  colorFondoClaro = "#DCFCE7";
+  colorTexto = "#15803D";
+} else if (equipoNormalizado === "espartanos") {
+  colorFondoClaro = "#FEF9C3";
+  colorTexto = "#A16207";
+} else if (equipoNormalizado === "titanes") {
+  colorFondoClaro = "#FEE2E2";
+  colorTexto = "#DC2626";
+}
+
 if (equipoNormalizado === "vikingos") {
   colorEquipo = "#6B21A8"; // Morado
 } else if (equipoNormalizado === "gladiadores") {
@@ -127,47 +144,83 @@ if (equipoNormalizado === "vikingos") {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
-                <div className="bg-blue-100 rounded-2xl p-6 text-center">
-                  <p className="text-sm font-bold text-blue-700">
-                    PUNTOS POR PARTIDO
-                  </p>
+                <div
+  style={{ backgroundColor: colorFondoClaro }}
+  className="rounded-2xl p-6 text-center"
+>
+  <p
+    style={{ color: colorTexto }}
+    className="text-sm font-bold"
+  >
+    PUNTOS POR PARTIDO
+  </p>
 
-                  <p className="text-5xl font-black text-blue-900 mt-2">
-                    {estadisticas?.ppg ?? 0}
-                  </p>
+  <p
+    style={{ color: colorEquipo }}
+    className="text-5xl font-black mt-2"
+  >
+    {estadisticas?.ppg ?? 0}
+  </p>
 
-                  <p className="font-bold mt-2">
-                    PPG
-                  </p>
-                </div>
+  <p
+    style={{ color: colorTexto }}
+    className="font-bold mt-2"
+  >
+    PPG
+  </p>
+</div>
 
-                <div className="bg-green-100 rounded-2xl p-6 text-center">
-                  <p className="text-sm font-bold text-green-700">
-                    REBOTES POR PARTIDO
-                  </p>
+                <div
+  style={{ backgroundColor: colorFondoClaro }}
+  className="rounded-2xl p-6 text-center"
+>
+  <p
+    style={{ color: colorTexto }}
+    className="text-sm font-bold"
+  >
+    REBOTES POR PARTIDO
+  </p>
 
-                  <p className="text-5xl font-black text-green-900 mt-2">
-                    {estadisticas?.rpg ?? 0}
-                  </p>
+  <p
+    style={{ color: colorEquipo }}
+    className="text-5xl font-black mt-2"
+  >
+    {estadisticas?.rpg ?? 0}
+  </p>
 
-                  <p className="font-bold mt-2">
-                    RPG
-                  </p>
-                </div>
+  <p
+    style={{ color: colorTexto }}
+    className="font-bold mt-2"
+  >
+    RPG
+  </p>
+</div>
 
-                <div className="bg-yellow-100 rounded-2xl p-6 text-center">
-                  <p className="text-sm font-bold text-yellow-700">
-                    ASISTENCIAS POR PARTIDO
-                  </p>
+                <div
+  style={{ backgroundColor: colorFondoClaro }}
+  className="rounded-2xl p-6 text-center"
+>
+  <p
+    style={{ color: colorTexto }}
+    className="text-sm font-bold"
+  >
+    ASISTENCIAS POR PARTIDO
+  </p>
 
-                  <p className="text-5xl font-black text-yellow-900 mt-2">
-                    {estadisticas?.apg ?? 0}
-                  </p>
+  <p
+    style={{ color: colorEquipo }}
+    className="text-5xl font-black mt-2"
+  >
+    {estadisticas?.apg ?? 0}
+  </p>
 
-                  <p className="font-bold mt-2">
-                    APG
-                  </p>
-                </div>
+  <p
+    style={{ color: colorTexto }}
+    className="font-bold mt-2"
+  >
+    APG
+  </p>
+</div>
 
               </div>
 
