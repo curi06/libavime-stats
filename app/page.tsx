@@ -527,86 +527,146 @@ const ultimosResultados = [...partidos]
   </div>
 </div>
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 items-stretch">
+<div className="mt-10">
+  <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
+    🏆 LÍDERES DE LA LIGA
+  </h2>
 
-  <Link href={`/jugadores/${lideresPuntos[0].slug}`}>
-    <div className="bg-red-100 p-6 rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all text-center cursor-pointer h-full">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-      <h2 className="text-xl font-bold mb-4">🏀 Líder en Puntos</h2>
+    {/* TOP 3 PUNTOS */}
+    <div className="bg-red-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        🏀 TOP 3 PUNTOS
+      </h2>
 
-      <Image
-        src={lideresPuntos[0].foto}
-        alt={lideresPuntos[0].nombre}
-        width={100}
-        height={100}
-        className="mx-auto rounded-full"
-      />
+      <div className="space-y-3">
+        {lideresPuntos.map((jugador, index) => (
+          <Link
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
+          >
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-      <p className="font-bold text-xl mt-4">
-        {lideresPuntos[0].nombre}
-      </p>
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
 
-      <p className="text-red-700 text-3xl font-black">
-  {lideresPuntos[0].ppg}
-</p>
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
+              />
 
-      <p>PPG</p>
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
+                </p>
+              </div>
 
+              <p className="text-red-700 font-black">
+                {jugador.ppg} PPG
+              </p>
+
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
-  </Link>
 
-  <Link href={`/jugadores/${lideresRebotes[0].slug}`}>
-    <div className="bg-purple-100 p-6 rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all text-center cursor-pointer h-full">
+    {/* TOP 3 REBOTES */}
+    <div className="bg-purple-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        💪 TOP 3 REBOTES
+      </h2>
 
-      <h2 className="text-xl font-bold mb-4">💪 Líder en Rebotes</h2>
+      <div className="space-y-3">
+        {lideresRebotes.map((jugador, index) => (
+          <Link
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
+          >
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-      <Image
-        src={lideresRebotes[0].foto}
-        alt={lideresRebotes[0].nombre}
-        width={120}
-        height={120}
-        className="mx-auto rounded-full"
-      />
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
 
-      <p className="font-bold text-xl mt-4">
-        {lideresRebotes[0].nombre}
-      </p>
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
+              />
 
-      <p className="text-red-700 text-3xl font-black">
-        {lideresRebotes[0].rpg}
-      </p>
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
+                </p>
+              </div>
 
-      <p>RPG</p>
+              <p className="text-purple-700 font-black">
+                {jugador.rpg} RPG
+              </p>
 
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
-  </Link>
 
-  <Link href={`/jugadores/${lideresAsistencias[0].slug}`}>
-    <div className="bg-yellow-100 p-6 rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all text-center cursor-pointer h-full">
+    {/* TOP 3 ASISTENCIAS */}
+    <div className="bg-yellow-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        🎯 TOP 3 ASISTENCIAS
+      </h2>
 
-      <h2 className="text-xl font-bold mb-4">🎯 Líder en Asistencias</h2>
+      <div className="space-y-3">
+        {lideresAsistencias.map((jugador, index) => (
+          <Link
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
+          >
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-      <Image
-        src={lideresAsistencias[0].foto}
-        alt={lideresAsistencias[0].nombre}
-        width={120}
-        height={120}
-        className="mx-auto rounded-full"
-      />
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
 
-      <p className="font-bold text-xl mt-4">
-        {lideresAsistencias[0].nombre}
-      </p>
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
+              />
 
-      <p className="text-yellow-600 text-3xl font-black">
-        {lideresAsistencias[0].apg}
-      </p>
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
+                </p>
+              </div>
 
-      <p>APG</p>
+              <p className="text-yellow-600 font-black">
+                {jugador.apg} APG
+              </p>
 
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
-  </Link>
 
+  </div>
 </div>
 </div> 
 </main>
