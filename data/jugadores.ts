@@ -1,1 +1,1 @@
-export const jugadores = [];
+export const jugadores: any[] = [];
