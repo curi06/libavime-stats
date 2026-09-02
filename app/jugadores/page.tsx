@@ -8,109 +8,151 @@ import { supabase } from "@/lib/supabase";
 
 export default function Jugadores() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     cargarJugadores();
   }, []);
 
   async function cargarJugadores() {
-  const { data, error } = await supabase
-    .from("jugadores")
-    .select("*")
-    .order("nombre");
+    setCargando(true);
+    setError("");
 
-  console.log("JUGADORES LISTA:", data);
-  console.log("ERROR LISTA:", error);
+    const { data, error } = await supabase
+      .from("jugadores")
+      .select("*")
+      .order("equipo")
+      .order("numero");
 
-  if (data) {
-    setJugadores(data);
+    console.log("JUGADORES LISTA:", data);
+    console.log("ERROR LISTA:", error);
+
+    if (error) {
+      console.error(error);
+      setError(error.message);
+      setCargando(false);
+      return;
+    }
+
+    setJugadores(data || []);
+    setCargando(false);
   }
-}
-  if (jugadores.length === 0) {
+
+  if (cargando) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <h1 className="text-2xl font-bold">
-          Cargando jugadores...
-        </h1>
-      </main>
+      <>
+        <Navbar />
+        <main className="min-h-screen flex items-center justify-center">
+          <h1 className="text-2xl font-bold">
+            Cargando jugadores...
+          </h1>
+        </main>
+      </>
     );
   }
 
- 
-  return (
-  <>
-    <Navbar />
+  if (error) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen flex items-center justify-center p-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-3">
+              Error al cargar los jugadores
+            </h1>
 
-    <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
-      <div className="max-w-6xl mx-auto">
-
-        <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
-          👤 Jugadores LIBAVIME
-        </h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {jugadores.map((jugador) => (
-  <Link
-    key={jugador.id}
-    href={`/jugadores/${jugador.slug}`}
-    className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
-  >
-            <div className="w-48 h-48 mx-auto mb-4 overflow-hidden rounded-full border-4 border-blue-900">
-  <Image
-  src={
-    jugador.foto &&
-    (jugador.foto.startsWith("http") ||
-      jugador.foto.startsWith("/"))
-      ? jugador.foto
-      : "/logos/LIBAVIME.png"
+            <p className="text-gray-700">
+              {error}
+            </p>
+          </div>
+        </main>
+      </>
+    );
   }
-  alt={jugador.nombre}
-  width={160}
-  height={160}
-  className="w-full h-full object-cover scale-125"
-/>
-</div>
-<Image
-  src="/logos/LIBAVIME.png"
-  alt="LIBAVIME"
-  width={60}
-  height={60}
-  className="mx-auto mb-2"
-/>
 
-<h2 className="text-xl font-bold">
-  {jugador.nombre}
-</h2>
+  return (
+    <>
+      <Navbar />
 
-<p className="text-gray-600">
-  #{jugador.numero} • {jugador.posicion}
-</p>
+      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
+        <div className="max-w-6xl mx-auto">
 
-<p>Equipo: {jugador.equipo}</p>
+          <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
+            👤 Jugadores LIBAVIME
+          </h1>
 
-<div className="grid grid-cols-3 gap-2 mt-4">
-  <div className="bg-blue-100 rounded-lg p-2">
-    <p className="text-xs font-semibold">PPG</p>
-    <p className="text-xl font-bold">{jugador.ppg}</p>
-  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {jugadores.map((jugador) => (
+              <Link
+                key={jugador.id}
+                href={`/jugadores/${jugador.slug || jugador.id}`}
+                className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
+              >
+                <div className="w-48 h-48 mx-auto mb-4 overflow-hidden rounded-full border-4 border-blue-900">
+                  <Image
+                    src={
+                      jugador.foto &&
+                      (jugador.foto.startsWith("http") ||
+                        jugador.foto.startsWith("/"))
+                        ? jugador.foto
+                        : "/logos/LIBAVIME.png"
+                    }
+                    alt={jugador.nombre || "Jugador"}
+                    width={160}
+                    height={160}
+                    className="w-full h-full object-cover scale-125"
+                  />
+                </div>
 
-  <div className="bg-green-100 rounded-lg p-2">
-    <p className="text-xs font-semibold">RPG</p>
-    <p className="text-xl font-bold">{jugador.rpg}</p>
-  </div>
+                <Image
+                  src="/logos/LIBAVIME.png"
+                  alt="LIBAVIME"
+                  width={60}
+                  height={60}
+                  className="mx-auto mb-2"
+                />
 
-  <div className="bg-yellow-100 rounded-lg p-2">
-    <p className="text-xs font-semibold">APG</p>
-    <p className="text-xl font-bold">{jugador.apg}</p>
-  </div>
-</div>
-            </Link>
-                   ))}
+                <h2 className="text-xl font-bold">
+                  {jugador.nombre}
+                </h2>
+
+                <p className="text-gray-600">
+                  #{jugador.numero || "-"} • {jugador.posicion || "Jugador"}
+                </p>
+
+                <p>
+                  Equipo: {jugador.equipo}
+                </p>
+
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="bg-blue-100 rounded-lg p-2">
+                    <p className="text-xs font-semibold">PPG</p>
+                    <p className="text-xl font-bold">
+                      {jugador.ppg ?? 0}
+                    </p>
+                  </div>
+
+                  <div className="bg-green-100 rounded-lg p-2">
+                    <p className="text-xs font-semibold">RPG</p>
+                    <p className="text-xl font-bold">
+                      {jugador.rpg ?? 0}
+                    </p>
+                  </div>
+
+                  <div className="bg-yellow-100 rounded-lg p-2">
+                    <p className="text-xs font-semibold">APG</p>
+                    <p className="text-xl font-bold">
+                      {jugador.apg ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
         </div>
-
-      </div>
-
-    </main>
-  </>
-);
+      </main>
+    </>
+  );
 }
