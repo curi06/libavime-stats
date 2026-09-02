@@ -1,81 +1,107 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
+import DashboardStats from "@/app/components/admin/DashboardStats";
+import NextGameCard from "@/app/components/admin/NextGameCard";
+import QuickActions from "@/app/components/admin/QuickActions";
+import LatestResults from "@/app/components/admin/LatestResults";
 export default function AdminPage() {
-  const router = useRouter();
+const router = useRouter();
+const [totalJugadores, setTotalJugadores] = useState(0);
+const [totalEquipos, setTotalEquipos] = useState(0);
+const [totalPartidos, setTotalPartidos] = useState(0);
+const [proximoPartido, setProximoPartido] = useState<any>(null);
+const [ultimosResultados, setUltimosResultados] = useState<any[]>([]);
 
   useEffect(() => {
-    verificarSesion();
-  }, []);
+  verificarSesion();
+  cargarDashboard();
+}, []);
 
-  async function verificarSesion() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+async function verificarSesion() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-    if (!session) {
-      router.push("/login");
-    }
+  if (!session) {
+    router.push("/login");
   }
+}
 
-  return (
-    <main className="min-h-screen bg-slate-100 p-6 md:p-10">
-      <div className="max-w-6xl mx-auto">
+async function cargarDashboard() {
+  const { count: jugadores } = await supabase
+    .from("jugadores")
+    .select("*", { count: "exact", head: true });
 
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push("/login");
-            }}
-            className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700"
-          >
-            🚪 Cerrar sesión
-          </button>
-        </div>
+  const { count: equipos } = await supabase
+    .from("equipos")
+    .select("*", { count: "exact", head: true });
 
-        <h1 className="text-4xl md:text-5xl font-black text-center text-blue-900 mb-10">
-          ⚙️ Panel de Administración LIBAVIME
-        </h1>
+  const { count: partidos } = await supabase
+    .from("partidos")
+    .select("*", { count: "exact", head: true });
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  setTotalJugadores(jugadores || 0);
+  setTotalEquipos(equipos || 0);
+  setTotalPartidos(partidos || 0);
 
-          <Link
-            href="/admin/jugadores"
-            className="bg-white rounded-2xl shadow-lg p-8 text-center hover:scale-105 transition"
-          >
-            <h2 className="text-3xl font-black mb-3">👤 Jugadores</h2>
-            <p className="text-gray-600">
-              Crear, editar y eliminar jugadores.
-            </p>
-          </Link>
+  const { data: proximo } = await supabase
+  .from("partidos")
+  .select("*")
+  .eq("estado", "Programado")
+  .order("fecha", { ascending: true })
+  .limit(1)
+  .single();
 
-          <Link
-            href="/admin/equipos"
-            className="bg-white rounded-2xl shadow-lg p-8 text-center hover:scale-105 transition"
-          >
-            <h2 className="text-3xl font-black mb-3">🏀 Equipos</h2>
-            <p className="text-gray-600">
-              Administrar equipos y logos.
-            </p>
-          </Link>
+  setProximoPartido(proximo);
 
-          <Link
-            href="/admin/partidos"
-            className="bg-white rounded-2xl shadow-lg p-8 text-center hover:scale-105 transition"
-          >
-            <h2 className="text-3xl font-black mb-3">📅 Partidos</h2>
-            <p className="text-gray-600">
-              Crear calendario y resultados.
-            </p>
-          </Link>
+  // 👇 Agrega este bloque aquí
+  const { data: resultados } = await supabase
+    .from("partidos")
+    .select("*")
+    .eq("estado", "Finalizado")
+    .order("fecha", { ascending: false })
+    .limit(5);
 
-        </div>
+  setUltimosResultados(resultados ?? []);
+}
+
+ return (
+  <>
+    <div className="max-w-6xl mx-auto">
+
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
+          className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700"
+        >
+          🚪 Cerrar sesión
+        </button>
       </div>
-    </main>
-  );
+
+      <h1 className="text-4xl md:text-5xl font-black text-center text-blue-900 mb-10">
+        ⚙️ Panel de Administración LIBAVIME
+      </h1>
+
+      {/* Tarjetas de estadísticas */}
+    <DashboardStats
+  totalJugadores={totalJugadores}
+  totalEquipos={totalEquipos}
+  totalPartidos={totalPartidos}
+/>
+
+<NextGameCard proximoPartido={proximoPartido} />
+
+<LatestResults partidos={ultimosResultados} />
+
+<QuickActions />
+
+    </div>
+  </>
+);
 }

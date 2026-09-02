@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import Navbar from "../../components/Navbar";
 import Image from "next/image";
+import Link from "next/link";
 
 export default async function JugadorPage({
   params,
@@ -8,96 +10,155 @@ export default async function JugadorPage({
 }) {
   const { slug } = await params;
 
-  console.log("SLUG URL:", slug);
+  const { data: jugador, error } = await supabase
+    .from("jugadores")
+    .select("*")
+    .eq("slug", slug)
+    .single();
 
-const { data, error, count } = await supabase
-  .from("jugadores")
-  .select("*", { count: "exact" });
-
-
-const jugador = data?.find(
-  (j) => j.slug === slug
-);
-console.log("SLUG:", slug);
-console.log("JUGADOR:", jugador);
-console.log("ERROR:", error);
-
-  console.log("JUGADOR:", jugador);
-  console.log("FOTO:", jugador?.foto);
-
-  if (!jugador) {
+  if (error || !jugador) {
     return (
-      <main className="p-10">
-        <h1>Jugador no encontrado</h1>
-      </main>
+      <>
+        <Navbar />
+
+        <main className="min-h-screen bg-slate-100 pt-28 p-6">
+          <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8 text-center">
+            <h1 className="text-3xl font-black text-blue-900">
+              Jugador no encontrado
+            </h1>
+
+            <p className="text-gray-600 mt-3">
+              No pudimos encontrar este jugador.
+            </p>
+
+            <Link
+              href="/jugadores"
+              className="inline-block mt-6 bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
+            >
+              ← Volver a jugadores
+            </Link>
+          </div>
+        </main>
+      </>
     );
-  }  return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-10">
-      <div className="max-w-3xl mx-auto">
-
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-
-          <Image
-  src={
-    jugador.foto && jugador.foto.trim() !== ""
-      ? jugador.foto
-      : "/logos/LIBAVIME.png"
   }
-  alt={jugador.nombre}
-  width={250}
-  height={250}
-  className="mx-auto rounded-full border-4 border-blue-900"
-/>
-          <h1 className="text-4xl font-black mt-6">
-            {jugador.nombre}
-          </h1>
 
-          <p className="text-gray-600 text-lg">
-            #{jugador.numero} • {jugador.posicion}
-          </p>
+  const foto =
+    jugador.foto &&
+    (jugador.foto.startsWith("http") ||
+      jugador.foto.startsWith("/"))
+      ? jugador.foto
+      : "/logos/LIBAVIME.png";
 
-          <div className="mt-4">
-           <Image
-  src="/logos/LIBAVIME.png"
-  alt="LIBAVIME"
-  width={80}
-  height={80}
-  className="mx-auto"
-/>
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
+        <div className="max-w-4xl mx-auto">
+
+          <Link
+            href="/jugadores"
+            className="inline-block mb-6 text-blue-900 font-bold hover:underline"
+          >
+            ← Volver a jugadores
+          </Link>
+
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+
+            <div className="bg-blue-900 p-8 md:p-12 text-center text-white">
+
+              <div className="w-52 h-52 mx-auto overflow-hidden rounded-full border-4 border-white bg-white">
+                <Image
+                  src={foto}
+                  alt={jugador.nombre}
+                  width={250}
+                  height={250}
+                  className="w-full h-full object-cover scale-125"
+                />
+              </div>
+
+              <h1 className="text-4xl md:text-5xl font-black mt-6">
+                {jugador.nombre}
+              </h1>
+
+              <p className="text-xl mt-2">
+                #{jugador.numero ?? "-"} •{" "}
+                {jugador.posicion || "Jugador"}
+              </p>
+
+              <p className="font-bold text-lg mt-3">
+                {jugador.equipo}
+              </p>
+
+            </div>
+
+            <div className="p-6 md:p-10">
+
+              <h2 className="text-2xl font-black text-center mb-6">
+                ESTADÍSTICAS DE TEMPORADA
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+                <div className="bg-blue-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm font-bold text-blue-700">
+                    PUNTOS POR PARTIDO
+                  </p>
+
+                  <p className="text-5xl font-black text-blue-900 mt-2">
+                    {jugador.ppg ?? 0}
+                  </p>
+
+                  <p className="font-bold mt-2">
+                    PPG
+                  </p>
+                </div>
+
+                <div className="bg-green-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm font-bold text-green-700">
+                    REBOTES POR PARTIDO
+                  </p>
+
+                  <p className="text-5xl font-black text-green-900 mt-2">
+                    {jugador.rpg ?? 0}
+                  </p>
+
+                  <p className="font-bold mt-2">
+                    RPG
+                  </p>
+                </div>
+
+                <div className="bg-yellow-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm font-bold text-yellow-700">
+                    ASISTENCIAS POR PARTIDO
+                  </p>
+
+                  <p className="text-5xl font-black text-yellow-900 mt-2">
+                    {jugador.apg ?? 0}
+                  </p>
+
+                  <p className="font-bold mt-2">
+                    APG
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="mt-10 border-t pt-8">
+                <h2 className="text-2xl font-black text-center">
+                  PRÓXIMAMENTE
+                </h2>
+
+                <p className="text-center text-gray-600 mt-2">
+                  Aquí mostraremos el historial partido por partido.
+                </p>
+              </div>
+
+            </div>
           </div>
-
-          <p className="font-bold text-xl mt-2">
-            {jugador.equipo}
-          </p>
-
-          <div className="grid grid-cols-3 gap-4 mt-8">
-
-            <div className="bg-blue-100 rounded-xl p-4">
-              <p className="text-sm">PPG</p>
-              <p className="text-3xl font-bold">
-                {jugador.ppg}
-              </p>
-            </div>
-
-            <div className="bg-green-100 rounded-xl p-4">
-              <p className="text-sm">RPG</p>
-              <p className="text-3xl font-bold">
-                {jugador.rpg}
-              </p>
-            </div>
-
-            <div className="bg-yellow-100 rounded-xl p-4">
-              <p className="text-sm">APG</p>
-              <p className="text-3xl font-bold">
-                {jugador.apg}
-              </p>
-            </div>
-
-          </div>
-
         </div>
-
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

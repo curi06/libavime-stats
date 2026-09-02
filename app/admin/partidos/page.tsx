@@ -189,7 +189,17 @@ async function verificarSesion() {
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 md:p-10">
-
+<div className="flex justify-end mb-6">
+  <button
+    onClick={async () => {
+      await supabase.auth.signOut();
+      router.push("/login");
+    }}
+    className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-3 rounded-xl"
+  >
+    🚪 Cerrar sesión
+  </button>
+</div>
       <div className="max-w-5xl mx-auto">
 
         <h1 className="text-4xl font-black text-blue-900 text-center mb-2">

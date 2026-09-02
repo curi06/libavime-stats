@@ -33,14 +33,22 @@ async function verificarSesion() {
 }
 
 async function cargarJugadores() {
+  console.log("Iniciando carga de jugadores...");
+
   const { data, error } = await supabase
     .from("jugadores")
     .select("*")
     .order("nombre");
 
-  if (!error && data) {
-    setJugadores(data);
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+
+  if (error) {
+    alert(error.message);
+    return;
   }
+
+  setJugadores(data ?? []);
 }
 async function subirFoto(
   e: React.ChangeEvent<HTMLInputElement>
