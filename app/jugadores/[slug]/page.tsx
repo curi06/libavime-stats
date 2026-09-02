@@ -11,12 +11,19 @@ export default async function JugadorPage({
   const { slug } = await params;
 
   const { data: jugador, error } = await supabase
-    .from("jugadores")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  .from("jugadores")
+  .select("*")
+  .eq("slug", slug)
+  .single();
 
-  if (error || !jugador) {
+const { data: estadisticas, error: estadisticasError } = jugador
+  ? await supabase
+      .from("estadisticas_jugadores")
+      .select("*")
+      .eq("jugador_id", jugador.id)
+      .single()
+  : { data: null, error: null };
+if (error || !jugador) {
     return (
       <>
         <Navbar />
@@ -50,6 +57,19 @@ export default async function JugadorPage({
       ? jugador.foto
       : "/logos/LIBAVIME.png";
 
+     const equipoNormalizado = jugador.equipo?.trim().toLowerCase();
+
+let colorEquipo = "#1e3a8a";
+
+if (equipoNormalizado === "vikingos") {
+  colorEquipo = "#6b21a8";
+} else if (equipoNormalizado === "gladiadores") {
+  colorEquipo = "#d4a017";
+} else if (equipoNormalizado === "espartanos") {
+  colorEquipo = "#b91c1c";
+} else if (equipoNormalizado === "titanes") {
+  colorEquipo = "#1d4ed8";
+}
   return (
     <>
       <Navbar />
@@ -66,7 +86,10 @@ export default async function JugadorPage({
 
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
 
-            <div className="bg-blue-900 p-8 md:p-12 text-center text-white">
+            <div
+            style={{ backgroundColor: colorEquipo }}
+            className="p-8 md:p-12 text-center text-white"
+>
 
               <div className="w-52 h-52 mx-auto overflow-hidden rounded-full border-4 border-white bg-white">
                 <Image
@@ -90,6 +113,9 @@ export default async function JugadorPage({
               <p className="font-bold text-lg mt-3">
                 {jugador.equipo}
               </p>
+               <p className="text-lg mt-2">
+               {estadisticas?.partidos_jugados ?? 0} partidos jugados
+               </p>
 
             </div>
 
@@ -107,7 +133,7 @@ export default async function JugadorPage({
                   </p>
 
                   <p className="text-5xl font-black text-blue-900 mt-2">
-                    {jugador.ppg ?? 0}
+                    {estadisticas?.ppg ?? 0}
                   </p>
 
                   <p className="font-bold mt-2">
@@ -121,7 +147,7 @@ export default async function JugadorPage({
                   </p>
 
                   <p className="text-5xl font-black text-green-900 mt-2">
-                    {jugador.rpg ?? 0}
+                    {estadisticas?.rpg ?? 0}
                   </p>
 
                   <p className="font-bold mt-2">
@@ -135,7 +161,7 @@ export default async function JugadorPage({
                   </p>
 
                   <p className="text-5xl font-black text-yellow-900 mt-2">
-                    {jugador.apg ?? 0}
+                    {estadisticas?.apg ?? 0}
                   </p>
 
                   <p className="font-bold mt-2">

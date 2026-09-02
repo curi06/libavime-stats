@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 export default function Jugadores() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     cargarJugadores();
@@ -17,25 +16,41 @@ export default function Jugadores() {
 
   async function cargarJugadores() {
     setCargando(true);
-    setError("");
 
-    const { data, error } = await supabase
+    const { data: jugadoresData, error: jugadoresError } = await supabase
       .from("jugadores")
       .select("*")
-      .order("equipo")
-      .order("numero");
+      .order("nombre");
 
-    console.log("JUGADORES LISTA:", data);
-    console.log("ERROR LISTA:", error);
+    const { data: estadisticasData, error: estadisticasError } =
+      await supabase
+        .from("estadisticas_jugadores")
+        .select("*");
 
-    if (error) {
-      console.error(error);
-      setError(error.message);
-      setCargando(false);
-      return;
+    console.log("JUGADORES:", jugadoresData);
+    console.log("ERROR JUGADORES:", jugadoresError);
+
+    console.log("ESTADISTICAS:", estadisticasData);
+    console.log("ERROR ESTADISTICAS:", estadisticasError);
+
+    if (jugadoresData) {
+      const jugadoresCompletos = jugadoresData.map((jugador) => {
+        const estadisticas = estadisticasData?.find(
+          (estadistica) => estadistica.jugador_id === jugador.id
+        );
+
+        return {
+          ...jugador,
+          ppg: estadisticas?.ppg ?? 0,
+          rpg: estadisticas?.rpg ?? 0,
+          apg: estadisticas?.apg ?? 0,
+          partidos_jugados: estadisticas?.partidos_jugados ?? 0,
+        };
+      });
+
+      setJugadores(jugadoresCompletos);
     }
 
-    setJugadores(data || []);
     setCargando(false);
   }
 
@@ -43,29 +58,11 @@ export default function Jugadores() {
     return (
       <>
         <Navbar />
+
         <main className="min-h-screen flex items-center justify-center">
           <h1 className="text-2xl font-bold">
             Cargando jugadores...
           </h1>
-        </main>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <>
-        <Navbar />
-        <main className="min-h-screen flex items-center justify-center p-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-3">
-              Error al cargar los jugadores
-            </h1>
-
-            <p className="text-gray-700">
-              {error}
-            </p>
-          </div>
         </main>
       </>
     );
@@ -86,7 +83,7 @@ export default function Jugadores() {
             {jugadores.map((jugador) => (
               <Link
                 key={jugador.id}
-                href={`/jugadores/${jugador.slug || jugador.id}`}
+                href={`/jugadores/${jugador.slug}`}
                 className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
               >
                 <div className="w-48 h-48 mx-auto mb-4 overflow-hidden rounded-full border-4 border-blue-900">
@@ -98,7 +95,7 @@ export default function Jugadores() {
                         ? jugador.foto
                         : "/logos/LIBAVIME.png"
                     }
-                    alt={jugador.nombre || "Jugador"}
+                    alt={jugador.nombre}
                     width={160}
                     height={160}
                     className="w-full h-full object-cover scale-125"
@@ -118,35 +115,38 @@ export default function Jugadores() {
                 </h2>
 
                 <p className="text-gray-600">
-                  #{jugador.numero || "-"} • {jugador.posicion || "Jugador"}
+                  #{jugador.numero} • {jugador.posicion}
                 </p>
 
-                <p>
-                  Equipo: {jugador.equipo}
+                <p>Equipo: {jugador.equipo}</p>
+
+                <p className="text-sm text-gray-500 mt-2">
+                  {jugador.partidos_jugados} PJ
                 </p>
 
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   <div className="bg-blue-100 rounded-lg p-2">
                     <p className="text-xs font-semibold">PPG</p>
                     <p className="text-xl font-bold">
-                      {jugador.ppg ?? 0}
+                      {jugador.ppg}
                     </p>
                   </div>
 
                   <div className="bg-green-100 rounded-lg p-2">
                     <p className="text-xs font-semibold">RPG</p>
                     <p className="text-xl font-bold">
-                      {jugador.rpg ?? 0}
+                      {jugador.rpg}
                     </p>
                   </div>
 
                   <div className="bg-yellow-100 rounded-lg p-2">
                     <p className="text-xs font-semibold">APG</p>
                     <p className="text-xl font-bold">
-                      {jugador.apg ?? 0}
+                      {jugador.apg}
                     </p>
                   </div>
                 </div>
+
               </Link>
             ))}
           </div>
