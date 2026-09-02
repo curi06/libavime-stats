@@ -1,6 +1,6 @@
 import { equipos } from "../../../data/equipos";
 import { partidos } from "../../../data/partidos";
-import { jugadores } from "../../../data/jugadores";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -19,11 +19,18 @@ if (!equipo) {
   return <h1>Equipo no encontrado</h1>;
 }
 
-const jugadoresEquipo = jugadores.filter(
-  (jugador) => jugador.equipo === equipo.nombre
+const { data: jugadoresData, error: jugadoresError } = await supabase
+  .from("jugadores")
+  .select("*");
+
+const jugadoresEquipo = (jugadoresData || []).filter(
+  (jugador) =>
+    jugador.equipo?.trim().toLowerCase() ===
+    equipo.nombre.trim().toLowerCase()
 );
+
 const liderAnotador = [...jugadoresEquipo].sort(
-  (a, b) => b.ppg - a.ppg
+  (a, b) => (b.ppg || 0) - (a.ppg || 0)
 )[0];
 
 const proximosPartidos = partidos.filter(
@@ -118,16 +125,24 @@ const maximoAnotador = jugadoresEquipo.reduce(
     🏆 Jugador Franquicia
   </h2>
 
-  <Link
-  href={`/jugadores/${liderAnotador.slug}`}
-  className="text-xl font-bold text-blue-700 hover:underline"
->
-  {liderAnotador.nombre}
-</Link>
+  {liderAnotador ? (
+  <>
+    <Link
+      href={`/jugadores/${liderAnotador.slug}`}
+      className="text-xl font-bold text-blue-700 hover:underline"
+    >
+      {liderAnotador.nombre}
+    </Link>
 
-  <p>
-    {liderAnotador.ppg} PPG
+    <p>
+      {liderAnotador.ppg ?? 0} PPG
+    </p>
+  </>
+) : (
+  <p className="text-gray-600">
+    No hay jugadores registrados para este equipo.
   </p>
+)}
 </div>
         
 <h2 className="text-2xl font-bold mt-8 mb-4">
