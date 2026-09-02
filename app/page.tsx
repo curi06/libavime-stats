@@ -1,13 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { jugadores } from "../data/jugadores";
+import { supabase } from "@/lib/supabase";
 import { partidos } from "../data/partidos";
 import { equipos } from "../data/equipos";
 
 export default function Home(){
+    const [jugadores, setJugadores] = useState<any[]>([]);
+
+  useEffect(() => {
+    const cargarJugadores = async () => {
+      const { data: jugadoresData, error: jugadoresError } = await supabase
+        .from("jugadores")
+        .select(`
+          *,
+          estadisticas_jugadores (
+            ppg,
+            rpg,
+            apg,
+            partidos_jugados
+          )
+        `);
+
+      if (jugadoresError) {
+        console.error("Error cargando jugadores:", jugadoresError);
+        return;
+      }
+
+      const jugadoresConEstadisticas = (jugadoresData ?? []).map(
+        (jugador: any) => ({
+          ...jugador,
+          ppg: jugador.estadisticas_jugadores?.[0]?.ppg ?? 0,
+          rpg: jugador.estadisticas_jugadores?.[0]?.rpg ?? 0,
+          apg: jugador.estadisticas_jugadores?.[0]?.apg ?? 0,
+          partidos_jugados:
+            jugador.estadisticas_jugadores?.[0]?.partidos_jugados ?? 0,
+        })
+      );
+
+      setJugadores(jugadoresConEstadisticas);
+    };
+
+    cargarJugadores();
+  }, []);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const lideresPuntos = [...jugadores]
@@ -21,9 +58,22 @@ export default function Home(){
   const lideresAsistencias = [...jugadores]
     .sort((a, b) => b.apg - a.apg)
     .slice(0, 3);
+    if (jugadores.length === 0) {
+  return (
+    <>
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <p className="text-xl font-bold text-blue-900">
+          Cargando jugadores...
+        </p>
+      </main>
+    </>
+  );
+}
   const posiciones = equipos.map((equipo) => {
   let ganados = 0;
   let perdidos = 0;
+
+  
 
   partidos.forEach((partido) => {
     if (
