@@ -57,18 +57,18 @@ if (error || !jugador) {
       ? jugador.foto
       : "/logos/LIBAVIME.png";
 
-     const equipoNormalizado = jugador.equipo?.trim().toLowerCase();
+    const equipoNormalizado = jugador.equipo?.trim().toLowerCase();
 
-let colorEquipo = "#1e3a8a";
+let colorEquipo = "#1E3A8A";
 
 if (equipoNormalizado === "vikingos") {
-  colorEquipo = "#6b21a8";
+  colorEquipo = "#4B1D73";
 } else if (equipoNormalizado === "gladiadores") {
-  colorEquipo = "#d4a017";
+  colorEquipo = "#D4A017";
 } else if (equipoNormalizado === "espartanos") {
-  colorEquipo = "#b91c1c";
+  colorEquipo = "#B5121B";
 } else if (equipoNormalizado === "titanes") {
-  colorEquipo = "#1d4ed8";
+  colorEquipo = "#0057B8";
 }
   return (
     <>
