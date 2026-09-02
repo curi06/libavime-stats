@@ -87,6 +87,19 @@ if (equipoNormalizado === "vikingos") {
 } else if (equipoNormalizado === "titanes") {
   colorEquipo = "#DC2626"; // Rojo
 }
+const partidosJugados = estadisticas?.partidos_jugados ?? 0;
+
+const puntosTotales = (
+  (estadisticas?.ppg ?? 0) * partidosJugados
+).toFixed(0);
+
+const rebotesTotales = (
+  (estadisticas?.rpg ?? 0) * partidosJugados
+).toFixed(0);
+
+const asistenciasTotales = (
+  (estadisticas?.apg ?? 0) * partidosJugados
+).toFixed(0);
   return (
     <>
       <Navbar />
@@ -145,6 +158,8 @@ if (equipoNormalizado === "vikingos") {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
                 <div
+
+                
   style={{ backgroundColor: colorFondoClaro }}
   className="rounded-2xl p-6 text-center"
 >
@@ -170,7 +185,7 @@ if (equipoNormalizado === "vikingos") {
   </p>
 </div>
 
-                <div
+<div
   style={{ backgroundColor: colorFondoClaro }}
   className="rounded-2xl p-6 text-center"
 >
@@ -196,7 +211,7 @@ if (equipoNormalizado === "vikingos") {
   </p>
 </div>
 
-                <div
+<div
   style={{ backgroundColor: colorFondoClaro }}
   className="rounded-2xl p-6 text-center"
 >
@@ -220,11 +235,95 @@ if (equipoNormalizado === "vikingos") {
   >
     APG
   </p>
+  </div>
+</div>
+<div className="mt-10">
+  <h2 className="text-2xl font-black text-center mb-6">
+    TOTALES DE TEMPORADA
+  </h2>
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+    <div
+      style={{ backgroundColor: colorFondoClaro }}
+      className="rounded-2xl p-5 text-center"
+    >
+      <p
+        style={{ color: colorTexto }}
+        className="text-sm font-bold"
+      >
+        PUNTOS
+      </p>
+
+      <p
+        style={{ color: colorEquipo }}
+        className="text-3xl font-black mt-2"
+      >
+        {puntosTotales}
+      </p>
+    </div>
+
+    <div
+      style={{ backgroundColor: colorFondoClaro }}
+      className="rounded-2xl p-5 text-center"
+    >
+      <p
+        style={{ color: colorTexto }}
+        className="text-sm font-bold"
+      >
+        REBOTES
+      </p>
+
+      <p
+        style={{ color: colorEquipo }}
+        className="text-3xl font-black mt-2"
+      >
+        {rebotesTotales}
+      </p>
+    </div>
+
+    <div
+      style={{ backgroundColor: colorFondoClaro }}
+      className="rounded-2xl p-5 text-center"
+    >
+      <p
+        style={{ color: colorTexto }}
+        className="text-sm font-bold"
+      >
+        ASISTENCIAS
+      </p>
+
+      <p
+        style={{ color: colorEquipo }}
+        className="text-3xl font-black mt-2"
+      >
+        {asistenciasTotales}
+      </p>
+    </div>
+
+    <div
+      style={{ backgroundColor: colorFondoClaro }}
+      className="rounded-2xl p-5 text-center"
+    >
+      <p
+        style={{ color: colorTexto }}
+        className="text-sm font-bold"
+      >
+        JJ
+      </p>
+
+      <p
+        style={{ color: colorEquipo }}
+        className="text-3xl font-black mt-2"
+      >
+        {partidosJugados}
+      </p>
+    </div>
+
+  </div>
 </div>
 
-              </div>
-
-              <div className="mt-10 border-t pt-8">
+<div className="mt-10 border-t pt-8">
                 <h2 className="text-2xl font-black text-center">
                   PRÓXIMAMENTE
                 </h2>
