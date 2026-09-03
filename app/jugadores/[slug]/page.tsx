@@ -3,6 +3,24 @@ import Navbar from "../../components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
 
+type Jugador = {
+  id: number;
+  slug: string | null;
+  nombre: string;
+  numero: number | null;
+  posicion: string | null;
+  equipo: string | null;
+  foto: string | null;
+};
+
+type EstadisticaPartido = {
+  jugador_id: number;
+  puntos: number | null;
+  rebotes: number | null;
+  asistencias: number | null;
+  partido_id: number | null;
+};
+
 export default async function JugadorPage({
   params,
 }: {
@@ -10,39 +28,30 @@ export default async function JugadorPage({
 }) {
   const { slug } = await params;
 
-  const { data: jugador, error } = await supabase
-  .from("jugadores")
-  .select("*")
-  .eq("slug", slug)
-  .single();
-
-const { data: estadisticas, error: estadisticasError } = jugador
-  ? await supabase
-      .from("estadisticas_jugadores")
+  // BUSCAR JUGADOR
+  const { data: jugador, error: jugadorError } =
+    await supabase
+      .from("jugadores")
       .select("*")
-      .eq("jugador_id", jugador.id)
-      .single()
-  : { data: null, error: null };
-if (error || !jugador) {
+      .eq("slug", slug)
+      .single();
+
+  if (jugadorError || !jugador) {
     return (
       <>
         <Navbar />
 
-        <main className="min-h-screen bg-slate-100 pt-28 p-6">
-          <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8 text-center">
-            <h1 className="text-3xl font-black text-blue-900">
+        <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
+          <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-10 text-center">
+            <h1 className="text-3xl font-black">
               Jugador no encontrado
             </h1>
-
-            <p className="text-gray-600 mt-3">
-              No pudimos encontrar este jugador.
-            </p>
 
             <Link
               href="/jugadores"
               className="inline-block mt-6 bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
             >
-              ← Volver a jugadores
+              Volver a jugadores
             </Link>
           </div>
         </main>
@@ -50,291 +59,263 @@ if (error || !jugador) {
     );
   }
 
+  // BUSCAR TODAS LAS ESTADÍSTICAS DEL JUGADOR
+  const {
+    data: estadisticasData,
+    error: estadisticasError,
+  } = await supabase
+    .from("estadisticas_partido")
+    .select(`
+      jugador_id,
+      puntos,
+      rebotes,
+      asistencias,
+      partido_id
+    `)
+    .eq("jugador_id", jugador.id);
+
+  if (estadisticasError) {
+    console.error(
+      "Error cargando estadísticas:",
+      estadisticasError
+    );
+  }
+
+  const estadisticas =
+    (estadisticasData ?? []) as EstadisticaPartido[];
+
+  // SUMAR ESTADÍSTICAS
+  const puntosTotales = estadisticas.reduce(
+    (total, estadistica) =>
+      total +
+      Number(estadistica.puntos ?? 0),
+    0
+  );
+
+  const rebotesTotales = estadisticas.reduce(
+    (total, estadistica) =>
+      total +
+      Number(estadistica.rebotes ?? 0),
+    0
+  );
+
+  const asistenciasTotales = estadisticas.reduce(
+    (total, estadistica) =>
+      total +
+      Number(estadistica.asistencias ?? 0),
+    0
+  );
+
+  // PARTIDOS JUGADOS
+  const partidosUnicos = new Set(
+    estadisticas
+      .map(
+        (estadistica) =>
+          estadistica.partido_id
+      )
+      .filter(
+        (partidoId) =>
+          partidoId !== null
+      )
+  );
+
+  const partidosJugados =
+    partidosUnicos.size;
+
+  // CALCULAR PROMEDIOS
+  const ppg =
+    partidosJugados > 0
+      ? Number(
+          (
+            puntosTotales /
+            partidosJugados
+          ).toFixed(1)
+        )
+      : 0;
+
+  const rpg =
+    partidosJugados > 0
+      ? Number(
+          (
+            rebotesTotales /
+            partidosJugados
+          ).toFixed(1)
+        )
+      : 0;
+
+  const apg =
+    partidosJugados > 0
+      ? Number(
+          (
+            asistenciasTotales /
+            partidosJugados
+          ).toFixed(1)
+        )
+      : 0;
+
+  // FOTO
   const foto =
     jugador.foto &&
-    (jugador.foto.startsWith("http") ||
-      jugador.foto.startsWith("/"))
+    (
+      jugador.foto.startsWith("http") ||
+      jugador.foto.startsWith("/")
+    )
       ? jugador.foto
       : "/logos/LIBAVIME.png";
 
-  const equipoNormalizado = jugador.equipo?.trim().toLowerCase();
-
-let colorEquipo = "#1E3A8A";
-
-let colorFondoClaro = "#DBEAFE";
-let colorTexto = "#1E3A8A";
-
-if (equipoNormalizado === "vikingos") {
-  colorFondoClaro = "#F3E8FF";
-  colorTexto = "#6B21A8";
-} else if (equipoNormalizado === "gladiadores") {
-  colorFondoClaro = "#DCFCE7";
-  colorTexto = "#15803D";
-} else if (equipoNormalizado === "espartanos") {
-  colorFondoClaro = "#FEF9C3";
-  colorTexto = "#A16207";
-} else if (equipoNormalizado === "titanes") {
-  colorFondoClaro = "#FEE2E2";
-  colorTexto = "#DC2626";
-}
-
-if (equipoNormalizado === "vikingos") {
-  colorEquipo = "#6B21A8"; // Morado
-} else if (equipoNormalizado === "gladiadores") {
-  colorEquipo = "#15803D"; // Verde
-} else if (equipoNormalizado === "espartanos") {
-  colorEquipo = "#FACC15"; // Amarillo
-} else if (equipoNormalizado === "titanes") {
-  colorEquipo = "#DC2626"; // Rojo
-}
-const partidosJugados = estadisticas?.partidos_jugados ?? 0;
-
-const puntosTotales = (
-  (estadisticas?.ppg ?? 0) * partidosJugados
-).toFixed(0);
-
-const rebotesTotales = (
-  (estadisticas?.rpg ?? 0) * partidosJugados
-).toFixed(0);
-
-const asistenciasTotales = (
-  (estadisticas?.apg ?? 0) * partidosJugados
-).toFixed(0);
   return (
     <>
       <Navbar />
 
       <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
 
-          <Link
-            href="/jugadores"
-            className="inline-block mb-6 text-blue-900 font-bold hover:underline"
-          >
-            ← Volver a jugadores
-          </Link>
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+            {/* ENCABEZADO */}
+            <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-8 md:p-10 text-center">
 
-            <div
-            style={{ backgroundColor: colorEquipo }}
-            className="p-8 md:p-12 text-center text-white"
->
-
-              <div className="w-52 h-52 mx-auto overflow-hidden rounded-full border-4 border-white bg-white">
-                <Image
-                  src={foto}
-                  alt={jugador.nombre}
-                  width={250}
-                  height={250}
-                  className="w-full h-full object-cover scale-125"
-                />
-              </div>
+              <Image
+                src={foto}
+                alt={jugador.nombre}
+                width={220}
+                height={220}
+                className="mx-auto rounded-full border-4 border-white object-cover"
+              />
 
               <h1 className="text-4xl md:text-5xl font-black mt-6">
                 {jugador.nombre}
               </h1>
 
-              <p className="text-xl mt-2">
-                #{jugador.numero ?? "-"} •{" "}
-                {jugador.posicion || "Jugador"}
+              <p className="text-xl md:text-2xl mt-3">
+                {jugador.equipo ??
+                  "Sin equipo"}
               </p>
 
-              <p className="font-bold text-lg mt-3">
-                {jugador.equipo}
-              </p>
-               <p className="text-lg mt-2">
-               {estadisticas?.partidos_jugados ?? 0} partidos jugados
-               </p>
+              {jugador.numero !== null && (
+                <p className="text-lg mt-2">
+                  #{jugador.numero}
+                </p>
+              )}
+
+              {jugador.posicion && (
+                <p className="text-lg mt-1">
+                  {jugador.posicion}
+                </p>
+              )}
 
             </div>
 
+            {/* ESTADÍSTICAS */}
             <div className="p-6 md:p-10">
 
-              <h2 className="text-2xl font-black text-center mb-6">
-                ESTADÍSTICAS DE TEMPORADA
+              <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
+                📊 Estadísticas de la Temporada
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
-                <div
+                {/* PARTIDOS */}
+                <div className="bg-slate-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-gray-600">
+                    🏀 Partidos
+                  </p>
 
-                
-  style={{ backgroundColor: colorFondoClaro }}
-  className="rounded-2xl p-6 text-center"
->
-  <p
-    style={{ color: colorTexto }}
-    className="text-sm font-bold"
-  >
-    PUNTOS POR PARTIDO
-  </p>
+                  <p className="text-5xl font-black text-slate-800 mt-3">
+                    {partidosJugados}
+                  </p>
 
-  <p
-    style={{ color: colorEquipo }}
-    className="text-5xl font-black mt-2"
-  >
-    {estadisticas?.ppg ?? 0}
-  </p>
+                  <p className="font-bold mt-2">
+                    PJ
+                  </p>
+                </div>
 
-  <p
-    style={{ color: colorTexto }}
-    className="font-bold mt-2"
-  >
-    PPG
-  </p>
-</div>
+                {/* PUNTOS */}
+                <div className="bg-blue-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-blue-700">
+                    🏀 Puntos
+                  </p>
 
-<div
-  style={{ backgroundColor: colorFondoClaro }}
-  className="rounded-2xl p-6 text-center"
->
-  <p
-    style={{ color: colorTexto }}
-    className="text-sm font-bold"
-  >
-    REBOTES POR PARTIDO
-  </p>
+                  <p className="text-5xl font-black text-blue-900 mt-3">
+                    {ppg}
+                  </p>
 
-  <p
-    style={{ color: colorEquipo }}
-    className="text-5xl font-black mt-2"
-  >
-    {estadisticas?.rpg ?? 0}
-  </p>
+                  <p className="font-bold mt-2">
+                    PPG
+                  </p>
+                </div>
 
-  <p
-    style={{ color: colorTexto }}
-    className="font-bold mt-2"
-  >
-    RPG
-  </p>
-</div>
+                {/* REBOTES */}
+                <div className="bg-green-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-green-700">
+                    💪 Rebotes
+                  </p>
 
-<div
-  style={{ backgroundColor: colorFondoClaro }}
-  className="rounded-2xl p-6 text-center"
->
-  <p
-    style={{ color: colorTexto }}
-    className="text-sm font-bold"
-  >
-    ASISTENCIAS POR PARTIDO
-  </p>
+                  <p className="text-5xl font-black text-green-700 mt-3">
+                    {rpg}
+                  </p>
 
-  <p
-    style={{ color: colorEquipo }}
-    className="text-5xl font-black mt-2"
-  >
-    {estadisticas?.apg ?? 0}
-  </p>
+                  <p className="font-bold mt-2">
+                    RPG
+                  </p>
+                </div>
 
-  <p
-    style={{ color: colorTexto }}
-    className="font-bold mt-2"
-  >
-    APG
-  </p>
-  </div>
-</div>
-<div className="mt-10">
-  <h2 className="text-2xl font-black text-center mb-6">
-    TOTALES DE TEMPORADA
-  </h2>
+                {/* ASISTENCIAS */}
+                <div className="bg-red-100 rounded-2xl p-6 text-center">
+                  <p className="text-sm text-red-700">
+                    🎯 Asistencias
+                  </p>
 
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <p className="text-5xl font-black text-red-700 mt-3">
+                    {apg}
+                  </p>
 
-    <div
-      style={{ backgroundColor: colorFondoClaro }}
-      className="rounded-2xl p-5 text-center"
-    >
-      <p
-        style={{ color: colorTexto }}
-        className="text-sm font-bold"
-      >
-        PUNTOS
-      </p>
+                  <p className="font-bold mt-2">
+                    APG
+                  </p>
+                </div>
 
-      <p
-        style={{ color: colorEquipo }}
-        className="text-3xl font-black mt-2"
-      >
-        {puntosTotales}
-      </p>
-    </div>
+              </div>
 
-    <div
-      style={{ backgroundColor: colorFondoClaro }}
-      className="rounded-2xl p-5 text-center"
-    >
-      <p
-        style={{ color: colorTexto }}
-        className="text-sm font-bold"
-      >
-        REBOTES
-      </p>
+              {/* TOTALES */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8">
 
-      <p
-        style={{ color: colorEquipo }}
-        className="text-3xl font-black mt-2"
-      >
-        {rebotesTotales}
-      </p>
-    </div>
+                <div className="border rounded-2xl p-5 text-center">
+                  <p className="text-gray-500">
+                    Puntos Totales
+                  </p>
 
-    <div
-      style={{ backgroundColor: colorFondoClaro }}
-      className="rounded-2xl p-5 text-center"
-    >
-      <p
-        style={{ color: colorTexto }}
-        className="text-sm font-bold"
-      >
-        ASISTENCIAS
-      </p>
+                  <p className="text-3xl font-black text-blue-900">
+                    {puntosTotales}
+                  </p>
+                </div>
 
-      <p
-        style={{ color: colorEquipo }}
-        className="text-3xl font-black mt-2"
-      >
-        {asistenciasTotales}
-      </p>
-    </div>
+                <div className="border rounded-2xl p-5 text-center">
+                  <p className="text-gray-500">
+                    Rebotes Totales
+                  </p>
 
-    <div
-      style={{ backgroundColor: colorFondoClaro }}
-      className="rounded-2xl p-5 text-center"
-    >
-      <p
-        style={{ color: colorTexto }}
-        className="text-sm font-bold"
-      >
-        JJ
-      </p>
+                  <p className="text-3xl font-black text-green-700">
+                    {rebotesTotales}
+                  </p>
+                </div>
 
-      <p
-        style={{ color: colorEquipo }}
-        className="text-3xl font-black mt-2"
-      >
-        {partidosJugados}
-      </p>
-    </div>
+                <div className="border rounded-2xl p-5 text-center">
+                  <p className="text-gray-500">
+                    Asistencias Totales
+                  </p>
 
-  </div>
-</div>
+                  <p className="text-3xl font-black text-red-700">
+                    {asistenciasTotales}
+                  </p>
+                </div>
 
-<div className="mt-10 border-t pt-8">
-                <h2 className="text-2xl font-black text-center">
-                  PRÓXIMAMENTE
-                </h2>
-
-                <p className="text-center text-gray-600 mt-2">
-                  Aquí mostraremos el historial partido por partido.
-                </p>
               </div>
 
             </div>
+
           </div>
+
         </div>
       </main>
     </>
