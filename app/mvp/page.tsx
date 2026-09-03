@@ -60,7 +60,7 @@ export default async function MVPPage() {
       <>
         <Navbar />
 
-        <main className="min-h-screen bg-slate-100 pt-32 p-4 md:p-10">
+        <main className="min-h-screen bg-slate-100 pt-40 p-4 md:p-10">
           <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-10 text-center">
             <h1 className="text-3xl font-black">
               No se pudieron cargar las estadísticas
