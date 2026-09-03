@@ -241,7 +241,7 @@ export default async function MVPPage() {
 
           <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-10 text-center">
 
-            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-2xl py-4 px-6 mb-8">
+            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-2xl py-4 px-6 mb-8 mt-8 md:mt-12">
               <h1 className="text-3xl md:text-5xl font-black text-white">
                 🏆 MVP LIBAVIME 2026
               </h1>
