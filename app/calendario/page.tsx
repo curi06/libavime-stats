@@ -54,16 +54,19 @@ export default function Calendario() {
           fecha: partido.fecha,
           hora: partido.hora,
           cancha: partido.cancha,
+
           puntosLocal:
             partido.puntos_local === null ||
             partido.puntos_local === undefined
               ? null
               : Number(partido.puntos_local),
+
           puntosVisitante:
             partido.puntos_visitante === null ||
             partido.puntos_visitante === undefined
               ? null
               : Number(partido.puntos_visitante),
+
           estado: partido.estado,
         })
       );
@@ -75,12 +78,15 @@ export default function Calendario() {
     cargarPartidos();
   }, []);
 
-  // Mostrar solo partidos que todavía no tienen resultado
-  const proximosPartidos = partidos.filter(
-    (partido) =>
-      partido.puntosLocal === null ||
-      partido.puntosVisitante === null
-  );
+  // Mostrar todos los partidos que NO estén finalizados
+  const proximosPartidos = partidos.filter((partido) => {
+    const estado = partido.estado?.toLowerCase().trim();
+
+    return (
+      estado !== "finalizado" &&
+      estado !== "finalizada"
+    );
+  });
 
   return (
     <>
@@ -99,13 +105,17 @@ export default function Calendario() {
                 Cargando calendario...
               </p>
             </div>
+
           ) : proximosPartidos.length === 0 ? (
+
             <div className="bg-white p-10 rounded-2xl shadow text-center">
               <p className="font-bold text-gray-600">
                 No hay próximos partidos programados.
               </p>
             </div>
+
           ) : (
+
             <div className="space-y-4">
 
               {proximosPartidos.map((partido) => (
@@ -113,24 +123,27 @@ export default function Calendario() {
                   key={partido.id}
                   className="bg-white p-6 rounded-xl shadow"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
-                    <div>
-                      <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                  <div className="flex flex-col gap-4">
 
-  <h2 className="text-xl md:text-2xl font-black text-blue-900 text-center">
-    {partido.local}
-  </h2>
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
 
-  <span className="inline-flex items-center justify-center bg-red-600 text-white text-2xl md:text-4xl font-black italic px-5 py-2 md:px-7 md:py-3 rounded-xl shadow-lg border-2 border-red-300">
-    VS
-  </span>
+                      <h2 className="text-xl md:text-2xl font-black text-blue-900 text-center">
+                        {partido.local}
+                      </h2>
 
-  <h2 className="text-xl md:text-2xl font-black text-blue-900 text-center">
-    {partido.visitante}
-  </h2>
+                      <span className="inline-flex items-center justify-center bg-red-600 text-white text-2xl md:text-4xl font-black italic px-5 py-2 md:px-7 md:py-3 rounded-xl shadow-lg border-2 border-red-300">
+                        VS
+                      </span>
 
-</div>
+                      <h2 className="text-xl md:text-2xl font-black text-blue-900 text-center">
+                        {partido.visitante}
+                      </h2>
+
+                    </div>
+
+                    <div className="text-center">
+
                       <p className="text-gray-600 mt-2">
                         📅 {partido.fecha}
                       </p>
@@ -146,15 +159,17 @@ export default function Calendario() {
                           📍 {partido.cancha}
                         </p>
                       )}
-                    </div>
 
-                    <div className="md:text-right">
-                      <span className="inline-block bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold">
-                        ⏳ PRÓXIMAMENTE
-                      </span>
+                      <div className="mt-4">
+                        <span className="inline-block bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold">
+                          ⏳ PRÓXIMAMENTE
+                        </span>
+                      </div>
+
                     </div>
 
                   </div>
+
                 </div>
               ))}
 
