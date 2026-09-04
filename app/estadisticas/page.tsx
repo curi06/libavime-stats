@@ -360,16 +360,15 @@ export default function Estadisticas() {
         return;
       }
 
-     const jspdfModule = await import("jspdf");
-const autoTableModule = await import("jspdf-autotable");
+      const jspdfModule = await import("jspdf");
+      const autoTableModule = await import("jspdf-autotable");
 
-const jsPDF = jspdfModule.default;
-
-const autoTable =
-  (
-    autoTableModule.default ||
-    autoTableModule
-  ) as any;
+      const jsPDF = jspdfModule.default;
+      const autoTable =
+        (
+          autoTableModule.default ||
+          autoTableModule
+        ) as any;
 
       const doc = new jsPDF({
         orientation: "landscape",
@@ -495,7 +494,7 @@ const autoTable =
             const propiedades =
               doc.getImageProperties(logoData);
 
-            const altoLogo = 26;
+            const altoLogo = 28;
             const anchoLogo =
               (propiedades.width * altoLogo) /
               propiedades.height;
@@ -504,7 +503,7 @@ const autoTable =
               logoData,
               "PNG",
               12,
-              7,
+              5,
               anchoLogo,
               altoLogo
             );
@@ -1069,37 +1068,73 @@ const autoTable =
         },
       });
 
+      // Dividimos los 44 jugadores en 3 páginas para una lectura
+      // más profesional y uniforme. El orden del ranking se conserva.
       const primeraPagina =
-        jugadoresExportacion.slice(0, 21);
+        jugadoresExportacion.slice(0, 15);
 
       const segundaPagina =
-        jugadoresExportacion.slice(21);
+        jugadoresExportacion.slice(15, 30);
 
-      dibujarEncabezado();
+      const terceraPagina =
+        jugadoresExportacion.slice(30);
+
+      // =========================
+      // PÁGINA 1
+      // =========================
+      // Incluye encabezado oficial, logo LIBAVIME, resumen y posiciones 1–15.
+      dibujarEncabezado(
+        "TORNEO 2026 · LIBAVIME · RANKING OFICIAL"
+      );
+
       dibujarResumen();
 
-     autoTable(
-  doc,
-  estiloTabla(
-    72,
-    primeraPagina
-  ) as any
-);
+      autoTable(
+        doc,
+        estiloTabla(
+          72,
+          primeraPagina
+        ) as any
+      );
 
-doc.addPage();
+      // =========================
+      // PÁGINA 2
+      // =========================
+      // El mismo encabezado se dibuja de nuevo para que el logo de LIBAVIME
+      // aparezca también en esta página, manteniendo el orden 16–30.
+      doc.addPage();
 
-dibujarEncabezado(
-  "TORNEO 2026 · LIBAVIME · CONTINUACIÓN"
-);
+      dibujarEncabezado(
+        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30"
+      );
 
-autoTable(
-  doc,
-  estiloTabla(
-    47,
-    segundaPagina
-  ) as any
-);
+      autoTable(
+        doc,
+        estiloTabla(
+          45,
+          segundaPagina
+        ) as any
+      );
 
+      // =========================
+      // PÁGINA 3
+      // =========================
+      // Mismo encabezado y logo LIBAVIME. Continúa el ranking 31–44.
+      doc.addPage();
+
+      dibujarEncabezado(
+        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44"
+      );
+
+      autoTable(
+        doc,
+        estiloTabla(
+          45,
+          terceraPagina
+        ) as any
+      );
+
+      // Numeración y pie de página en las tres páginas.
       const totalPaginas =
         doc.getNumberOfPages();
 
