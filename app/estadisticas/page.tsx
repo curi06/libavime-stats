@@ -353,13 +353,11 @@ export default function Estadisticas() {
 
   async function exportarPDF() {
     try {
-      const [
-        { default: jsPDF },
-        { default: autoTable },
-      ] = await Promise.all([
-        import("jspdf"),
-        import("jspdf-autotable"),
-      ]);
+      const jspdfModule = await import("jspdf");
+      const autoTableModule = await import("jspdf-autotable");
+
+      const jsPDF = jspdfModule.default;
+      const autoTable = autoTableModule.default;
 
       const doc = new jsPDF({
         orientation: "landscape",
@@ -368,19 +366,16 @@ export default function Estadisticas() {
       });
 
       const fecha = new Date().toLocaleDateString("es-DO");
-      const totalPaginas = "{total_pages_count_string}";
 
-      const cargarLogo = async () => {
-        try {
-          const respuesta = await fetch("/logos/LIBAVIME.png");
+      let logoData: string | null = null;
 
-          if (!respuesta.ok) {
-            throw new Error("No se pudo cargar el logo");
-          }
+      try {
+        const respuesta = await fetch("/logos/LIBAVIME.png");
 
+        if (respuesta.ok) {
           const blob = await respuesta.blob();
 
-          return await new Promise<string>((resolve, reject) => {
+          logoData = await new Promise<string>((resolve, reject) => {
             const lector = new FileReader();
 
             lector.onloadend = () => {
@@ -391,18 +386,16 @@ export default function Estadisticas() {
               }
             };
 
-            lector.onerror = () =>
+            lector.onerror = () => {
               reject(new Error("Error leyendo el logo"));
+            };
 
             lector.readAsDataURL(blob);
           });
-        } catch (error) {
-          console.error("Error cargando el logo de LIBAVIME:", error);
-          return null;
         }
-      };
-
-      const logo = await cargarLogo();
+      } catch (error) {
+        console.error("No se pudo cargar el logo de LIBAVIME:", error);
+      }
 
       const filas = jugadoresOrdenados.map(
         (jugador, index) => [
@@ -421,16 +414,40 @@ export default function Estadisticas() {
 
       const dibujarEncabezado = () => {
         const pageWidth = doc.internal.pageSize.getWidth();
+        const centro = pageWidth / 2;
 
-        if (logo) {
-          doc.addImage(
-            logo,
-            "PNG",
-            12,
-            8,
-            30,
-            30
-          );
+        if (logoData) {
+          try {
+            const propiedades = doc.getImageProperties(logoData);
+            const anchoMaximo = 38;
+            const altoMaximo = 32;
+
+            let anchoLogo = anchoMaximo;
+            let altoLogo =
+              (propiedades.height * anchoLogo) /
+              propiedades.width;
+
+            if (altoLogo > altoMaximo) {
+              altoLogo = altoMaximo;
+              anchoLogo =
+                (propiedades.width * altoLogo) /
+                propiedades.height;
+            }
+
+            doc.addImage(
+              logoData,
+              "PNG",
+              12,
+              4 + (32 - altoLogo) / 2,
+              anchoLogo,
+              altoLogo
+            );
+          } catch (error) {
+            console.error(
+              "No se pudo insertar el logo en el PDF:",
+              error
+            );
+          }
         }
 
         doc.setFont("helvetica", "bold");
@@ -439,35 +456,29 @@ export default function Estadisticas() {
 
         doc.text(
           "ESTADÍSTICAS OFICIALES DE JUGADORES",
-          pageWidth / 2,
+          centro,
           17,
-          {
-            align: "center",
-          }
+          { align: "center" }
         );
 
-        doc.setFontSize(14);
+        doc.setFontSize(13);
 
         doc.text(
           "LIGA DE BALONCESTO DE VISITADORES MÉDICOS",
-          pageWidth / 2,
+          centro,
           25,
-          {
-            align: "center",
-          }
+          { align: "center" }
         );
 
-        doc.setFontSize(11);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(80, 80, 80);
+        doc.setFontSize(10);
+        doc.setTextColor(90, 90, 90);
 
         doc.text(
-          "TORNEO 2025 · LIBAVIME",
-          pageWidth / 2,
+          "TORNEO 2026 · LIBAVIME",
+          centro,
           32,
-          {
-            align: "center",
-          }
+          { align: "center" }
         );
 
         doc.setDrawColor(20, 50, 100);
@@ -480,7 +491,8 @@ export default function Estadisticas() {
         const pageHeight = doc.internal.pageSize.getHeight();
 
         doc.setDrawColor(20, 50, 100);
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.4);
+
         doc.line(
           12,
           pageHeight - 15,
@@ -488,8 +500,8 @@ export default function Estadisticas() {
           pageHeight - 15
         );
 
-        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
         doc.setTextColor(80, 80, 80);
 
         doc.text(
@@ -498,33 +510,24 @@ export default function Estadisticas() {
           pageHeight - 8
         );
 
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
+        doc.setFont("helvetica", "bold");
         doc.setTextColor(20, 50, 100);
 
         doc.text(
           "Diseñado por: Emmi De La Cruz",
           pageWidth / 2,
           pageHeight - 8,
-          {
-            align: "center",
-          }
+          { align: "center" }
         );
 
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
 
         doc.text(
-          `Página ${pagina} de ${totalPaginas}`,
+          `Página ${pagina}`,
           pageWidth - 12,
           pageHeight - 8,
-          {
-            align: "right",
-          }
+          { align: "right" }
         );
       };
 
@@ -566,15 +569,15 @@ export default function Estadisticas() {
 
         columnStyles: {
           0: { halign: "center", cellWidth: 14 },
-          1: { cellWidth: 55 },
-          2: { cellWidth: 42 },
-          3: { halign: "center", cellWidth: 12 },
-          4: { halign: "center", cellWidth: 15 },
-          5: { halign: "center", cellWidth: 15 },
-          6: { halign: "center", cellWidth: 15 },
-          7: { halign: "center", cellWidth: 15 },
-          8: { halign: "center", cellWidth: 15 },
-          9: { halign: "center", cellWidth: 15 },
+          1: { cellWidth: 68 },
+          2: { cellWidth: 50 },
+          3: { halign: "center", cellWidth: 20 },
+          4: { halign: "center", cellWidth: 20 },
+          5: { halign: "center", cellWidth: 20 },
+          6: { halign: "center", cellWidth: 20 },
+          7: { halign: "center", cellWidth: 20 },
+          8: { halign: "center", cellWidth: 20 },
+          9: { halign: "center", cellWidth: 20 },
         },
 
         margin: {
@@ -594,12 +597,11 @@ export default function Estadisticas() {
       });
 
       const paginas = doc.getNumberOfPages();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
 
       for (let pagina = 1; pagina <= paginas; pagina++) {
         doc.setPage(pagina);
-
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
 
         doc.setFillColor(255, 255, 255);
         doc.rect(
@@ -610,17 +612,15 @@ export default function Estadisticas() {
           "F"
         );
 
-        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
         doc.setTextColor(80, 80, 80);
 
         doc.text(
           `Página ${pagina} de ${paginas}`,
           pageWidth - 12,
           pageHeight - 8,
-          {
-            align: "right",
-          }
+          { align: "right" }
         );
       }
 
@@ -629,15 +629,11 @@ export default function Estadisticas() {
           .toISOString()
           .slice(0, 10)}.pdf`
       );
-
     } catch (error) {
-      console.error(
-        "Error al generar el PDF:",
-        error
-      );
+      console.error("Error al generar el PDF:", error);
 
       alert(
-        "No se pudo generar el PDF."
+        "No se pudo generar el PDF. Inténtalo nuevamente."
       );
     }
   }
