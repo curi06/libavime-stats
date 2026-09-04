@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../data/equipos";
+
 
 type Partido = {
   id: number;
@@ -983,8 +985,8 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </div>
-</div> 
-</main>
+</div>
+
 <footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
   <div className="mx-auto flex max-w-3xl flex-col items-center px-4">
 
@@ -1004,9 +1006,52 @@ const ultimosResultados = [...partidosActuales]
       Creado para LIBAVIME
     </p>
 
+    <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+
+      <a
+        href="https://www.instagram.com/libavime?igsi=aHgyMHkzN2tweHpr"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 px-6 py-3 font-black text-white shadow-lg transition hover:scale-105 sm:w-auto"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="h-6 w-6"
+          aria-hidden="true"
+        >
+          <path d="M7.75 2C4.574 2 2 4.574 2 7.75v8.5C2 19.426 4.574 22 7.75 22h8.5C19.426 22 22 19.426 22 16.25v-8.5C22 4.574 19.426 2 16.25 2h-8.5Zm0 1.75h8.5c2.21 0 4 1.79 4 4v8.5c0 2.21-1.79 4-4 4h-8.5c-2.21 0-4-1.79-4-4v-8.5c0-2.21 1.79-4 4-4Zm8.875 1.625a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25ZM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 1.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5Z" />
+        </svg>
+
+        <span>SÍGUENOS EN INSTAGRAM</span>
+      </a>
+
+      <a
+        href="https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-6 py-3 font-black text-white shadow-lg transition hover:scale-105 sm:w-auto"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="h-7 w-7"
+          aria-hidden="true"
+        >
+          <path d="M23.498 6.186a2.999 2.999 0 0 0-2.112-2.122C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.386.564A2.999 2.999 0 0 0 .502 6.186C0 8.08 0 12 0 12s0 3.92.502 5.814a2.999 2.999 0 0 0 2.112 2.122C4.495 20.5 12 20.5 12 20.5s7.505 0 9.386-.564a2.999 2.999 0 0 0 2.112-2.122C24 15.92 24 12 24 12s0-3.92-.502-5.814ZM9.6 15.6V8.4L15.9 12l-6.3 3.6Z" />
+        </svg>
+
+        <span>VISITA NUESTRO YOUTUBE</span>
+      </a>
+
+    </div>
+
   </div>
 </footer>
 
+</main>
 
 </>
 );
