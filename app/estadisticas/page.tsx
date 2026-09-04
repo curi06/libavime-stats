@@ -5,8 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 export default function Estadisticas() {
   const [tabla, setTabla] = useState<any[]>([]);
@@ -355,6 +353,14 @@ export default function Estadisticas() {
 
     async function exportarPDF() {
   try {
+    const [
+      { default: jsPDF },
+      { default: autoTable },
+    ] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+
     const doc = new jsPDF({
       orientation: "landscape",
       unit: "mm",
