@@ -21,87 +21,110 @@ type Partido = {
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
+  const [cargando, setCargando] = useState(true);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
-useEffect(() => {
-  const cargarDatos = async () => {
-    const [
-      { data: jugadoresData, error: jugadoresError },
-      { data: estadisticasData, error: estadisticasError },
-      { data: partidosData, error: partidosError },
-    ] = await Promise.all([
-      supabase.from("jugadores").select("*"),
-      supabase.from("estadisticas_jugadores").select("*"),
-      supabase
-        .from("partidos")
-        .select(`
-          id,
-          equipo_local,
-          equipo_visitante,
-          fecha,
-          hora,
-          cancha,
-          puntos_local,
-          puntos_visitante,
-          estado
-        `)
-        .order("fecha", { ascending: true })
-        .order("hora", { ascending: true }),
-    ]);
+  useEffect(() => {
+    let activo = true;
 
-    if (jugadoresError || estadisticasError || partidosError) {
-      console.error("Error jugadores:", jugadoresError);
-      console.error("Error estadísticas:", estadisticasError);
-      console.error("Error partidos:", partidosError);
-      return;
-    }
+    const cargarDatos = async () => {
+      try {
+        const [
+          { data: jugadoresData, error: jugadoresError },
+          { data: estadisticasData, error: estadisticasError },
+          { data: partidosData, error: partidosError },
+        ] = await Promise.all([
+          supabase
+            .from("jugadores")
+            .select("id, nombre, slug, equipo, foto"),
+          supabase
+            .from("estadisticas_jugadores")
+            .select("jugador_id, ppg, rpg, apg, partidos_jugados"),
+          supabase
+            .from("partidos")
+            .select(`
+              id,
+              equipo_local,
+              equipo_visitante,
+              fecha,
+              hora,
+              cancha,
+              puntos_local,
+              puntos_visitante,
+              estado
+            `)
+            .order("fecha", { ascending: true })
+            .order("hora", { ascending: true }),
+        ]);
 
-    const jugadoresConEstadisticas = (jugadoresData ?? []).map(
-      (jugador: any) => {
-        const estadisticas = (estadisticasData ?? []).find(
-          (estadistica: any) =>
-            String(estadistica.jugador_id) === String(jugador.id)
+        if (jugadoresError || estadisticasError || partidosError) {
+          console.error("Error jugadores:", jugadoresError);
+          console.error("Error estadísticas:", estadisticasError);
+          console.error("Error partidos:", partidosError);
+          return;
+        }
+
+        const estadisticasPorJugador = new Map(
+          (estadisticasData ?? []).map((estadistica: any) => [
+            String(estadistica.jugador_id),
+            estadistica,
+          ])
         );
 
-        return {
-          ...jugador,
-          ppg: Number(estadisticas?.ppg) || 0,
-          rpg: Number(estadisticas?.rpg) || 0,
-          apg: Number(estadisticas?.apg) || 0,
-          partidos_jugados:
-            Number(estadisticas?.partidos_jugados) || 0,
-        };
+        const jugadoresConEstadisticas = (jugadoresData ?? []).map(
+          (jugador: any) => {
+            const estadisticas = estadisticasPorJugador.get(String(jugador.id));
+
+            return {
+              ...jugador,
+              ppg: Number(estadisticas?.ppg) || 0,
+              rpg: Number(estadisticas?.rpg) || 0,
+              apg: Number(estadisticas?.apg) || 0,
+              partidos_jugados:
+                Number(estadisticas?.partidos_jugados) || 0,
+            };
+          }
+        );
+
+        const partidosConFormato: Partido[] = (partidosData ?? []).map(
+          (partido: any) => ({
+            id: partido.id,
+            local: partido.equipo_local,
+            visitante: partido.equipo_visitante,
+            fecha: partido.fecha,
+            hora: partido.hora,
+            cancha: partido.cancha,
+            puntosLocal:
+              partido.puntos_local === null ||
+              partido.puntos_local === undefined
+                ? null
+                : Number(partido.puntos_local),
+            puntosVisitante:
+              partido.puntos_visitante === null ||
+              partido.puntos_visitante === undefined
+                ? null
+                : Number(partido.puntos_visitante),
+            estado: partido.estado,
+          })
+        );
+
+        if (activo) {
+          setJugadores(jugadoresConEstadisticas);
+          setPartidosActuales(partidosConFormato);
+        }
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      } finally {
+        if (activo) setCargando(false);
       }
-    );
+    };
 
-    const partidosConFormato: Partido[] = (partidosData ?? []).map(
-      (partido: any) => ({
-        id: partido.id,
-        local: partido.equipo_local,
-        visitante: partido.equipo_visitante,
-        fecha: partido.fecha,
-        hora: partido.hora,
-        cancha: partido.cancha,
-        puntosLocal:
-          partido.puntos_local === null ||
-          partido.puntos_local === undefined
-            ? null
-            : Number(partido.puntos_local),
-        puntosVisitante:
-          partido.puntos_visitante === null ||
-          partido.puntos_visitante === undefined
-            ? null
-            : Number(partido.puntos_visitante),
-        estado: partido.estado,
-      })
-    );
+    cargarDatos();
 
-    setJugadores(jugadoresConEstadisticas);
-    setPartidosActuales(partidosConFormato);
-  };
-
-  cargarDatos();
-}, []);
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const lideresPuntos = [...jugadores]
     .sort((a, b) => b.ppg - a.ppg)
@@ -115,12 +138,18 @@ useEffect(() => {
     .sort((a, b) => b.apg - a.apg)
     .slice(0, 3);
 
-  if (jugadores.length === 0) {
+  if (cargando) {
     return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <p className="text-xl font-bold text-blue-900">
-          Cargando estadísticas...
-        </p>
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl shadow-xl px-8 py-7 text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-900" />
+          <p className="text-xl font-bold text-blue-900">
+            Cargando LIBAVIME...
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Preparando estadísticas y partidos
+          </p>
+        </div>
       </main>
     );
   }
