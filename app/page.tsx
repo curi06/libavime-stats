@@ -461,7 +461,7 @@ const jugadoresConEstadisticas =
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
-            {posicionesOrdenadas.slice(0, 3).map(
+            {posicionesOrdenadas.slice(0, 4).map(
               (equipo, index) => {
                 const colores = [
                   "from-yellow-300 to-yellow-500",
