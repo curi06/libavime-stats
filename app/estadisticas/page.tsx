@@ -245,7 +245,6 @@ export default function Estadisticas() {
         posiciones[local].pp++;
         posiciones[local].pts += 1;
       } else {
-        // Empate
         posiciones[local].pts += 1;
         posiciones[visitante].pts += 1;
       }
@@ -266,43 +265,39 @@ export default function Estadisticas() {
     setTabla(tablaFinal);
   }
 
-  const lideresPuntos = [...jugadores]
-    .filter(
-      (jugador) =>
-        jugador.partidosJugados > 0
-    )
-    .sort(
-      (a, b) =>
-        b.ppg - a.ppg
-    )
-    .slice(0, 10);
+  // Ranking completo de jugadores.
+  // Orden:
+  // 1. Mayor PPG
+  // 2. Mayor RPG
+  // 3. Mayor APG
+  // 4. Nombre
 
-  const lideresRebotes = [...jugadores]
-    .filter(
-      (jugador) =>
-        jugador.partidosJugados > 0
-    )
-    .sort(
-      (a, b) =>
-        b.rpg - a.rpg
-    )
-    .slice(0, 10);
+  const jugadoresOrdenados = [...jugadores].sort(
+    (a, b) => {
+      const puntos =
+        Number(b.ppg) - Number(a.ppg);
 
-  const lideresAsistencias = [...jugadores]
-    .filter(
-      (jugador) =>
-        jugador.partidosJugados > 0
-    )
-    .sort(
-      (a, b) =>
-        b.apg - a.apg
-    )
-    .slice(0, 10);
+      if (puntos !== 0) return puntos;
 
-  const mvp =
-    lideresPuntos.length > 0
-      ? lideresPuntos[0]
-      : null;
+      const rebotes =
+        Number(b.rpg) - Number(a.rpg);
+
+      if (rebotes !== 0) return rebotes;
+
+      const asistencias =
+        Number(b.apg) - Number(a.apg);
+
+      if (asistencias !== 0) {
+        return asistencias;
+      }
+
+      return String(
+        a.nombre ?? ""
+      ).localeCompare(
+        String(b.nombre ?? "")
+      );
+    }
+  );
 
   if (cargando) {
     return (
@@ -325,236 +320,444 @@ export default function Estadisticas() {
       <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
         <div className="max-w-6xl mx-auto">
 
-          <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
+          {/* TÍTULO */}
+
+          <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
             📊 Estadísticas LIBAVIME
           </h1>
 
-          {mvp && (
-            <Link
-              href={`/jugadores/${mvp.slug}`}
-              className="block bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl p-8 shadow-lg mb-10 hover:scale-[1.01] transition"
-            >
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6">
 
-                <Image
-                  src={
-                    mvp.foto?.startsWith("http") ||
-                    mvp.foto?.startsWith("/")
-                      ? mvp.foto
-                      : "/logos/LIBAVIME.png"
-                  }
-                  alt={mvp.nombre}
-                  width={160}
-                  height={160}
-                  className="rounded-full border-4 border-white object-cover"
-                />
+          {/* ESTADÍSTICAS DE LOS JUGADORES */}
 
-                <div className="text-center">
+          <section className="mb-10">
 
-                  <h2 className="text-4xl font-black">
-                    🏆 MVP DE LA LIGA
-                  </h2>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl md:text-4xl font-black text-blue-900">
+                🏀 Estadísticas de Jugadores
+              </h2>
 
-                  <p className="text-3xl font-bold mt-4">
-                    {mvp.nombre}
-                  </p>
+              <p className="text-slate-600 mt-2">
+                Ranking completo de{" "}
+                {jugadoresOrdenados.length} jugadores
+                de LIBAVIME
+              </p>
 
-                  <p className="text-xl">
-                    {mvp.equipo}
-                  </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Desplázate para ver todos los jugadores
+              </p>
+            </div>
 
-                  <p className="text-5xl font-black mt-3">
-                    {mvp.ppg} PPG
-                  </p>
 
-                  <p className="mt-3 text-lg">
-                    {mvp.partidosJugados} partido
-                    {mvp.partidosJugados !== 1
-                      ? "s"
-                      : ""}{" "}
-                    jugado
-                    {mvp.partidosJugados !== 1
-                      ? "s"
-                      : ""}
-                  </p>
+            {jugadoresOrdenados.length > 0 ? (
 
-                  <Image
-                    src="/logos/LIBAVIME.png"
-                    alt="LIBAVIME"
-                    width={64}
-                    height={64}
-                    className="mx-auto mt-4"
-                  />
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+
+                {/* CONTENEDOR CON SCROLL */}
+
+                <div
+                  className="
+                    max-h-[650px]
+                    md:max-h-[720px]
+                    overflow-auto
+                  "
+                >
+
+                  <table className="w-full min-w-[900px] text-left">
+
+                    {/* ENCABEZADO FIJO */}
+
+                    <thead className="sticky top-0 z-20">
+
+                      <tr className="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow">
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          Pos
+                        </th>
+
+                        <th className="p-4 whitespace-nowrap">
+                          Jugador
+                        </th>
+
+                        <th className="p-4 whitespace-nowrap">
+                          Equipo
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          JJ
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          PTS
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          PPG
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          REB
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          RPG
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          AST
+                        </th>
+
+                        <th className="p-4 text-center whitespace-nowrap">
+                          APG
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                      {jugadoresOrdenados.map(
+                        (jugador, index) => (
+
+                          <tr
+                            key={jugador.id}
+                            className="
+                              border-b
+                              last:border-b-0
+                              hover:bg-blue-50
+                              transition
+                            "
+                          >
+
+                            {/* POSICIÓN */}
+
+                            <td className="p-4 text-center font-black text-blue-900 text-lg">
+
+                              {index === 0
+                                ? "🥇"
+                                : index === 1
+                                ? "🥈"
+                                : index === 2
+                                ? "🥉"
+                                : index + 1}
+
+                            </td>
+
+
+                            {/* JUGADOR */}
+
+                            <td className="p-4">
+
+                              <Link
+                                href={`/jugadores/${jugador.slug}`}
+                                className="
+                                  flex
+                                  items-center
+                                  gap-3
+                                  font-bold
+                                  text-slate-900
+                                  hover:text-blue-700
+                                  transition
+                                "
+                              >
+
+                                <Image
+                                  src={
+                                    jugador.foto?.startsWith(
+                                      "http"
+                                    ) ||
+                                    jugador.foto?.startsWith(
+                                      "/"
+                                    )
+                                      ? jugador.foto
+                                      : "/logos/LIBAVIME.png"
+                                  }
+                                  alt={jugador.nombre}
+                                  width={48}
+                                  height={48}
+                                  className="
+                                    rounded-full
+                                    object-cover
+                                    border
+                                    border-slate-200
+                                    shrink-0
+                                  "
+                                />
+
+                                <span className="whitespace-nowrap">
+                                  {jugador.nombre}
+                                </span>
+
+                              </Link>
+
+                            </td>
+
+
+                            {/* EQUIPO */}
+
+                            <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
+
+                              {jugador.equipo || "—"}
+
+                            </td>
+
+
+                            {/* JJ */}
+
+                            <td className="p-4 text-center font-bold">
+
+                              {jugador.partidosJugados}
+
+                            </td>
+
+
+                            {/* PUNTOS TOTALES */}
+
+                            <td className="p-4 text-center font-bold">
+
+                              {jugador.puntosTotales}
+
+                            </td>
+
+
+                            {/* PPG */}
+
+                            <td className="p-4 text-center font-black text-blue-900">
+
+                              {Number(
+                                jugador.ppg
+                              ).toFixed(1)}
+
+                            </td>
+
+
+                            {/* REBOTES */}
+
+                            <td className="p-4 text-center font-bold">
+
+                              {jugador.rebotesTotales}
+
+                            </td>
+
+
+                            {/* RPG */}
+
+                            <td className="p-4 text-center font-black text-green-700">
+
+                              {Number(
+                                jugador.rpg
+                              ).toFixed(1)}
+
+                            </td>
+
+
+                            {/* ASISTENCIAS */}
+
+                            <td className="p-4 text-center font-bold">
+
+                              {jugador.asistenciasTotales}
+
+                            </td>
+
+
+                            {/* APG */}
+
+                            <td className="p-4 text-center font-black text-red-700">
+
+                              {Number(
+                                jugador.apg
+                              ).toFixed(1)}
+
+                            </td>
+
+                          </tr>
+
+                        )
+                      )}
+
+                    </tbody>
+
+                  </table>
 
                 </div>
 
               </div>
-            </Link>
-          )}
 
-          {!mvp && (
-            <div className="bg-white rounded-2xl shadow p-8 text-center mb-10">
-              <p className="text-xl font-bold text-gray-600">
-                Aún no hay estadísticas registradas.
-              </p>
-            </div>
-          )}
+            ) : (
 
-          <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-2xl shadow p-8 text-center">
 
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-2xl font-bold mb-4">
-                🏀 Top Anotadores
-              </h2>
-
-              {lideresPuntos.length > 0 ? (
-                lideresPuntos.map(
-                  (jugador, index) => (
-                    <p
-                      key={jugador.id}
-                      className="py-2 border-b last:border-b-0"
-                    >
-                      <span className="font-bold">
-                        {index + 1}.
-                      </span>{" "}
-                      {jugador.nombre} -{" "}
-                      <span className="font-bold text-blue-900">
-                        {jugador.ppg} PPG
-                      </span>
-                    </p>
-                  )
-                )
-              ) : (
-                <p className="text-gray-500">
-                  No hay estadísticas todavía.
+                <p className="text-xl font-bold text-gray-600">
+                  No hay jugadores registrados todavía.
                 </p>
-              )}
+
+              </div>
+
+            )}
+
+
+            {/* LEYENDA */}
+
+            <div className="mt-5 flex flex-wrap justify-center gap-3 text-sm font-medium text-slate-600">
+
+              <span>
+                📅 JJ: Partidos jugados
+              </span>
+
+              <span>•</span>
+
+              <span>
+                🏀 PTS: Puntos totales
+              </span>
+
+              <span>•</span>
+
+              <span>
+                💪 REB: Rebotes totales
+              </span>
+
+              <span>•</span>
+
+              <span>
+                🎯 AST: Asistencias totales
+              </span>
+
+              <span>•</span>
+
+              <span>
+                📊 PPG / RPG / APG: Promedios por partido
+              </span>
+
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-2xl font-bold mb-4">
-                💪 Top Reboteadores
-              </h2>
+          </section>
 
-              {lideresRebotes.length > 0 ? (
-                lideresRebotes.map(
-                  (jugador, index) => (
-                    <p
-                      key={jugador.id}
-                      className="py-2 border-b last:border-b-0"
-                    >
-                      <span className="font-bold">
-                        {index + 1}.
-                      </span>{" "}
-                      {jugador.nombre} -{" "}
-                      <span className="font-bold text-green-700">
-                        {jugador.rpg} RPG
-                      </span>
-                    </p>
-                  )
-                )
-              ) : (
-                <p className="text-gray-500">
-                  No hay estadísticas todavía.
-                </p>
-              )}
-            </div>
 
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-2xl font-bold mb-4">
-                🎯 Top Asistidores
-              </h2>
+          {/* TABLA DE POSICIONES */}
 
-              {lideresAsistencias.length > 0 ? (
-                lideresAsistencias.map(
-                  (jugador, index) => (
-                    <p
-                      key={jugador.id}
-                      className="py-2 border-b last:border-b-0"
-                    >
-                      <span className="font-bold">
-                        {index + 1}.
-                      </span>{" "}
-                      {jugador.nombre} -{" "}
-                      <span className="font-bold text-red-700">
-                        {jugador.apg} APG
-                      </span>
-                    </p>
-                  )
-                )
-              ) : (
-                <p className="text-gray-500">
-                  No hay estadísticas todavía.
-                </p>
-              )}
-            </div>
+          <div className="bg-white p-6 rounded-2xl shadow-xl mt-8">
 
-          </div>
+            <h2 className="text-2xl md:text-3xl font-black text-blue-900 mb-5">
 
-          <div className="bg-white p-6 rounded-xl shadow mt-8">
-
-            <h2 className="text-2xl font-bold mb-4">
               🏆 Tabla de Posiciones
+
             </h2>
 
+
             {tabla.length > 0 ? (
+
               <div className="overflow-x-auto">
 
                 <table className="w-full text-left min-w-[600px]">
 
                   <thead>
-                    <tr className="border-b bg-slate-50">
-                      <th className="p-3">Pos</th>
-                      <th className="p-3">Equipo</th>
-                      <th className="p-3">PJ</th>
-                      <th className="p-3">PG</th>
-                      <th className="p-3">PP</th>
-                      <th className="p-3">PTS</th>
+
+                    <tr className="border-b bg-blue-900 text-white">
+
+                      <th className="p-4 text-center">
+                        Pos
+                      </th>
+
+                      <th className="p-4">
+                        Equipo
+                      </th>
+
+                      <th className="p-4 text-center">
+                        PJ
+                      </th>
+
+                      <th className="p-4 text-center">
+                        PG
+                      </th>
+
+                      <th className="p-4 text-center">
+                        PP
+                      </th>
+
+                      <th className="p-4 text-center">
+                        PTS
+                      </th>
+
                     </tr>
+
                   </thead>
 
+
                   <tbody>
+
                     {tabla.map(
                       (equipo, index) => (
+
                         <tr
                           key={equipo.equipo}
-                          className="border-b"
+                          className="
+                            border-b
+                            hover:bg-slate-50
+                            transition
+                          "
                         >
-                          <td className="p-3 font-bold">
+
+                          <td className="p-4 text-center font-bold">
+
                             {index + 1}
+
                           </td>
 
-                          <td className="p-3 font-bold">
+
+                          <td className="p-4 font-bold">
+
                             {equipo.equipo}
+
                           </td>
 
-                          <td className="p-3">
+
+                          <td className="p-4 text-center">
+
                             {equipo.pj}
+
                           </td>
 
-                          <td className="p-3">
+
+                          <td className="p-4 text-center">
+
                             {equipo.pg}
+
                           </td>
 
-                          <td className="p-3">
+
+                          <td className="p-4 text-center">
+
                             {equipo.pp}
+
                           </td>
 
-                          <td className="p-3 font-black text-blue-900">
+
+                          <td className="p-4 text-center font-black text-blue-900">
+
                             {equipo.pts}
+
                           </td>
+
                         </tr>
+
                       )
                     )}
+
                   </tbody>
 
                 </table>
 
               </div>
+
             ) : (
+
               <p className="text-gray-500">
+
                 Todavía no hay partidos finalizados.
+
               </p>
+
             )}
 
           </div>
