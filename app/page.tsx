@@ -122,7 +122,7 @@ const lideresAsistencias = [...jugadores]
   .filter((jugador) => Number(jugador.apg) > 0)
   .sort((a, b) => Number(b.apg) - Number(a.apg))
   .slice(0, 3);
-  
+
   if (jugadores.length === 0) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -655,12 +655,15 @@ const ultimosResultados = [...partidosActuales]
 
           </div>
 
-          <div className="mt-4 text-center">
-            <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-bold">
-              📅 {partido.fecha}
-            </span>
-          </div>
+          <div className="mt-5 flex flex-col items-center gap-2">
+  <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
+    📅 {partido.fecha}
+  </span>
 
+  <span className="bg-red-600 text-white px-5 py-2 rounded-full font-black text-lg shadow">
+    🕒 {partido.hora || "Hora por confirmar"}
+  </span>
+</div>
         </div>
       ))}
 
