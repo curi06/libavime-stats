@@ -985,6 +985,28 @@ const ultimosResultados = [...partidosActuales]
 </div>
 </div> 
 </main>
+<footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
+  <div className="mx-auto flex max-w-3xl flex-col items-center px-4">
+
+    <p className="flex items-center justify-center gap-2 text-lg font-black tracking-wide text-slate-700 sm:text-xl">
+      <span className="text-xl sm:text-2xl">🏀</span>
+      <span>LIBAVIME</span>
+    </p>
+
+    <p className="mt-3 max-w-2xl text-center text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
+      © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
+      <span className="font-black text-blue-900">
+        Emmi De La Cruz
+      </span>
+    </p>
+
+    <p className="mt-2 text-center text-xs font-medium text-slate-400 sm:text-sm">
+      Creado para LIBAVIME
+    </p>
+
+  </div>
+</footer>
+
 
 </>
 );
