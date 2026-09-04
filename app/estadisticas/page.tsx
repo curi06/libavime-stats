@@ -50,7 +50,7 @@ export default function Estadisticas() {
         .order("nombre"),
 
       supabase
-        .from("estadisticas_jugadores")
+        .from("estadisticas_partido")
         .select(`
           jugador_id,
           puntos,
@@ -372,21 +372,15 @@ export default function Estadisticas() {
       <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
         <div className="max-w-6xl mx-auto">
 
-          {/* TÍTULO */}
-
           <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
             📊 Estadísticas LIBAVIME
           </h1>
-
-          {/* MENSAJE DE ERROR */}
 
           {errorCarga && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-center font-medium">
               {errorCarga}
             </div>
           )}
-
-          {/* ESTADÍSTICAS DE LOS JUGADORES */}
 
           <section className="mb-10">
 
@@ -410,13 +404,11 @@ export default function Estadisticas() {
 
               <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
 
-                <div
-                  className="
-                    max-h-[650px]
-                    md:max-h-[720px]
-                    overflow-auto
-                  "
-                >
+                <div className="
+                  max-h-[650px]
+                  md:max-h-[720px]
+                  overflow-auto
+                ">
 
                   <table className="w-full min-w-[900px] text-left">
 
@@ -500,8 +492,6 @@ export default function Estadisticas() {
                               "
                             >
 
-                              {/* POSICIÓN */}
-
                               <td className="p-4 text-center font-black text-blue-900 text-lg">
 
                                 {index === 0
@@ -513,8 +503,6 @@ export default function Estadisticas() {
                                   : index + 1}
 
                               </td>
-
-                              {/* JUGADOR */}
 
                               <td className="p-4">
 
@@ -595,74 +583,42 @@ export default function Estadisticas() {
 
                               </td>
 
-                              {/* EQUIPO */}
-
                               <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
-
                                 {jugador.equipo || "—"}
-
                               </td>
 
-                              {/* JJ */}
-
                               <td className="p-4 text-center font-bold">
-
                                 {jugador.partidosJugados}
-
                               </td>
-
-                              {/* PUNTOS TOTALES */}
 
                               <td className="p-4 text-center font-bold">
-
                                 {jugador.puntosTotales}
-
                               </td>
-
-                              {/* PPG */}
 
                               <td className="p-4 text-center font-black text-blue-900">
-
                                 {Number(
                                   jugador.ppg ?? 0
                                 ).toFixed(1)}
-
                               </td>
-
-                              {/* REBOTES */}
 
                               <td className="p-4 text-center font-bold">
-
                                 {jugador.rebotesTotales}
-
                               </td>
 
-                              {/* RPG */}
-
                               <td className="p-4 text-center font-black text-green-700">
-
                                 {Number(
                                   jugador.rpg ?? 0
                                 ).toFixed(1)}
-
                               </td>
-
-                              {/* ASISTENCIAS */}
 
                               <td className="p-4 text-center font-bold">
-
                                 {jugador.asistenciasTotales}
-
                               </td>
 
-                              {/* APG */}
-
                               <td className="p-4 text-center font-black text-red-700">
-
                                 {Number(
                                   jugador.apg ?? 0
                                 ).toFixed(1)}
-
                               </td>
 
                             </tr>
@@ -689,8 +645,6 @@ export default function Estadisticas() {
               </div>
 
             )}
-
-            {/* LEYENDA */}
 
             <div className="mt-5 flex flex-wrap justify-center gap-3 text-sm font-medium text-slate-600">
 
@@ -726,8 +680,6 @@ export default function Estadisticas() {
             </div>
 
           </section>
-
-          {/* TABLA DE POSICIONES */}
 
           <div className="bg-white p-6 rounded-2xl shadow-xl mt-8">
 
