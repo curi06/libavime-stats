@@ -353,11 +353,23 @@ export default function Estadisticas() {
 
   async function exportarPDF() {
     try {
-      const jspdfModule = await import("jspdf");
-      const autoTableModule = await import("jspdf-autotable");
+      if (jugadoresOrdenados.length === 0) {
+        alert(
+          "No hay jugadores disponibles para exportar."
+        );
+        return;
+      }
 
-      const jsPDF = jspdfModule.default;
-      const autoTable = autoTableModule.default;
+     const jspdfModule = await import("jspdf");
+const autoTableModule = await import("jspdf-autotable");
+
+const jsPDF = jspdfModule.default;
+
+const autoTable =
+  (
+    autoTableModule.default ||
+    autoTableModule
+  ) as any;
 
       const doc = new jsPDF({
         orientation: "landscape",
@@ -365,80 +377,134 @@ export default function Estadisticas() {
         format: "a4",
       });
 
-      const fecha = new Date().toLocaleDateString("es-DO");
+      const fecha = new Date().toLocaleDateString(
+        "es-DO",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }
+      );
+
+      const jugadoresExportacion =
+        jugadoresOrdenados.map((jugador, index) => ({
+          ...jugador,
+          posicion: index + 1,
+        }));
+
+      const obtenerLider = (
+        campo: "puntosTotales" | "rebotesTotales" | "asistenciasTotales"
+      ) => {
+        const ordenados = [
+          ...jugadoresExportacion,
+        ].sort(
+          (a, b) =>
+            Number(b[campo] ?? 0) -
+            Number(a[campo] ?? 0)
+        );
+
+        return ordenados[0] ?? null;
+      };
+
+      const liderPuntos =
+        obtenerLider("puntosTotales");
+
+      const liderRebotes =
+        obtenerLider("rebotesTotales");
+
+      const liderAsistencias =
+        obtenerLider("asistenciasTotales");
+
+      const maxPuntos = Math.max(
+        ...jugadoresExportacion.map((jugador) =>
+          Number(jugador.puntosTotales ?? 0)
+        ),
+        0
+      );
+
+      const maxRebotes = Math.max(
+        ...jugadoresExportacion.map((jugador) =>
+          Number(jugador.rebotesTotales ?? 0)
+        ),
+        0
+      );
+
+      const maxAsistencias = Math.max(
+        ...jugadoresExportacion.map((jugador) =>
+          Number(jugador.asistenciasTotales ?? 0)
+        ),
+        0
+      );
 
       let logoData: string | null = null;
 
       try {
-        const respuesta = await fetch("/logos/LIBAVIME.png");
+        const respuesta = await fetch(
+          "/logos/LIBAVIME.png"
+        );
 
         if (respuesta.ok) {
           const blob = await respuesta.blob();
 
-          logoData = await new Promise<string>((resolve, reject) => {
-            const lector = new FileReader();
+          logoData = await new Promise<string>(
+            (resolve, reject) => {
+              const lector = new FileReader();
 
-            lector.onloadend = () => {
-              if (typeof lector.result === "string") {
-                resolve(lector.result);
-              } else {
-                reject(new Error("No se pudo convertir el logo"));
-              }
-            };
+              lector.onloadend = () => {
+                if (
+                  typeof lector.result === "string"
+                ) {
+                  resolve(lector.result);
+                } else {
+                  reject(
+                    new Error(
+                      "No se pudo convertir el logo"
+                    )
+                  );
+                }
+              };
 
-            lector.onerror = () => {
-              reject(new Error("Error leyendo el logo"));
-            };
+              lector.onerror = () => {
+                reject(
+                  new Error(
+                    "Error leyendo el logo"
+                  )
+                );
+              };
 
-            lector.readAsDataURL(blob);
-          });
+              lector.readAsDataURL(blob);
+            }
+          );
         }
       } catch (error) {
-        console.error("No se pudo cargar el logo de LIBAVIME:", error);
+        console.error(
+          "No se pudo cargar el logo de LIBAVIME:",
+          error
+        );
       }
 
-      const filas = jugadoresOrdenados.map(
-        (jugador, index) => [
-          String(index + 1),
-          String(jugador.nombre ?? ""),
-          String(jugador.equipo ?? ""),
-          String(jugador.partidosJugados ?? 0),
-          String(jugador.puntosTotales ?? 0),
-          Number(jugador.ppg ?? 0).toFixed(1),
-          String(jugador.rebotesTotales ?? 0),
-          Number(jugador.rpg ?? 0).toFixed(1),
-          String(jugador.asistenciasTotales ?? 0),
-          Number(jugador.apg ?? 0).toFixed(1),
-        ]
-      );
-
-      const dibujarEncabezado = () => {
-        const pageWidth = doc.internal.pageSize.getWidth();
+      const dibujarEncabezado = (
+        subtitulo = ""
+      ) => {
+        const pageWidth =
+          doc.internal.pageSize.getWidth();
         const centro = pageWidth / 2;
 
         if (logoData) {
           try {
-            const propiedades = doc.getImageProperties(logoData);
-            const anchoMaximo = 38;
-            const altoMaximo = 32;
+            const propiedades =
+              doc.getImageProperties(logoData);
 
-            let anchoLogo = anchoMaximo;
-            let altoLogo =
-              (propiedades.height * anchoLogo) /
-              propiedades.width;
-
-            if (altoLogo > altoMaximo) {
-              altoLogo = altoMaximo;
-              anchoLogo =
-                (propiedades.width * altoLogo) /
-                propiedades.height;
-            }
+            const altoLogo = 26;
+            const anchoLogo =
+              (propiedades.width * altoLogo) /
+              propiedades.height;
 
             doc.addImage(
               logoData,
               "PNG",
               12,
-              4 + (32 - altoLogo) / 2,
+              7,
               anchoLogo,
               altoLogo
             );
@@ -450,93 +516,332 @@ export default function Estadisticas() {
           }
         }
 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(19);
-        doc.setTextColor(20, 50, 100);
+        doc.setFillColor(
+          247,
+          249,
+          252
+        );
+
+        doc.rect(
+          0,
+          0,
+          pageWidth,
+          39,
+          "F"
+        );
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        doc.setFontSize(18);
+
+        doc.setTextColor(
+          20,
+          50,
+          100
+        );
 
         doc.text(
           "ESTADÍSTICAS OFICIALES DE JUGADORES",
           centro,
-          17,
-          { align: "center" }
+          16,
+          {
+            align: "center",
+          }
         );
 
-        doc.setFontSize(13);
+        doc.setFontSize(12);
 
         doc.text(
           "LIGA DE BALONCESTO DE VISITADORES MÉDICOS",
           centro,
-          25,
-          { align: "center" }
+          24,
+          {
+            align: "center",
+          }
         );
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(90, 90, 90);
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.setFontSize(9.5);
+
+        doc.setTextColor(
+          90,
+          90,
+          90
+        );
 
         doc.text(
-          "TORNEO 2026 · LIBAVIME",
+          subtitulo ||
+            "TORNEO 2026 · LIBAVIME",
           centro,
-          32,
-          { align: "center" }
+          31,
+          {
+            align: "center",
+          }
         );
 
-        doc.setDrawColor(20, 50, 100);
+        doc.setDrawColor(
+          20,
+          50,
+          100
+        );
+
         doc.setLineWidth(0.7);
-        doc.line(12, 41, pageWidth - 12, 41);
-      };
-
-      const dibujarPie = (pagina: number) => {
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-
-        doc.setDrawColor(20, 50, 100);
-        doc.setLineWidth(0.4);
 
         doc.line(
           12,
-          pageHeight - 15,
+          39,
           pageWidth - 12,
-          pageHeight - 15
+          39
+        );
+      };
+
+      const dibujarResumen = () => {
+        const pageWidth =
+          doc.internal.pageSize.getWidth();
+
+        const margen = 12;
+        const separacion = 4;
+        const cantidad = 4;
+
+        const anchoTotal =
+          pageWidth -
+          margen * 2 -
+          separacion * (cantidad - 1);
+
+        const anchoTarjeta =
+          anchoTotal / cantidad;
+
+        const y = 46;
+        const alto = 20;
+
+        const tarjetas = [
+          {
+            titulo: "LÍDER EN PUNTOS",
+            valor: liderPuntos
+              ? `${liderPuntos.nombre} · ${Number(
+                  liderPuntos.puntosTotales ?? 0
+                )} PTS`
+              : "Sin datos",
+            color: [188, 90, 42] as [
+              number,
+              number,
+              number
+            ],
+          },
+          {
+            titulo: "LÍDER EN REBOTES",
+            valor: liderRebotes
+              ? `${liderRebotes.nombre} · ${Number(
+                  liderRebotes.rebotesTotales ?? 0
+                )} REB`
+              : "Sin datos",
+            color: [88, 110, 171] as [
+              number,
+              number,
+              number
+            ],
+          },
+          {
+            titulo: "LÍDER EN ASISTENCIAS",
+            valor: liderAsistencias
+              ? `${liderAsistencias.nombre} · ${Number(
+                  liderAsistencias.asistenciasTotales ?? 0
+                )} AST`
+              : "Sin datos",
+            color: [161, 91, 31] as [
+              number,
+              number,
+              number
+            ],
+          },
+          {
+            titulo: "JUGADORES REGISTRADOS",
+            valor: `${jugadoresExportacion.length} jugadores`,
+            color: [20, 50, 100] as [
+              number,
+              number,
+              number
+            ],
+          },
+        ];
+
+        tarjetas.forEach(
+          (tarjeta, index) => {
+            const x =
+              margen +
+              index *
+                (anchoTarjeta + separacion);
+
+            doc.setFillColor(
+              255,
+              255,
+              255
+            );
+
+            doc.setDrawColor(
+              225,
+              230,
+              238
+            );
+
+            doc.roundedRect(
+              x,
+              y,
+              anchoTarjeta,
+              alto,
+              2,
+              2,
+              "FD"
+            );
+
+            doc.setFillColor(
+              ...tarjeta.color
+            );
+
+            doc.roundedRect(
+              x,
+              y,
+              2.8,
+              alto,
+              2,
+              2,
+              "F"
+            );
+
+            doc.setFont(
+              "helvetica",
+              "bold"
+            );
+
+            doc.setFontSize(7.5);
+
+            doc.setTextColor(
+              100,
+              100,
+              100
+            );
+
+            doc.text(
+              tarjeta.titulo,
+              x + 6,
+              y + 7
+            );
+
+            doc.setFontSize(9.5);
+
+            doc.setTextColor(
+              ...tarjeta.color
+            );
+
+            const valor =
+              doc.splitTextToSize(
+                tarjeta.valor,
+                anchoTarjeta - 10
+              );
+
+            doc.text(
+              valor,
+              x + 6,
+              y + 14
+            );
+          }
+        );
+      };
+
+      const dibujarPie = (
+        pagina: number,
+        totalPaginas: number
+      ) => {
+        const pageWidth =
+          doc.internal.pageSize.getWidth();
+
+        const pageHeight =
+          doc.internal.pageSize.getHeight();
+
+        doc.setDrawColor(
+          20,
+          50,
+          100
         );
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(80, 80, 80);
+        doc.setLineWidth(0.45);
+
+        doc.line(
+          12,
+          pageHeight - 14,
+          pageWidth - 12,
+          pageHeight - 14
+        );
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.setFontSize(7.5);
+
+        doc.setTextColor(
+          90,
+          90,
+          90
+        );
 
         doc.text(
           `Fecha de emisión: ${fecha}`,
           12,
-          pageHeight - 8
+          pageHeight - 7
         );
 
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(20, 50, 100);
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        doc.setTextColor(
+          20,
+          50,
+          100
+        );
 
         doc.text(
-          "Diseñado por: Emmi De La Cruz",
+          "Diseño y desarrollo: Emmi De La Cruz",
           pageWidth / 2,
-          pageHeight - 8,
-          { align: "center" }
+          pageHeight - 7,
+          {
+            align: "center",
+          }
         );
 
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(80, 80, 80);
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.setTextColor(
+          90,
+          90,
+          90
+        );
 
         doc.text(
-          `Página ${pagina}`,
+          `Página ${pagina} de ${totalPaginas}`,
           pageWidth - 12,
-          pageHeight - 8,
-          { align: "right" }
+          pageHeight - 7,
+          {
+            align: "right",
+          }
         );
       };
 
-      dibujarEncabezado();
-
-      autoTable(doc, {
-        startY: 47,
-
-        head: [[
+      const encabezados = [
+        [
           "POS",
           "JUGADOR",
           "EQUIPO",
@@ -547,90 +852,280 @@ export default function Estadisticas() {
           "RPG",
           "AST",
           "APG",
-        ]],
+        ],
+      ];
 
-        body: filas,
+      const crearFilas = (
+        lista: any[]
+      ) =>
+        lista.map((jugador) => [
+          String(jugador.posicion),
+          String(jugador.nombre ?? ""),
+          String(jugador.equipo ?? ""),
+          String(
+            jugador.partidosJugados ?? 0
+          ),
+          String(
+            jugador.puntosTotales ?? 0
+          ),
+          Number(
+            jugador.ppg ?? 0
+          ).toFixed(1),
+          String(
+            jugador.rebotesTotales ?? 0
+          ),
+          Number(
+            jugador.rpg ?? 0
+          ).toFixed(1),
+          String(
+            jugador.asistenciasTotales ?? 0
+          ),
+          Number(
+            jugador.apg ?? 0
+          ).toFixed(1),
+        ]);
 
-        theme: "grid",
-
-        styles: {
-          fontSize: 8.5,
-          cellPadding: 2.2,
-          valign: "middle",
-        },
-
-        headStyles: {
-          fillColor: [20, 50, 100],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-          halign: "center",
-          fontSize: 8.5,
-        },
-
-        columnStyles: {
-          0: { halign: "center", cellWidth: 14 },
-          1: { cellWidth: 68 },
-          2: { cellWidth: 50 },
-          3: { halign: "center", cellWidth: 20 },
-          4: { halign: "center", cellWidth: 20 },
-          5: { halign: "center", cellWidth: 20 },
-          6: { halign: "center", cellWidth: 20 },
-          7: { halign: "center", cellWidth: 20 },
-          8: { halign: "center", cellWidth: 20 },
-          9: { halign: "center", cellWidth: 20 },
-        },
-
+      const estiloTabla = (
+        inicioY: number,
+        lista: any[]
+      ) => ({
+        startY: inicioY,
+        head: encabezados,
+        body: crearFilas(lista),
+        theme: "grid" as const,
+        tableWidth: 273,
         margin: {
-          top: 47,
+          top: inicioY,
           right: 12,
-          bottom: 20,
+          bottom: 18,
           left: 12,
         },
-
-        didDrawPage: (data) => {
-          if (data.pageNumber > 1) {
-            dibujarEncabezado();
+        styles: {
+          fontSize: 7.4,
+          cellPadding: {
+            top: 1.35,
+            right: 1.5,
+            bottom: 1.35,
+            left: 1.5,
+          },
+          valign: "middle" as const,
+          lineColor: [
+            215,
+            220,
+            228,
+          ],
+          lineWidth: 0.15,
+          textColor: [
+            70,
+            75,
+            85,
+          ],
+        },
+        headStyles: {
+          fillColor: [
+            20,
+            50,
+            100,
+          ],
+          textColor: [
+            255,
+            255,
+            255,
+          ],
+          fontStyle: "bold" as const,
+          halign: "center" as const,
+          fontSize: 7.5,
+          cellPadding: 1.7,
+        },
+        alternateRowStyles: {
+          fillColor: [
+            247,
+            249,
+            252,
+          ],
+        },
+        columnStyles: {
+          0: {
+            halign: "center" as const,
+            cellWidth: 14,
+          },
+          1: {
+            cellWidth: 68,
+          },
+          2: {
+            cellWidth: 50,
+          },
+          3: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          4: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          5: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          6: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          7: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          8: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+          9: {
+            halign: "center" as const,
+            cellWidth: 20,
+          },
+        },
+        didParseCell: (
+          data: any
+        ) => {
+          if (
+            data.section !== "body"
+          ) {
+            return;
           }
 
-          dibujarPie(data.pageNumber);
+          const jugador =
+            lista[data.row.index];
+
+          if (!jugador) return;
+
+          if (
+            data.column.index === 4 &&
+            maxPuntos > 0 &&
+            Number(
+              jugador.puntosTotales ?? 0
+            ) === maxPuntos
+          ) {
+            data.cell.styles.fillColor = [
+              255,
+              245,
+              230,
+            ];
+
+            data.cell.styles.textColor = [
+              160,
+              75,
+              25,
+            ];
+
+            data.cell.styles.fontStyle =
+              "bold";
+          }
+
+          if (
+            data.column.index === 6 &&
+            maxRebotes > 0 &&
+            Number(
+              jugador.rebotesTotales ?? 0
+            ) === maxRebotes
+          ) {
+            data.cell.styles.fillColor = [
+              238,
+              243,
+              255,
+            ];
+
+            data.cell.styles.textColor = [
+              55,
+              75,
+              145,
+            ];
+
+            data.cell.styles.fontStyle =
+              "bold";
+          }
+
+          if (
+            data.column.index === 8 &&
+            maxAsistencias > 0 &&
+            Number(
+              jugador.asistenciasTotales ?? 0
+            ) === maxAsistencias
+          ) {
+            data.cell.styles.fillColor = [
+              255,
+              246,
+              228,
+            ];
+
+            data.cell.styles.textColor = [
+              140,
+              90,
+              20,
+            ];
+
+            data.cell.styles.fontStyle =
+              "bold";
+          }
         },
       });
 
-      const paginas = doc.getNumberOfPages();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
+      const primeraPagina =
+        jugadoresExportacion.slice(0, 21);
 
-      for (let pagina = 1; pagina <= paginas; pagina++) {
+      const segundaPagina =
+        jugadoresExportacion.slice(21);
+
+      dibujarEncabezado();
+      dibujarResumen();
+
+     autoTable(
+  doc,
+  estiloTabla(
+    72,
+    primeraPagina
+  ) as any
+);
+
+doc.addPage();
+
+dibujarEncabezado(
+  "TORNEO 2026 · LIBAVIME · CONTINUACIÓN"
+);
+
+autoTable(
+  doc,
+  estiloTabla(
+    47,
+    segundaPagina
+  ) as any
+);
+
+      const totalPaginas =
+        doc.getNumberOfPages();
+
+      for (
+        let pagina = 1;
+        pagina <= totalPaginas;
+        pagina++
+      ) {
         doc.setPage(pagina);
 
-        doc.setFillColor(255, 255, 255);
-        doc.rect(
-          pageWidth - 62,
-          pageHeight - 13,
-          50,
-          7,
-          "F"
-        );
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(80, 80, 80);
-
-        doc.text(
-          `Página ${pagina} de ${paginas}`,
-          pageWidth - 12,
-          pageHeight - 8,
-          { align: "right" }
+        dibujarPie(
+          pagina,
+          totalPaginas
         );
       }
 
       doc.save(
-        `Estadisticas_LIBAVIME_${new Date()
+        `Estadisticas_LIBAVIME_2026_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
     } catch (error) {
-      console.error("Error al generar el PDF:", error);
+      console.error(
+        "Error al generar el PDF:",
+        error
+      );
 
       alert(
         "No se pudo generar el PDF. Inténtalo nuevamente."
