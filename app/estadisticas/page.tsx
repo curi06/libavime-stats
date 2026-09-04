@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function Estadisticas() {
   const [tabla, setTabla] = useState<any[]>([]);
@@ -351,6 +353,188 @@ export default function Estadisticas() {
     }
   );
 
+    async function exportarPDF() {
+  try {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const fecha = new Date().toLocaleDateString("es-DO");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(20, 50, 100);
+
+    doc.text(
+      "ESTADÍSTICAS OFICIALES LIBAVIME",
+      148.5,
+      18,
+      {
+        align: "center",
+      }
+    );
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+
+    doc.text(
+      "Liga de Baloncesto Villa Mella",
+      148.5,
+      25,
+      {
+        align: "center",
+      }
+    );
+
+    doc.setDrawColor(20, 50, 100);
+
+    doc.line(
+      12,
+      30,
+      285,
+      30
+    );
+
+    const filas = jugadoresOrdenados.map(
+      (jugador, index) => [
+        String(index + 1),
+        String(jugador.nombre ?? ""),
+        String(jugador.equipo ?? ""),
+        String(jugador.partidosJugados ?? 0),
+        String(jugador.puntosTotales ?? 0),
+        Number(jugador.ppg ?? 0).toFixed(1),
+        String(jugador.rebotesTotales ?? 0),
+        Number(jugador.rpg ?? 0).toFixed(1),
+        String(jugador.asistenciasTotales ?? 0),
+        Number(jugador.apg ?? 0).toFixed(1),
+      ]
+    );
+
+    autoTable(doc, {
+      startY: 38,
+
+      head: [[
+        "POS",
+        "JUGADOR",
+        "EQUIPO",
+        "JJ",
+        "PTS",
+        "PPG",
+        "REB",
+        "RPG",
+        "AST",
+        "APG",
+      ]],
+
+      body: filas,
+
+      theme: "grid",
+
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+
+      headStyles: {
+        fillColor: [20, 50, 100],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        halign: "center",
+      },
+
+      margin: {
+        top: 38,
+        right: 12,
+        bottom: 20,
+        left: 12,
+      },
+
+      didDrawPage: (data) => {
+        const pagina =
+          data.pageNumber;
+
+        if (pagina > 1) {
+          doc.setFont(
+            "helvetica",
+            "bold"
+          );
+
+          doc.setFontSize(16);
+          doc.setTextColor(
+            20,
+            50,
+            100
+          );
+
+          doc.text(
+            "ESTADÍSTICAS OFICIALES LIBAVIME",
+            148.5,
+            18,
+            {
+              align: "center",
+            }
+          );
+        }
+
+        doc.setFontSize(8);
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.setTextColor(
+          90,
+          90,
+          90
+        );
+
+        doc.text(
+          `Fecha: ${fecha}`,
+          12,
+          290
+        );
+
+        doc.text(
+          "Diseñado por: Emmi De La Cruz",
+          148.5,
+          290,
+          {
+            align: "center",
+          }
+        );
+
+        doc.text(
+          `Página ${pagina}`,
+          285,
+          290,
+          {
+            align: "right",
+          }
+        );
+      },
+    });
+
+    doc.save(
+      `Estadisticas_LIBAVIME_${new Date()
+        .toISOString()
+        .slice(0, 10)}.pdf`
+    );
+
+  } catch (error) {
+    console.error(
+      "Error al generar el PDF:",
+      error
+    );
+
+    alert(
+      "No se pudo generar el PDF."
+    );
+  }
+}
+
   if (cargando) {
     return (
       <>
@@ -394,6 +578,31 @@ export default function Estadisticas() {
               <h2 className="text-2xl md:text-4xl font-black text-blue-900">
                 🏀 Estadísticas de Jugadores
               </h2>
+              <button
+  type="button"
+  onClick={exportarPDF}
+  disabled={jugadoresOrdenados.length === 0}
+  className="
+    mt-4
+    inline-flex
+    items-center
+    justify-center
+    gap-2
+    rounded-xl
+    bg-blue-900
+    px-6
+    py-3
+    font-bold
+    text-white
+    shadow-lg
+    transition
+    hover:bg-blue-800
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+  "
+>
+  📄 Exportar estadísticas en PDF
+</button>
 
               <p className="text-slate-600 mt-2">
                 Ranking completo de{" "}
