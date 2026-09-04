@@ -103,20 +103,17 @@ useEffect(() => {
   cargarDatos();
 }, []);
 
-  // Estadísticas de los 44 jugadores ordenadas por puntos.
-  // En caso de empate: rebotes, asistencias y luego nombre.
-  const jugadoresOrdenados = [...jugadores].sort((a, b) => {
-    const puntos = Number(b.ppg) - Number(a.ppg);
-    if (puntos !== 0) return puntos;
+  const lideresPuntos = [...jugadores]
+    .sort((a, b) => b.ppg - a.ppg)
+    .slice(0, 3);
 
-    const rebotes = Number(b.rpg) - Number(a.rpg);
-    if (rebotes !== 0) return rebotes;
+  const lideresRebotes = [...jugadores]
+    .sort((a, b) => b.rpg - a.rpg)
+    .slice(0, 3);
 
-    const asistencias = Number(b.apg) - Number(a.apg);
-    if (asistencias !== 0) return asistencias;
-
-    return String(a.nombre).localeCompare(String(b.nombre));
-  });
+  const lideresAsistencias = [...jugadores]
+    .sort((a, b) => b.apg - a.apg)
+    .slice(0, 3);
 
   if (jugadores.length === 0) {
     return (
@@ -316,6 +313,42 @@ const ultimosResultados = [...partidosActuales]
     <p>Temporada</p>
   </div>
 </div>
+<Link
+  href="/mvp"
+  className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
+>
+  <div className="flex flex-col md:flex-row items-center gap-6">
+
+    <Image
+      src={lideresPuntos[0]?.foto || "/logos/LIBAVIME.png"}
+      alt={lideresPuntos[0]?.nombre || "MVP LIBAVIME"}
+      width={120}
+      height={120}
+      className="rounded-full border-4 border-white"
+    />
+
+    <div className="text-center md:text-left text-white">
+
+      <h2 className="text-xl md:text-3xl font-black">
+        🏆 MVP LIBAVIME 2026
+      </h2>
+
+      <p className="text-2xl font-bold mt-2">
+        {lideresPuntos[0]?.nombre || "Sin datos"}
+      </p>
+
+      <p>
+        {lideresPuntos[0]?.equipo || ""}
+      </p>
+
+      <p className="text-5xl font-black mt-2">
+        {lideresPuntos[0]?.ppg ?? 0} PPG
+      </p>
+
+    </div>
+
+  </div>
+</Link>
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
@@ -626,99 +659,147 @@ const ultimosResultados = [...partidosActuales]
   </div>
 </div>
 
-<section className="mt-12">
-  <div className="text-center mb-8">
-    <h2 className="text-3xl md:text-4xl font-black text-blue-900">
-      📊 ESTADÍSTICAS DE LOS JUGADORES
-    </h2>
+<div className="mt-10">
+  <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
+    🏆 LÍDERES DE LA LIGA
+  </h2>
 
-    <p className="text-slate-600 mt-2">
-      Ranking general de los {jugadoresOrdenados.length} jugadores de LIBAVIME
-    </p>
-  </div>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-  <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-    <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-4 md:px-6 py-4 grid grid-cols-[52px_minmax(180px,1fr)_70px_70px_70px_60px] md:grid-cols-[60px_minmax(260px,1fr)_90px_90px_90px_70px] gap-2 md:gap-4 items-center font-black text-sm md:text-base">
-      <div className="text-center">POS</div>
-      <div>JUGADOR</div>
-      <div className="text-center">PPG</div>
-      <div className="text-center">RPG</div>
-      <div className="text-center">APG</div>
-      <div className="text-center">PJ</div>
-    </div>
+    {/* TOP 3 PUNTOS */}
+    <div className="bg-red-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        🏀 TOP 3 PUNTOS
+      </h2>
 
-    <div className="divide-y divide-slate-200">
-      {jugadoresOrdenados.map((jugador, index) => {
-        const medalla =
-          index === 0 ? "🥇" :
-          index === 1 ? "🥈" :
-          index === 2 ? "🥉" :
-          null;
-
-        return (
+      <div className="space-y-3">
+        {lideresPuntos.map((jugador, index) => (
           <Link
-            key={jugador.id ?? jugador.slug ?? `${jugador.nombre}-${index}`}
-            href={jugador.slug ? `/jugadores/${jugador.slug}` : "/jugadores"}
-            className="px-4 md:px-6 py-3 grid grid-cols-[52px_minmax(180px,1fr)_70px_70px_70px_60px] md:grid-cols-[60px_minmax(260px,1fr)_90px_90px_90px_70px] gap-2 md:gap-4 items-center hover:bg-blue-50 transition"
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
           >
-            <div className="text-center">
-              {medalla ? (
-                <span className="text-2xl">{medalla}</span>
-              ) : (
-                <span className="inline-flex w-9 h-9 items-center justify-center rounded-full bg-slate-100 text-blue-900 font-black">
-                  {index + 1}
-                </span>
-              )}
-            </div>
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-            <div className="flex items-center gap-3 min-w-0">
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
+
               <Image
-                src={jugador.foto || "/logos/LIBAVIME.png"}
-                alt={jugador.nombre || "Jugador LIBAVIME"}
-                width={56}
-                height={56}
-                className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover bg-slate-100"
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
               />
 
-              <div className="min-w-0">
-                <p className="font-black text-slate-900 truncate">
-                  {jugador.nombre}
-                </p>
-
-                <p className="text-xs md:text-sm text-slate-500 truncate">
-                  {jugador.equipo || "Sin equipo"}
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
                 </p>
               </div>
-            </div>
 
-            <div className="text-center font-black text-red-600">
-              {Number(jugador.ppg).toFixed(1)}
-            </div>
+              <p className="text-red-700 font-black">
+                {jugador.ppg} PPG
+              </p>
 
-            <div className="text-center font-black text-purple-700">
-              {Number(jugador.rpg).toFixed(1)}
-            </div>
-
-            <div className="text-center font-black text-amber-600">
-              {Number(jugador.apg).toFixed(1)}
-            </div>
-
-            <div className="text-center font-bold text-slate-700">
-              {jugador.partidos_jugados ?? 0}
             </div>
           </Link>
-        );
-      })}
+        ))}
+      </div>
     </div>
-  </div>
 
-  <div className="mt-5 flex flex-wrap justify-center gap-4 text-sm font-bold">
-    <span className="text-red-600">🏀 PPG: Puntos por partido</span>
-    <span className="text-purple-700">💪 RPG: Rebotes por partido</span>
-    <span className="text-amber-600">🎯 APG: Asistencias por partido</span>
-    <span className="text-slate-700">📅 PJ: Partidos jugados</span>
+    {/* TOP 3 REBOTES */}
+    <div className="bg-purple-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        💪 TOP 3 REBOTES
+      </h2>
+
+      <div className="space-y-3">
+        {lideresRebotes.map((jugador, index) => (
+          <Link
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
+          >
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
+
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
+              />
+
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
+                </p>
+              </div>
+
+              <p className="text-purple-700 font-black">
+                {jugador.rpg} RPG
+              </p>
+
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+
+    {/* TOP 3 ASISTENCIAS */}
+    <div className="bg-yellow-50 p-6 rounded-2xl shadow-lg">
+      <h2 className="text-xl font-black text-center mb-5">
+        🎯 TOP 3 ASISTENCIAS
+      </h2>
+
+      <div className="space-y-3">
+        {lideresAsistencias.map((jugador, index) => (
+          <Link
+            key={jugador.slug}
+            href={`/jugadores/${jugador.slug}`}
+            className="block"
+          >
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              </div>
+
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
+              />
+
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
+                  {jugador.equipo}
+                </p>
+              </div>
+
+              <p className="text-yellow-600 font-black">
+                {jugador.apg} APG
+              </p>
+
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+
   </div>
-</section>
+</div>
 </div>
 
 <footer className="mt-24 border-t border-slate-300 pt-12 pb-10 text-center">
