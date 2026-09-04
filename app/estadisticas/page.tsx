@@ -351,195 +351,296 @@ export default function Estadisticas() {
     }
   );
 
-    async function exportarPDF() {
-  try {
-    const [
-      { default: jsPDF },
-      { default: autoTable },
-    ] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-    ]);
+  async function exportarPDF() {
+    try {
+      const [
+        { default: jsPDF },
+        { default: autoTable },
+      ] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
 
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
 
-    const fecha = new Date().toLocaleDateString("es-DO");
+      const fecha = new Date().toLocaleDateString("es-DO");
+      const totalPaginas = "{total_pages_count_string}";
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(20, 50, 100);
+      const cargarLogo = async () => {
+        try {
+          const respuesta = await fetch("/logos/LIBAVIME.png");
 
-    doc.text(
-      "ESTADÍSTICAS OFICIALES LIBAVIME",
-      148.5,
-      18,
-      {
-        align: "center",
-      }
-    );
+          if (!respuesta.ok) {
+            throw new Error("No se pudo cargar el logo");
+          }
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(80, 80, 80);
+          const blob = await respuesta.blob();
 
-    doc.text(
-      "Liga de Baloncesto Villa Mella",
-      148.5,
-      25,
-      {
-        align: "center",
-      }
-    );
+          return await new Promise<string>((resolve, reject) => {
+            const lector = new FileReader();
 
-    doc.setDrawColor(20, 50, 100);
+            lector.onloadend = () => {
+              if (typeof lector.result === "string") {
+                resolve(lector.result);
+              } else {
+                reject(new Error("No se pudo convertir el logo"));
+              }
+            };
 
-    doc.line(
-      12,
-      30,
-      285,
-      30
-    );
+            lector.onerror = () =>
+              reject(new Error("Error leyendo el logo"));
 
-    const filas = jugadoresOrdenados.map(
-      (jugador, index) => [
-        String(index + 1),
-        String(jugador.nombre ?? ""),
-        String(jugador.equipo ?? ""),
-        String(jugador.partidosJugados ?? 0),
-        String(jugador.puntosTotales ?? 0),
-        Number(jugador.ppg ?? 0).toFixed(1),
-        String(jugador.rebotesTotales ?? 0),
-        Number(jugador.rpg ?? 0).toFixed(1),
-        String(jugador.asistenciasTotales ?? 0),
-        Number(jugador.apg ?? 0).toFixed(1),
-      ]
-    );
+            lector.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error("Error cargando el logo de LIBAVIME:", error);
+          return null;
+        }
+      };
 
-    autoTable(doc, {
-      startY: 38,
+      const logo = await cargarLogo();
 
-      head: [[
-        "POS",
-        "JUGADOR",
-        "EQUIPO",
-        "JJ",
-        "PTS",
-        "PPG",
-        "REB",
-        "RPG",
-        "AST",
-        "APG",
-      ]],
+      const filas = jugadoresOrdenados.map(
+        (jugador, index) => [
+          String(index + 1),
+          String(jugador.nombre ?? ""),
+          String(jugador.equipo ?? ""),
+          String(jugador.partidosJugados ?? 0),
+          String(jugador.puntosTotales ?? 0),
+          Number(jugador.ppg ?? 0).toFixed(1),
+          String(jugador.rebotesTotales ?? 0),
+          Number(jugador.rpg ?? 0).toFixed(1),
+          String(jugador.asistenciasTotales ?? 0),
+          Number(jugador.apg ?? 0).toFixed(1),
+        ]
+      );
 
-      body: filas,
+      const dibujarEncabezado = () => {
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-      theme: "grid",
-
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-      },
-
-      headStyles: {
-        fillColor: [20, 50, 100],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        halign: "center",
-      },
-
-      margin: {
-        top: 38,
-        right: 12,
-        bottom: 20,
-        left: 12,
-      },
-
-      didDrawPage: (data) => {
-        const pagina =
-          data.pageNumber;
-
-        if (pagina > 1) {
-          doc.setFont(
-            "helvetica",
-            "bold"
-          );
-
-          doc.setFontSize(16);
-          doc.setTextColor(
-            20,
-            50,
-            100
-          );
-
-          doc.text(
-            "ESTADÍSTICAS OFICIALES LIBAVIME",
-            148.5,
-            18,
-            {
-              align: "center",
-            }
+        if (logo) {
+          doc.addImage(
+            logo,
+            "PNG",
+            12,
+            8,
+            30,
+            30
           );
         }
 
-        doc.setFontSize(8);
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-
-        doc.setTextColor(
-          90,
-          90,
-          90
-        );
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(19);
+        doc.setTextColor(20, 50, 100);
 
         doc.text(
-          `Fecha: ${fecha}`,
-          12,
-          290
-        );
-
-        doc.text(
-          "Diseñado por: Emmi De La Cruz",
-          148.5,
-          290,
+          "ESTADÍSTICAS OFICIALES DE JUGADORES",
+          pageWidth / 2,
+          17,
           {
             align: "center",
           }
         );
 
+        doc.setFontSize(14);
+
         doc.text(
-          `Página ${pagina}`,
-          285,
-          290,
+          "LIGA DE BALONCESTO DE VISITADORES MÉDICOS",
+          pageWidth / 2,
+          25,
+          {
+            align: "center",
+          }
+        );
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+
+        doc.text(
+          "TORNEO 2025 · LIBAVIME",
+          pageWidth / 2,
+          32,
+          {
+            align: "center",
+          }
+        );
+
+        doc.setDrawColor(20, 50, 100);
+        doc.setLineWidth(0.7);
+        doc.line(12, 41, pageWidth - 12, 41);
+      };
+
+      const dibujarPie = (pagina: number) => {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        doc.setDrawColor(20, 50, 100);
+        doc.setLineWidth(0.5);
+        doc.line(
+          12,
+          pageHeight - 15,
+          pageWidth - 12,
+          pageHeight - 15
+        );
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+
+        doc.text(
+          `Fecha de emisión: ${fecha}`,
+          12,
+          pageHeight - 8
+        );
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setTextColor(20, 50, 100);
+
+        doc.text(
+          "Diseñado por: Emmi De La Cruz",
+          pageWidth / 2,
+          pageHeight - 8,
+          {
+            align: "center",
+          }
+        );
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.text(
+          `Página ${pagina} de ${totalPaginas}`,
+          pageWidth - 12,
+          pageHeight - 8,
           {
             align: "right",
           }
         );
-      },
-    });
+      };
 
-    doc.save(
-      `Estadisticas_LIBAVIME_${new Date()
-        .toISOString()
-        .slice(0, 10)}.pdf`
-    );
+      dibujarEncabezado();
 
-  } catch (error) {
-    console.error(
-      "Error al generar el PDF:",
-      error
-    );
+      autoTable(doc, {
+        startY: 47,
 
-    alert(
-      "No se pudo generar el PDF."
-    );
+        head: [[
+          "POS",
+          "JUGADOR",
+          "EQUIPO",
+          "JJ",
+          "PTS",
+          "PPG",
+          "REB",
+          "RPG",
+          "AST",
+          "APG",
+        ]],
+
+        body: filas,
+
+        theme: "grid",
+
+        styles: {
+          fontSize: 8.5,
+          cellPadding: 2.2,
+          valign: "middle",
+        },
+
+        headStyles: {
+          fillColor: [20, 50, 100],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "center",
+          fontSize: 8.5,
+        },
+
+        columnStyles: {
+          0: { halign: "center", cellWidth: 14 },
+          1: { cellWidth: 55 },
+          2: { cellWidth: 42 },
+          3: { halign: "center", cellWidth: 12 },
+          4: { halign: "center", cellWidth: 15 },
+          5: { halign: "center", cellWidth: 15 },
+          6: { halign: "center", cellWidth: 15 },
+          7: { halign: "center", cellWidth: 15 },
+          8: { halign: "center", cellWidth: 15 },
+          9: { halign: "center", cellWidth: 15 },
+        },
+
+        margin: {
+          top: 47,
+          right: 12,
+          bottom: 20,
+          left: 12,
+        },
+
+        didDrawPage: (data) => {
+          if (data.pageNumber > 1) {
+            dibujarEncabezado();
+          }
+
+          dibujarPie(data.pageNumber);
+        },
+      });
+
+      const paginas = doc.getNumberOfPages();
+
+      for (let pagina = 1; pagina <= paginas; pagina++) {
+        doc.setPage(pagina);
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        doc.setFillColor(255, 255, 255);
+        doc.rect(
+          pageWidth - 62,
+          pageHeight - 13,
+          50,
+          7,
+          "F"
+        );
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+
+        doc.text(
+          `Página ${pagina} de ${paginas}`,
+          pageWidth - 12,
+          pageHeight - 8,
+          {
+            align: "right",
+          }
+        );
+      }
+
+      doc.save(
+        `Estadisticas_LIBAVIME_${new Date()
+          .toISOString()
+          .slice(0, 10)}.pdf`
+      );
+
+    } catch (error) {
+      console.error(
+        "Error al generar el PDF:",
+        error
+      );
+
+      alert(
+        "No se pudo generar el PDF."
+      );
+    }
   }
-}
 
   if (cargando) {
     return (
