@@ -10,6 +10,7 @@ export default function Estadisticas() {
   const [tabla, setTabla] = useState<any[]>([]);
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -17,13 +18,25 @@ export default function Estadisticas() {
 
   async function cargarDatos() {
     setCargando(true);
+    setErrorCarga("");
 
-    await Promise.all([
-      cargarTabla(),
-      cargarJugadores(),
-    ]);
+    try {
+      await Promise.all([
+        cargarTabla(),
+        cargarJugadores(),
+      ]);
+    } catch (error) {
+      console.error(
+        "Error general cargando estadísticas:",
+        error
+      );
 
-    setCargando(false);
+      setErrorCarga(
+        "Ocurrió un error al cargar las estadísticas."
+      );
+    } finally {
+      setCargando(false);
+    }
   }
 
   async function cargarJugadores() {
@@ -37,7 +50,7 @@ export default function Estadisticas() {
         .order("nombre"),
 
       supabase
-        .from("estadisticas_partido")
+        .from("estadisticas_jugadores")
         .select(`
           jugador_id,
           puntos,
@@ -52,7 +65,8 @@ export default function Estadisticas() {
         "Error cargando jugadores:",
         jugadoresError
       );
-      return;
+
+      throw jugadoresError;
     }
 
     if (estadisticasError) {
@@ -60,7 +74,8 @@ export default function Estadisticas() {
         "Error cargando estadísticas:",
         estadisticasError
       );
-      return;
+
+      throw estadisticasError;
     }
 
     const estadisticasPorJugador = new Map<
@@ -69,7 +84,7 @@ export default function Estadisticas() {
         puntos: number;
         rebotes: number;
         asistencias: number;
-        partidos: number;
+        partidos: Set<string>;
       }
     >();
 
@@ -79,12 +94,14 @@ export default function Estadisticas() {
           estadistica.jugador_id
         );
 
+        if (!jugadorId) return;
+
         const actual =
           estadisticasPorJugador.get(jugadorId) ?? {
             puntos: 0,
             rebotes: 0,
             asistencias: 0,
-            partidos: 0,
+            partidos: new Set<string>(),
           };
 
         actual.puntos += Number(
@@ -99,7 +116,14 @@ export default function Estadisticas() {
           estadistica.asistencias ?? 0
         );
 
-        actual.partidos += 1;
+        if (
+          estadistica.partido_id !== null &&
+          estadistica.partido_id !== undefined
+        ) {
+          actual.partidos.add(
+            String(estadistica.partido_id)
+          );
+        }
 
         estadisticasPorJugador.set(
           jugadorId,
@@ -118,11 +142,11 @@ export default function Estadisticas() {
               puntos: 0,
               rebotes: 0,
               asistencias: 0,
-              partidos: 0,
+              partidos: new Set<string>(),
             };
 
           const partidosJugados =
-            estadisticas.partidos;
+            estadisticas.partidos.size;
 
           return {
             ...jugador,
@@ -187,21 +211,46 @@ export default function Estadisticas() {
         "Error cargando tabla:",
         error
       );
-      return;
+
+      throw error;
     }
 
-    if (!data) return;
+    if (!data) {
+      setTabla([]);
+      return;
+    }
 
     const posiciones: any = {};
 
     data.forEach((partido: any) => {
       const local =
-        partido.equipo_local ||
-        "LOCAL VACÍO";
+        partido.equipo_local ??
+        partido.local ??
+        "";
 
       const visitante =
-        partido.equipo_visitante ||
-        "VISITANTE VACÍO";
+        partido.equipo_visitante ??
+        partido.visitante ??
+        "";
+
+      const puntosLocal =
+        partido.puntos_local ??
+        partido.puntosLocal;
+
+      const puntosVisitante =
+        partido.puntos_visitante ??
+        partido.puntosVisitante;
+
+      if (
+        !local ||
+        !visitante ||
+        puntosLocal === null ||
+        puntosLocal === undefined ||
+        puntosVisitante === null ||
+        puntosVisitante === undefined
+      ) {
+        return;
+      }
 
       if (!posiciones[local]) {
         posiciones[local] = {
@@ -227,8 +276,8 @@ export default function Estadisticas() {
       posiciones[visitante].pj++;
 
       if (
-        Number(partido.puntos_local) >
-        Number(partido.puntos_visitante)
+        Number(puntosLocal) >
+        Number(puntosVisitante)
       ) {
         posiciones[local].pg++;
         posiciones[local].pts += 2;
@@ -236,8 +285,8 @@ export default function Estadisticas() {
         posiciones[visitante].pp++;
         posiciones[visitante].pts += 1;
       } else if (
-        Number(partido.puntos_visitante) >
-        Number(partido.puntos_local)
+        Number(puntosVisitante) >
+        Number(puntosLocal)
       ) {
         posiciones[visitante].pg++;
         posiciones[visitante].pts += 2;
@@ -258,31 +307,34 @@ export default function Estadisticas() {
           return b.pts - a.pts;
         }
 
-        return b.pg - a.pg;
+        if (b.pg !== a.pg) {
+          return b.pg - a.pg;
+        }
+
+        return a.equipo.localeCompare(
+          b.equipo
+        );
       }
     );
 
     setTabla(tablaFinal);
   }
 
-  // Ranking completo de jugadores.
-  // Orden:
-  // 1. Mayor PPG
-  // 2. Mayor RPG
-  // 3. Mayor APG
-  // 4. Nombre
-
   const jugadoresOrdenados = [...jugadores].sort(
     (a, b) => {
       const puntos =
         Number(b.ppg) - Number(a.ppg);
 
-      if (puntos !== 0) return puntos;
+      if (puntos !== 0) {
+        return puntos;
+      }
 
       const rebotes =
         Number(b.rpg) - Number(a.rpg);
 
-      if (rebotes !== 0) return rebotes;
+      if (rebotes !== 0) {
+        return rebotes;
+      }
 
       const asistencias =
         Number(b.apg) - Number(a.apg);
@@ -326,6 +378,13 @@ export default function Estadisticas() {
             📊 Estadísticas LIBAVIME
           </h1>
 
+          {/* MENSAJE DE ERROR */}
+
+          {errorCarga && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-center font-medium">
+              {errorCarga}
+            </div>
+          )}
 
           {/* ESTADÍSTICAS DE LOS JUGADORES */}
 
@@ -339,7 +398,7 @@ export default function Estadisticas() {
               <p className="text-slate-600 mt-2">
                 Ranking completo de{" "}
                 {jugadoresOrdenados.length} jugadores
-                de LIBAVIME
+                {" "}de LIBAVIME
               </p>
 
               <p className="text-sm text-slate-500 mt-1">
@@ -347,12 +406,9 @@ export default function Estadisticas() {
               </p>
             </div>
 
-
             {jugadoresOrdenados.length > 0 ? (
 
               <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-
-                {/* CONTENEDOR CON SCROLL */}
 
                 <div
                   className="
@@ -363,8 +419,6 @@ export default function Estadisticas() {
                 >
 
                   <table className="w-full min-w-[900px] text-left">
-
-                    {/* ENCABEZADO FIJO */}
 
                     <thead className="sticky top-0 z-20">
 
@@ -414,166 +468,206 @@ export default function Estadisticas() {
 
                     </thead>
 
-
                     <tbody>
 
                       {jugadoresOrdenados.map(
-                        (jugador, index) => (
+                        (jugador, index) => {
+                          const foto =
+                            jugador.foto &&
+                            (
+                              jugador.foto.startsWith("http") ||
+                              jugador.foto.startsWith("/")
+                            )
+                              ? jugador.foto
+                              : "/logos/LIBAVIME.png";
 
-                          <tr
-                            key={jugador.id}
-                            className="
-                              border-b
-                              last:border-b-0
-                              hover:bg-blue-50
-                              transition
-                            "
-                          >
+                          const hrefJugador =
+                            jugador.slug
+                              ? `/jugadores/${jugador.slug}`
+                              : "#";
 
-                            {/* POSICIÓN */}
+                          return (
+                            <tr
+                              key={
+                                jugador.id ??
+                                `${jugador.nombre}-${index}`
+                              }
+                              className="
+                                border-b
+                                last:border-b-0
+                                hover:bg-blue-50
+                                transition
+                              "
+                            >
 
-                            <td className="p-4 text-center font-black text-blue-900 text-lg">
+                              {/* POSICIÓN */}
 
-                              {index === 0
-                                ? "🥇"
-                                : index === 1
-                                ? "🥈"
-                                : index === 2
-                                ? "🥉"
-                                : index + 1}
+                              <td className="p-4 text-center font-black text-blue-900 text-lg">
 
-                            </td>
+                                {index === 0
+                                  ? "🥇"
+                                  : index === 1
+                                  ? "🥈"
+                                  : index === 2
+                                  ? "🥉"
+                                  : index + 1}
 
+                              </td>
 
-                            {/* JUGADOR */}
+                              {/* JUGADOR */}
 
-                            <td className="p-4">
+                              <td className="p-4">
 
-                              <Link
-                                href={`/jugadores/${jugador.slug}`}
-                                className="
-                                  flex
-                                  items-center
-                                  gap-3
-                                  font-bold
-                                  text-slate-900
-                                  hover:text-blue-700
-                                  transition
-                                "
-                              >
+                                {jugador.slug ? (
 
-                                <Image
-                                  src={
-                                    jugador.foto?.startsWith(
-                                      "http"
-                                    ) ||
-                                    jugador.foto?.startsWith(
-                                      "/"
-                                    )
-                                      ? jugador.foto
-                                      : "/logos/LIBAVIME.png"
-                                  }
-                                  alt={jugador.nombre}
-                                  width={48}
-                                  height={48}
-                                  className="
-                                    rounded-full
-                                    object-cover
-                                    border
-                                    border-slate-200
-                                    shrink-0
-                                  "
-                                />
+                                  <Link
+                                    href={hrefJugador}
+                                    className="
+                                      flex
+                                      items-center
+                                      gap-3
+                                      font-bold
+                                      text-slate-900
+                                      hover:text-blue-700
+                                      transition
+                                    "
+                                  >
 
-                                <span className="whitespace-nowrap">
-                                  {jugador.nombre}
-                                </span>
+                                    <Image
+                                      src={foto}
+                                      alt={
+                                        jugador.nombre ??
+                                        "Jugador LIBAVIME"
+                                      }
+                                      width={48}
+                                      height={48}
+                                      className="
+                                        rounded-full
+                                        object-cover
+                                        border
+                                        border-slate-200
+                                        shrink-0
+                                      "
+                                    />
 
-                              </Link>
+                                    <span className="whitespace-nowrap">
+                                      {jugador.nombre}
+                                    </span>
 
-                            </td>
+                                  </Link>
 
+                                ) : (
 
-                            {/* EQUIPO */}
+                                  <div
+                                    className="
+                                      flex
+                                      items-center
+                                      gap-3
+                                      font-bold
+                                      text-slate-900
+                                    "
+                                  >
 
-                            <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
+                                    <Image
+                                      src={foto}
+                                      alt={
+                                        jugador.nombre ??
+                                        "Jugador LIBAVIME"
+                                      }
+                                      width={48}
+                                      height={48}
+                                      className="
+                                        rounded-full
+                                        object-cover
+                                        border
+                                        border-slate-200
+                                        shrink-0
+                                      "
+                                    />
 
-                              {jugador.equipo || "—"}
+                                    <span className="whitespace-nowrap">
+                                      {jugador.nombre}
+                                    </span>
 
-                            </td>
+                                  </div>
 
+                                )}
 
-                            {/* JJ */}
+                              </td>
 
-                            <td className="p-4 text-center font-bold">
+                              {/* EQUIPO */}
 
-                              {jugador.partidosJugados}
+                              <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
 
-                            </td>
+                                {jugador.equipo || "—"}
 
+                              </td>
 
-                            {/* PUNTOS TOTALES */}
+                              {/* JJ */}
 
-                            <td className="p-4 text-center font-bold">
+                              <td className="p-4 text-center font-bold">
 
-                              {jugador.puntosTotales}
+                                {jugador.partidosJugados}
 
-                            </td>
+                              </td>
 
+                              {/* PUNTOS TOTALES */}
 
-                            {/* PPG */}
+                              <td className="p-4 text-center font-bold">
 
-                            <td className="p-4 text-center font-black text-blue-900">
+                                {jugador.puntosTotales}
 
-                              {Number(
-                                jugador.ppg
-                              ).toFixed(1)}
+                              </td>
 
-                            </td>
+                              {/* PPG */}
 
+                              <td className="p-4 text-center font-black text-blue-900">
 
-                            {/* REBOTES */}
+                                {Number(
+                                  jugador.ppg ?? 0
+                                ).toFixed(1)}
 
-                            <td className="p-4 text-center font-bold">
+                              </td>
 
-                              {jugador.rebotesTotales}
+                              {/* REBOTES */}
 
-                            </td>
+                              <td className="p-4 text-center font-bold">
 
+                                {jugador.rebotesTotales}
 
-                            {/* RPG */}
+                              </td>
 
-                            <td className="p-4 text-center font-black text-green-700">
+                              {/* RPG */}
 
-                              {Number(
-                                jugador.rpg
-                              ).toFixed(1)}
+                              <td className="p-4 text-center font-black text-green-700">
 
-                            </td>
+                                {Number(
+                                  jugador.rpg ?? 0
+                                ).toFixed(1)}
 
+                              </td>
 
-                            {/* ASISTENCIAS */}
+                              {/* ASISTENCIAS */}
 
-                            <td className="p-4 text-center font-bold">
+                              <td className="p-4 text-center font-bold">
 
-                              {jugador.asistenciasTotales}
+                                {jugador.asistenciasTotales}
 
-                            </td>
+                              </td>
 
+                              {/* APG */}
 
-                            {/* APG */}
+                              <td className="p-4 text-center font-black text-red-700">
 
-                            <td className="p-4 text-center font-black text-red-700">
+                                {Number(
+                                  jugador.apg ?? 0
+                                ).toFixed(1)}
 
-                              {Number(
-                                jugador.apg
-                              ).toFixed(1)}
+                              </td>
 
-                            </td>
-
-                          </tr>
-
-                        )
+                            </tr>
+                          );
+                        }
                       )}
 
                     </tbody>
@@ -595,7 +689,6 @@ export default function Estadisticas() {
               </div>
 
             )}
-
 
             {/* LEYENDA */}
 
@@ -626,24 +719,21 @@ export default function Estadisticas() {
               <span>•</span>
 
               <span>
-                📊 PPG / RPG / APG: Promedios por partido
+                📊 PPG / RPG / APG:
+                {" "}Promedios por partido
               </span>
 
             </div>
 
           </section>
 
-
           {/* TABLA DE POSICIONES */}
 
           <div className="bg-white p-6 rounded-2xl shadow-xl mt-8">
 
             <h2 className="text-2xl md:text-3xl font-black text-blue-900 mb-5">
-
               🏆 Tabla de Posiciones
-
             </h2>
-
 
             {tabla.length > 0 ? (
 
@@ -683,7 +773,6 @@ export default function Estadisticas() {
 
                   </thead>
 
-
                   <tbody>
 
                     {tabla.map(
@@ -699,44 +788,27 @@ export default function Estadisticas() {
                         >
 
                           <td className="p-4 text-center font-bold">
-
                             {index + 1}
-
                           </td>
-
 
                           <td className="p-4 font-bold">
-
                             {equipo.equipo}
-
                           </td>
 
-
                           <td className="p-4 text-center">
-
                             {equipo.pj}
-
                           </td>
 
-
                           <td className="p-4 text-center">
-
                             {equipo.pg}
-
                           </td>
-
 
                           <td className="p-4 text-center">
-
                             {equipo.pp}
-
                           </td>
-
 
                           <td className="p-4 text-center font-black text-blue-900">
-
                             {equipo.pts}
-
                           </td>
 
                         </tr>
@@ -753,9 +825,7 @@ export default function Estadisticas() {
             ) : (
 
               <p className="text-gray-500">
-
                 Todavía no hay partidos finalizados.
-
               </p>
 
             )}
