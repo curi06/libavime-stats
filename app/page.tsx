@@ -107,21 +107,22 @@ useEffect(() => {
   .filter((jugador) => Number(jugador.ppg) > 0)
   .sort((a, b) => Number(b.ppg) - Number(a.ppg))
   .slice(0, 3);
-  
-  const mvpActual =
+
+const mvpActual =
   lideresPuntos.length > 0
     ? lideresPuntos[0]
     : null;
 
+const lideresRebotes = [...jugadores]
+  .filter((jugador) => Number(jugador.rpg) > 0)
+  .sort((a, b) => Number(b.rpg) - Number(a.rpg))
+  .slice(0, 3);
 
-  const lideresRebotes = [...jugadores]
-    .sort((a, b) => b.rpg - a.rpg)
-    .slice(0, 3);
-
-  const lideresAsistencias = [...jugadores]
-    .sort((a, b) => b.apg - a.apg)
-    .slice(0, 3);
-
+const lideresAsistencias = [...jugadores]
+  .filter((jugador) => Number(jugador.apg) > 0)
+  .sort((a, b) => Number(b.apg) - Number(a.apg))
+  .slice(0, 3);
+  
   if (jugadores.length === 0) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
