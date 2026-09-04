@@ -512,7 +512,7 @@ const ultimosResultados = [...partidosActuales]
         key={index}
         className="bg-slate-50 border-l-8 border-green-500 rounded-2xl p-5 shadow hover:shadow-lg transition"
       >
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 w-full">
 
           <div className="flex items-center gap-3">
 
@@ -622,17 +622,15 @@ const ultimosResultados = [...partidosActuales]
 
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center text-center">
+  <span className="text-xs font-bold text-gray-500">
+    LIBAVIME
+  </span>
 
-              <span className="text-xs font-bold text-gray-500">
-                LIBAVIME
-              </span>
-
-              <span className="text-2xl font-black text-blue-700">
-                VS
-              </span>
-
-            </div>
+  <span className="text-3xl font-black text-red-600">
+    VS
+  </span>
+</div>
 
             <div className="flex items-center gap-3">
 
@@ -655,7 +653,7 @@ const ultimosResultados = [...partidosActuales]
 
           </div>
 
-          <div className="mt-5 flex flex-col items-center gap-2">
+          <div className="mt-5 flex w-full flex-col items-center justify-center gap-2 text-center">
   <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
     📅 {partido.fecha}
   </span>
