@@ -21,110 +21,87 @@ type Partido = {
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
-  const [cargando, setCargando] = useState(true);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
-  useEffect(() => {
-    let activo = true;
+useEffect(() => {
+  const cargarDatos = async () => {
+    const [
+      { data: jugadoresData, error: jugadoresError },
+      { data: estadisticasData, error: estadisticasError },
+      { data: partidosData, error: partidosError },
+    ] = await Promise.all([
+      supabase.from("jugadores").select("*"),
+      supabase.from("estadisticas_jugadores").select("*"),
+      supabase
+        .from("partidos")
+        .select(`
+          id,
+          equipo_local,
+          equipo_visitante,
+          fecha,
+          hora,
+          cancha,
+          puntos_local,
+          puntos_visitante,
+          estado
+        `)
+        .order("fecha", { ascending: true })
+        .order("hora", { ascending: true }),
+    ]);
 
-    const cargarDatos = async () => {
-      try {
-        const [
-          { data: jugadoresData, error: jugadoresError },
-          { data: estadisticasData, error: estadisticasError },
-          { data: partidosData, error: partidosError },
-        ] = await Promise.all([
-          supabase
-            .from("jugadores")
-            .select("id, nombre, slug, equipo, foto"),
-          supabase
-            .from("estadisticas_jugadores")
-            .select("jugador_id, ppg, rpg, apg, partidos_jugados"),
-          supabase
-            .from("partidos")
-            .select(`
-              id,
-              equipo_local,
-              equipo_visitante,
-              fecha,
-              hora,
-              cancha,
-              puntos_local,
-              puntos_visitante,
-              estado
-            `)
-            .order("fecha", { ascending: true })
-            .order("hora", { ascending: true }),
-        ]);
+    if (jugadoresError || estadisticasError || partidosError) {
+      console.error("Error jugadores:", jugadoresError);
+      console.error("Error estadísticas:", estadisticasError);
+      console.error("Error partidos:", partidosError);
+      return;
+    }
 
-        if (jugadoresError || estadisticasError || partidosError) {
-          console.error("Error jugadores:", jugadoresError);
-          console.error("Error estadísticas:", estadisticasError);
-          console.error("Error partidos:", partidosError);
-          return;
-        }
-
-        const estadisticasPorJugador = new Map(
-          (estadisticasData ?? []).map((estadistica: any) => [
-            String(estadistica.jugador_id),
-            estadistica,
-          ])
+    const jugadoresConEstadisticas = (jugadoresData ?? []).map(
+      (jugador: any) => {
+        const estadisticas = (estadisticasData ?? []).find(
+          (estadistica: any) =>
+            String(estadistica.jugador_id) === String(jugador.id)
         );
 
-        const jugadoresConEstadisticas = (jugadoresData ?? []).map(
-          (jugador: any) => {
-            const estadisticas = estadisticasPorJugador.get(String(jugador.id));
-
-            return {
-              ...jugador,
-              ppg: Number(estadisticas?.ppg) || 0,
-              rpg: Number(estadisticas?.rpg) || 0,
-              apg: Number(estadisticas?.apg) || 0,
-              partidos_jugados:
-                Number(estadisticas?.partidos_jugados) || 0,
-            };
-          }
-        );
-
-        const partidosConFormato: Partido[] = (partidosData ?? []).map(
-          (partido: any) => ({
-            id: partido.id,
-            local: partido.equipo_local,
-            visitante: partido.equipo_visitante,
-            fecha: partido.fecha,
-            hora: partido.hora,
-            cancha: partido.cancha,
-            puntosLocal:
-              partido.puntos_local === null ||
-              partido.puntos_local === undefined
-                ? null
-                : Number(partido.puntos_local),
-            puntosVisitante:
-              partido.puntos_visitante === null ||
-              partido.puntos_visitante === undefined
-                ? null
-                : Number(partido.puntos_visitante),
-            estado: partido.estado,
-          })
-        );
-
-        if (activo) {
-          setJugadores(jugadoresConEstadisticas);
-          setPartidosActuales(partidosConFormato);
-        }
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      } finally {
-        if (activo) setCargando(false);
+        return {
+          ...jugador,
+          ppg: Number(estadisticas?.ppg) || 0,
+          rpg: Number(estadisticas?.rpg) || 0,
+          apg: Number(estadisticas?.apg) || 0,
+          partidos_jugados:
+            Number(estadisticas?.partidos_jugados) || 0,
+        };
       }
-    };
+    );
 
-    cargarDatos();
+    const partidosConFormato: Partido[] = (partidosData ?? []).map(
+      (partido: any) => ({
+        id: partido.id,
+        local: partido.equipo_local,
+        visitante: partido.equipo_visitante,
+        fecha: partido.fecha,
+        hora: partido.hora,
+        cancha: partido.cancha,
+        puntosLocal:
+          partido.puntos_local === null ||
+          partido.puntos_local === undefined
+            ? null
+            : Number(partido.puntos_local),
+        puntosVisitante:
+          partido.puntos_visitante === null ||
+          partido.puntos_visitante === undefined
+            ? null
+            : Number(partido.puntos_visitante),
+        estado: partido.estado,
+      })
+    );
 
-    return () => {
-      activo = false;
-    };
-  }, []);
+    setJugadores(jugadoresConEstadisticas);
+    setPartidosActuales(partidosConFormato);
+  };
+
+  cargarDatos();
+}, []);
 
   const lideresPuntos = [...jugadores]
     .sort((a, b) => b.ppg - a.ppg)
@@ -138,18 +115,12 @@ export default function Home() {
     .sort((a, b) => b.apg - a.apg)
     .slice(0, 3);
 
-  if (cargando) {
+  if (jugadores.length === 0) {
     return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-xl px-8 py-7 text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-900" />
-          <p className="text-xl font-bold text-blue-900">
-            Cargando LIBAVIME...
-          </p>
-          <p className="text-sm text-slate-500 mt-2">
-            Preparando estadísticas y partidos
-          </p>
-        </div>
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <p className="text-xl font-bold text-blue-900">
+          Cargando estadísticas...
+        </p>
       </main>
     );
   }
@@ -314,7 +285,7 @@ const ultimosResultados = [...partidosActuales]
   
   <div className="max-w-5xl mx-auto">
 
-<div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
   <div className="bg-white p-4 rounded-xl shadow text-center">
   <h3 className="text-3xl font-bold text-blue-900">
     {equipos.length}
@@ -396,77 +367,77 @@ const ultimosResultados = [...partidosActuales]
 </div>
 
         {/* TARJETAS DE LOS 4 EQUIPOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
-          {posicionesOrdenadas.slice(0, 4).map((equipo, index) => {
-            const estilosPorEquipo: Record<string, {
-              fondo: string;
-              titulo: string;
-              record: string;
-            }> = {
-              Vikingos: {
-                fondo: "bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500",
-                titulo: "text-slate-900",
-                record: "text-slate-800",
-              },
-              Gladiadores: {
-                fondo: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600",
+        <section className="mt-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            {posicionesOrdenadas.map((equipo, index) => {
+              const estilosPorEquipo: Record<
+                string,
+                { fondo: string; titulo: string; record: string }
+              > = {
+                Vikingos: {
+                  fondo: "bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500",
+                  titulo: "text-slate-900",
+                  record: "text-slate-800",
+                },
+                Gladiadores: {
+                  fondo: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600",
+                  titulo: "text-white",
+                  record: "text-white",
+                },
+                Titanes: {
+                  fondo: "bg-gradient-to-br from-orange-300 via-orange-400 to-orange-600",
+                  titulo: "text-slate-900",
+                  record: "text-slate-800",
+                },
+                Espartanos: {
+                  fondo: "bg-gradient-to-br from-red-600 via-red-700 to-red-900",
+                  titulo: "text-white",
+                  record: "text-white",
+                },
+              };
+
+              const estilo = estilosPorEquipo[equipo.nombre] ?? {
+                fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
                 titulo: "text-white",
                 record: "text-white",
-              },
-              Titanes: {
-                fondo: "bg-gradient-to-br from-orange-300 via-orange-400 to-orange-600",
-                titulo: "text-slate-900",
-                record: "text-slate-800",
-              },
-              Espartanos: {
-                fondo: "bg-gradient-to-br from-red-600 via-red-700 to-red-900",
-                titulo: "text-white",
-                record: "text-white",
-              },
-            };
+              };
 
-            const estilo = estilosPorEquipo[equipo.nombre] ?? {
-              fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
-              titulo: "text-white",
-              record: "text-white",
-            };
+              return (
+                <Link
+                  key={equipo.slug}
+                  href={`/equipos/${equipo.slug}`}
+                  className={`${estilo.fondo} min-h-[260px] sm:min-h-[300px] lg:min-h-[360px] rounded-2xl lg:rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 hover:scale-[1.02] transition-transform duration-200`}
+                >
+                  <div className="flex flex-col items-center justify-center mb-2 sm:mb-3 lg:mb-4">
+                    <span className="text-2xl sm:text-3xl lg:text-4xl leading-none -mb-1">🏅</span>
+                    <span className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-white/20 border-2 border-white/30 shadow-lg flex items-center justify-center text-xl sm:text-2xl lg:text-3xl font-black text-white backdrop-blur-sm">
+                      {index + 1}
+                    </span>
+                  </div>
 
-            const puesto = index + 1;
+                  <div className="h-24 sm:h-32 lg:h-40 w-full flex items-center justify-center">
+                    <Image
+                      src={equipo.logo}
+                      alt={equipo.nombre}
+                      width={160}
+                      height={160}
+                      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 30vw, 220px"
+                      className="max-w-[105px] max-h-[105px] sm:max-w-[130px] sm:max-h-[130px] lg:max-w-[160px] lg:max-h-[160px] w-auto h-auto object-contain"
+                    />
+                  </div>
 
-            return (
-              <Link
-                key={equipo.nombre}
-                href={`/equipos/${equipo.slug}`}
-                className={`${estilo.fondo} min-h-[360px] w-full rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-6 hover:scale-[1.02] transition-transform duration-200`}
-              >
-                <div className="flex flex-col items-center justify-center mb-4">
-                  <span className="text-4xl leading-none -mb-1">🏅</span>
-                  <span className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/30 shadow-lg flex items-center justify-center text-3xl font-black text-white backdrop-blur-sm">
-                    {puesto}
-                  </span>
-                </div>
+                  <h3 className={`text-lg sm:text-2xl lg:text-3xl font-black mt-3 sm:mt-4 lg:mt-6 leading-tight ${estilo.titulo}`}>
+                    {equipo.nombre}
+                  </h3>
 
-                <div className="h-40 w-full flex items-center justify-center">
-                  <Image
-                    src={equipo.logo}
-                    alt={equipo.nombre}
-                    width={160}
-                    height={160}
-                    className="max-w-[160px] max-h-[160px] w-auto h-auto object-contain"
-                  />
-                </div>
-
-                <h3 className={`text-3xl font-black mt-6 leading-tight ${estilo.titulo}`}>
-                  {equipo.nombre}
-                </h3>
-
-                <p className={`font-bold text-xl mt-4 ${estilo.record}`}>
-                  Récord {equipo.ganados}-{equipo.perdidos}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
+                  <p className={`font-bold text-sm sm:text-base lg:text-xl mt-2 sm:mt-3 lg:mt-4 ${estilo.record}`}>
+                    Récord {equipo.ganados}-{equipo.perdidos}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="grid md:grid-cols-2 gap-6 mt-10">
 
