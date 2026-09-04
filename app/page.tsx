@@ -67,8 +67,8 @@ useEffect(() => {
         const rpg = Number(estadisticas?.rpg) || 0;
         const apg = Number(estadisticas?.apg) || 0;
 
-        // Si un jugador tiene una fila de prueba pero TODAS sus estadísticas
-        // están en cero, no debe aparecer con 1 partido jugado.
+        // Si todas las estadísticas están en cero, la fila existente es
+        // una estadística vacía/de prueba y NO debe contar como un partido jugado.
         const tieneEstadisticasReales =
           ppg > 0 || rpg > 0 || apg > 0;
 
@@ -106,6 +106,24 @@ useEffect(() => {
       })
     );
 
+    console.log(
+  "JUGADORES ACTUALES:",
+  jugadoresConEstadisticas
+);
+
+console.log(
+  "CESAR:",
+  jugadoresConEstadisticas.filter(
+    (j: any) =>
+      String(j.nombre ?? "")
+        .toLowerCase()
+        .includes("cesar")
+  )
+);
+
+setJugadores(jugadoresConEstadisticas);
+setPartidosActuales(partidosConFormato);
+
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
   };
@@ -114,38 +132,64 @@ useEffect(() => {
 }, []);
 
   const lideresPuntos = [...jugadores]
-  .filter(
-    (jugador) =>
-      Number(jugador.partidos_jugados) > 0 &&
-      Number(jugador.ppg) > 0
-  )
-  .sort((a, b) => Number(b.ppg) - Number(a.ppg))
-  .slice(0, 3);
+    .filter(
+      (jugador) =>
+        Number(jugador.partidos_jugados) > 0 &&
+        Number(jugador.ppg) > 0
+    )
+    .sort((a, b) => Number(b.ppg) - Number(a.ppg))
+    .slice(0, 3);
+
+  const jugadoresValidosParaMvp = jugadores.filter((jugador) => {
+  const puntos = Number(
+    jugador.puntosTotales ??
+    jugador.ppg ??
+    0
+  );
+
+  const partidosJugados = Number(
+    jugador.partidos_jugados ??
+    jugador.partidosJugados ??
+    0
+  );
+
+  return puntos > 0 && partidosJugados > 0;
+});
 
 const mvpActual =
-  lideresPuntos.length > 0 &&
-  Number(lideresPuntos[0].partidos_jugados) > 0 &&
-  Number(lideresPuntos[0].ppg) > 0
-    ? lideresPuntos[0]
+  jugadoresValidosParaMvp.length > 0
+    ? [...jugadoresValidosParaMvp].sort(
+        (a, b) =>
+          Number(
+            b.puntosTotales ??
+            b.ppg ??
+            0
+          ) -
+          Number(
+            a.puntosTotales ??
+            a.ppg ??
+            0
+          )
+      )[0]
     : null;
 
-const lideresRebotes = [...jugadores]
-  .filter(
-    (jugador) =>
-      Number(jugador.partidos_jugados) > 0 &&
-      Number(jugador.rpg) > 0
-  )
-  .sort((a, b) => Number(b.rpg) - Number(a.rpg))
-  .slice(0, 3);
+  const lideresRebotes = [...jugadores]
+    .filter(
+      (jugador) =>
+        Number(jugador.partidos_jugados) > 0 &&
+        Number(jugador.rpg) > 0
+    )
+    .sort((a, b) => Number(b.rpg) - Number(a.rpg))
+    .slice(0, 3);
 
-const lideresAsistencias = [...jugadores]
-  .filter(
-    (jugador) =>
-      Number(jugador.partidos_jugados) > 0 &&
-      Number(jugador.apg) > 0
-  )
-  .sort((a, b) => Number(b.apg) - Number(a.apg))
-  .slice(0, 3);
+  const lideresAsistencias = [...jugadores]
+    .filter(
+      (jugador) =>
+        Number(jugador.partidos_jugados) > 0 &&
+        Number(jugador.apg) > 0
+    )
+    .sort((a, b) => Number(b.apg) - Number(a.apg))
+    .slice(0, 3);
 
   if (jugadores.length === 0) {
     return (
@@ -168,6 +212,12 @@ const lideresAsistencias = [...jugadores]
       partido.puntosLocal === null ||
       partido.puntosVisitante === null
     ) {
+      if (
+  Number(partido.puntosLocal) === 0 &&
+  Number(partido.puntosVisitante) === 0
+) {
+  return;
+}
       return;
     }
 
@@ -345,6 +395,7 @@ const ultimosResultados = [...partidosActuales]
     <p>Temporada</p>
   </div>
 </div>
+{mvpActual && (
 <Link
   href="/mvp"
   className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
@@ -352,8 +403,8 @@ const ultimosResultados = [...partidosActuales]
   <div className="flex flex-col md:flex-row items-center gap-6">
 
     <Image
-      src={lideresPuntos[0]?.foto || "/logos/LIBAVIME.png"}
-      alt={lideresPuntos[0]?.nombre || "MVP LIBAVIME"}
+      src={mvpActual?.foto || "/logos/LIBAVIME.png"}
+      alt={mvpActual?.nombre || "MVP LIBAVIME"}
       width={120}
       height={120}
       className="rounded-full border-4 border-white"
@@ -366,21 +417,22 @@ const ultimosResultados = [...partidosActuales]
       </h2>
 
       <p className="text-2xl font-bold mt-2">
-        {lideresPuntos[0]?.nombre || "Sin datos"}
+        {mvpActual?.nombre || "Sin datos"}
       </p>
 
       <p>
-        {lideresPuntos[0]?.equipo || ""}
+        {mvpActual?.equipo || ""}
       </p>
 
       <p className="text-5xl font-black mt-2">
-        {lideresPuntos[0]?.ppg ?? 0} PPG
+        {mvpActual?.ppg ?? 0} PPG
       </p>
 
     </div>
 
   </div>
 </Link>
+)}
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
@@ -627,7 +679,7 @@ const ultimosResultados = [...partidosActuales]
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3">
 
               <Image
                 src={
@@ -636,9 +688,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.local}
-                width={130}
-                height={130}
-                className="w-[110px] h-[110px] md:w-[130px] md:h-[130px] object-contain flex-shrink-0"
+                width={105}
+                height={105}
+                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] object-contain flex-shrink-0"
               />
 
               <p className="font-bold text-sm md:text-lg text-center">
@@ -657,7 +709,7 @@ const ultimosResultados = [...partidosActuales]
   </span>
 </div>
 
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3">
 
               <p className="font-bold text-lg">
                 {partido.visitante}
@@ -670,9 +722,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.visitante}
-                width={130}
-                height={130}
-                className="w-[110px] h-[110px] md:w-[130px] md:h-[130px] object-contain flex-shrink-0"
+                width={105}
+                height={105}
+                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] object-contain flex-shrink-0"
               />
 
             </div>
@@ -714,30 +766,28 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-              <div className="absolute left-3 flex items-center gap-3">
-                <div className="text-xl">
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                </div>
-
-                <Image
-                  src={jugador.foto}
-                  alt={jugador.nombre}
-                  width={105}
-                  height={105}
-                  className="rounded-full object-cover"
-                />
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <div className="z-10 flex flex-col items-center text-center px-24">
-                <p className="font-bold text-center">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500 text-center">
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={105}
+                height={105}
+                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+              />
+
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="absolute right-3 text-red-700 font-black">
+              <p className="text-red-700 font-black">
                 {jugador.ppg} PPG
               </p>
 
@@ -760,30 +810,28 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-              <div className="absolute left-3 flex items-center gap-3">
-                <div className="text-xl">
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                </div>
-
-                <Image
-                  src={jugador.foto}
-                  alt={jugador.nombre}
-                  width={105}
-                  height={105}
-                  className="rounded-full object-cover"
-                />
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <div className="z-10 flex flex-col items-center text-center px-24">
-                <p className="font-bold text-center">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500 text-center">
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={105}
+                height={105}
+                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+              />
+
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="absolute right-3 text-purple-700 font-black">
+              <p className="text-purple-700 font-black">
                 {jugador.rpg} RPG
               </p>
 
@@ -806,30 +854,28 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
+            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
 
-              <div className="absolute left-3 flex items-center gap-3">
-                <div className="text-xl">
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                </div>
-
-                <Image
-                  src={jugador.foto}
-                  alt={jugador.nombre}
-                  width={105}
-                  height={105}
-                  className="rounded-full object-cover"
-                />
+              <div className="text-xl">
+                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <div className="z-10 flex flex-col items-center text-center px-24">
-                <p className="font-bold text-center">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500 text-center">
+              <Image
+                src={jugador.foto}
+                alt={jugador.nombre}
+                width={105}
+                height={105}
+                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+              />
+
+              <div className="flex-1">
+                <p className="font-bold">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="absolute right-3 text-yellow-600 font-black">
+              <p className="text-yellow-600 font-black">
                 {jugador.apg} APG
               </p>
 

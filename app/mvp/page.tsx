@@ -11,11 +11,12 @@ type Jugador = {
   foto: string | null;
 };
 
-type EstadisticaPartido = {
+type EstadisticaJugador = {
   jugador_id: number;
-  puntos: number | null;
-  rebotes: number | null;
-  asistencias: number | null;
+  ppg: number | null;
+  rpg: number | null;
+  apg: number | null;
+  partidos_jugados: number | null;
 };
 
 type JugadorConEstadisticas = Jugador & {
@@ -29,17 +30,24 @@ type JugadorConEstadisticas = Jugador & {
 };
 
 export default async function MVPPage() {
-  const { data: jugadoresData, error: jugadoresError } =
-    await supabase
+  const [
+    { data: jugadoresData, error: jugadoresError },
+    { data: estadisticasData, error: estadisticasError },
+  ] = await Promise.all([
+    supabase
       .from("jugadores")
-      .select("id, slug, nombre, equipo, foto");
+      .select("id, slug, nombre, equipo, foto"),
 
-  const { data: estadisticasData, error: estadisticasError } =
-    await supabase
-      .from("estadisticas_partido")
-      .select(
-        "jugador_id, puntos, rebotes, asistencias"
-      );
+    supabase
+      .from("estadisticas_jugadores")
+      .select(`
+        jugador_id,
+        ppg,
+        rpg,
+        apg,
+        partidos_jugados
+      `),
+  ]);
 
   if (
     jugadoresError ||
@@ -71,135 +79,98 @@ export default async function MVPPage() {
     );
   }
 
-  const resumenPorJugador = new Map<
+  const estadisticasPorJugador = new Map<
     number,
-    {
-      puntos_totales: number;
-      rebotes_totales: number;
-      asistencias_totales: number;
-      partidos_jugados: number;
-    }
+    EstadisticaJugador
   >();
 
-  ((estadisticasData ?? []) as EstadisticaPartido[]).forEach(
+  ((estadisticasData ?? []) as EstadisticaJugador[]).forEach(
     (estadistica) => {
-      const jugadorId = Number(
-        estadistica.jugador_id
+      estadisticasPorJugador.set(
+        Number(estadistica.jugador_id),
+        estadistica
       );
-
-      if (!resumenPorJugador.has(jugadorId)) {
-        resumenPorJugador.set(jugadorId, {
-          puntos_totales: 0,
-          rebotes_totales: 0,
-          asistencias_totales: 0,
-          partidos_jugados: 0,
-        });
-      }
-
-      const resumen =
-        resumenPorJugador.get(jugadorId)!;
-
-      resumen.puntos_totales += Number(
-        estadistica.puntos ?? 0
-      );
-
-      resumen.rebotes_totales += Number(
-        estadistica.rebotes ?? 0
-      );
-
-      resumen.asistencias_totales += Number(
-        estadistica.asistencias ?? 0
-      );
-
-      resumen.partidos_jugados += 1;
     }
   );
 
   const jugadoresConEstadisticas: JugadorConEstadisticas[] =
     (jugadoresData as Jugador[]).map(
       (jugador) => {
-        const resumen =
-          resumenPorJugador.get(
+        const estadisticas =
+          estadisticasPorJugador.get(
             Number(jugador.id)
           );
 
         const partidosJugados =
-          resumen?.partidos_jugados ?? 0;
+          Number(
+            estadisticas?.partidos_jugados
+          ) || 0;
 
-        const puntosTotales =
-          resumen?.puntos_totales ?? 0;
+        const ppg =
+          Number(estadisticas?.ppg) || 0;
 
-        const rebotesTotales =
-          resumen?.rebotes_totales ?? 0;
+        const rpg =
+          Number(estadisticas?.rpg) || 0;
 
-        const asistenciasTotales =
-          resumen?.asistencias_totales ?? 0;
+        const apg =
+          Number(estadisticas?.apg) || 0;
 
         return {
           ...jugador,
 
-          puntos_totales: puntosTotales,
+          puntos_totales:
+            Number(
+              (ppg * partidosJugados).toFixed(1)
+            ),
 
-          rebotes_totales: rebotesTotales,
+          rebotes_totales:
+            Number(
+              (rpg * partidosJugados).toFixed(1)
+            ),
 
           asistencias_totales:
-            asistenciasTotales,
+            Number(
+              (apg * partidosJugados).toFixed(1)
+            ),
 
           partidos_jugados:
             partidosJugados,
 
-          ppg:
-            partidosJugados > 0
-              ? Number(
-                  (
-                    puntosTotales /
-                    partidosJugados
-                  ).toFixed(1)
-                )
-              : 0,
+          ppg,
 
-          rpg:
-            partidosJugados > 0
-              ? Number(
-                  (
-                    rebotesTotales /
-                    partidosJugados
-                  ).toFixed(1)
-                )
-              : 0,
+          rpg,
 
-          apg:
-            partidosJugados > 0
-              ? Number(
-                  (
-                    asistenciasTotales /
-                    partidosJugados
-                  ).toFixed(1)
-                )
-              : 0,
+          apg,
         };
       }
     );
 
+  // Solo jugadores con partidos reales y estadísticas reales.
   const jugadoresActivos =
     jugadoresConEstadisticas.filter(
       (jugador) =>
-        jugador.partidos_jugados > 0
+        jugador.partidos_jugados > 0 &&
+        (
+          jugador.ppg > 0 ||
+          jugador.rpg > 0 ||
+          jugador.apg > 0
+        )
     );
 
-  const mvp = [...jugadoresActivos].sort(
-    (a, b) => {
-      if (b.ppg !== a.ppg) {
-        return b.ppg - a.ppg;
-      }
+  const mvp =
+    [...jugadoresActivos].sort(
+      (a, b) => {
+        if (b.ppg !== a.ppg) {
+          return b.ppg - a.ppg;
+        }
 
-      if (b.rpg !== a.rpg) {
-        return b.rpg - a.rpg;
-      }
+        if (b.rpg !== a.rpg) {
+          return b.rpg - a.rpg;
+        }
 
-      return b.apg - a.apg;
-    }
-  )[0];
+        return b.apg - a.apg;
+      }
+    )[0] ?? null;
 
   if (!mvp) {
     return (

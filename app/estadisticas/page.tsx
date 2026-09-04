@@ -40,166 +40,104 @@ export default function Estadisticas() {
   }
 
   async function cargarJugadores() {
-    const [
-      { data: jugadoresData, error: jugadoresError },
-      { data: estadisticasData, error: estadisticasError },
-    ] = await Promise.all([
-      supabase
-        .from("jugadores")
-        .select("*")
-        .order("nombre"),
+  const [
+    { data: jugadoresData, error: jugadoresError },
+    { data: estadisticasData, error: estadisticasError },
+  ] = await Promise.all([
+    supabase
+      .from("jugadores")
+      .select("*")
+      .order("nombre"),
 
-      supabase
-        .from("estadisticas_partido")
-        .select(`
-          jugador_id,
-          puntos,
-          rebotes,
-          asistencias,
-          partido_id
-        `),
-    ]);
+    supabase
+      .from("estadisticas_jugadores")
+      .select(`
+        jugador_id,
+        ppg,
+        rpg,
+        apg,
+        partidos_jugados
+      `),
+  ]);
 
-    if (jugadoresError) {
-      console.error(
-        "Error cargando jugadores:",
-        jugadoresError
-      );
-
-      throw jugadoresError;
-    }
-
-    if (estadisticasError) {
-      console.error(
-        "Error cargando estadísticas:",
-        estadisticasError
-      );
-
-      throw estadisticasError;
-    }
-
-    const estadisticasPorJugador = new Map<
-      number,
-      {
-        puntos: number;
-        rebotes: number;
-        asistencias: number;
-        partidos: Set<string>;
-      }
-    >();
-
-    (estadisticasData ?? []).forEach(
-      (estadistica: any) => {
-        const jugadorId = Number(
-          estadistica.jugador_id
-        );
-
-        if (!jugadorId) return;
-
-        const actual =
-          estadisticasPorJugador.get(jugadorId) ?? {
-            puntos: 0,
-            rebotes: 0,
-            asistencias: 0,
-            partidos: new Set<string>(),
-          };
-
-        actual.puntos += Number(
-          estadistica.puntos ?? 0
-        );
-
-        actual.rebotes += Number(
-          estadistica.rebotes ?? 0
-        );
-
-        actual.asistencias += Number(
-          estadistica.asistencias ?? 0
-        );
-
-        if (
-          estadistica.partido_id !== null &&
-          estadistica.partido_id !== undefined
-        ) {
-          actual.partidos.add(
-            String(estadistica.partido_id)
-          );
-        }
-
-        estadisticasPorJugador.set(
-          jugadorId,
-          actual
-        );
-      }
+  if (jugadoresError) {
+    console.error(
+      "Error cargando jugadores:",
+      jugadoresError
     );
-
-    const jugadoresConEstadisticas =
-      (jugadoresData ?? []).map(
-        (jugador: any) => {
-          const estadisticas =
-            estadisticasPorJugador.get(
-              Number(jugador.id)
-            ) ?? {
-              puntos: 0,
-              rebotes: 0,
-              asistencias: 0,
-              partidos: new Set<string>(),
-            };
-
-          const partidosJugados =
-            estadisticas.partidos.size;
-
-          return {
-            ...jugador,
-
-            puntosTotales:
-              estadisticas.puntos,
-
-            rebotesTotales:
-              estadisticas.rebotes,
-
-            asistenciasTotales:
-              estadisticas.asistencias,
-
-            partidosJugados,
-
-            ppg:
-              partidosJugados > 0
-                ? Number(
-                    (
-                      estadisticas.puntos /
-                      partidosJugados
-                    ).toFixed(1)
-                  )
-                : 0,
-
-            rpg:
-              partidosJugados > 0
-                ? Number(
-                    (
-                      estadisticas.rebotes /
-                      partidosJugados
-                    ).toFixed(1)
-                  )
-                : 0,
-
-            apg:
-              partidosJugados > 0
-                ? Number(
-                    (
-                      estadisticas.asistencias /
-                      partidosJugados
-                    ).toFixed(1)
-                  )
-                : 0,
-          };
-        }
-      );
-
-    setJugadores(
-      jugadoresConEstadisticas
-    );
+    return;
   }
 
+  if (estadisticasError) {
+    console.error(
+      "Error cargando estadísticas:",
+      estadisticasError
+    );
+    return;
+  }
+
+  const estadisticasPorJugador = new Map(
+    (estadisticasData ?? []).map(
+      (estadistica: any) => [
+        Number(estadistica.jugador_id),
+        estadistica,
+      ]
+    )
+  );
+
+  const jugadoresConEstadisticas =
+    (jugadoresData ?? []).map(
+      (jugador: any) => {
+        const estadisticas =
+          estadisticasPorJugador.get(
+            Number(jugador.id)
+          );
+
+        const partidosJugados =
+          Number(
+            estadisticas?.partidos_jugados
+          ) || 0;
+
+        const ppg =
+          Number(estadisticas?.ppg) || 0;
+
+        const rpg =
+          Number(estadisticas?.rpg) || 0;
+
+        const apg =
+          Number(estadisticas?.apg) || 0;
+
+        return {
+          ...jugador,
+
+          puntosTotales:
+            Number(
+              (ppg * partidosJugados).toFixed(1)
+            ),
+
+          rebotesTotales:
+            Number(
+              (rpg * partidosJugados).toFixed(1)
+            ),
+
+          asistenciasTotales:
+            Number(
+              (apg * partidosJugados).toFixed(1)
+            ),
+
+          partidosJugados,
+
+          ppg,
+
+          rpg,
+
+          apg,
+        };
+      }
+    );
+
+  setJugadores(jugadoresConEstadisticas);
+}
   async function cargarTabla() {
     const { data, error } = await supabase
       .from("partidos")
