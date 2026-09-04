@@ -22,6 +22,7 @@ export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [ahora, setAhora] = useState(new Date());
 
 useEffect(() => {
   const cargarDatos = async () => {
@@ -63,23 +64,13 @@ useEffect(() => {
             String(estadistica.jugador_id) === String(jugador.id)
         );
 
-        const ppg = Number(estadisticas?.ppg) || 0;
-        const rpg = Number(estadisticas?.rpg) || 0;
-        const apg = Number(estadisticas?.apg) || 0;
-
-        // Si todas las estadísticas están en cero, la fila existente es
-        // una estadística vacía/de prueba y NO debe contar como un partido jugado.
-        const tieneEstadisticasReales =
-          ppg > 0 || rpg > 0 || apg > 0;
-
         return {
           ...jugador,
-          ppg,
-          rpg,
-          apg,
-          partidos_jugados: tieneEstadisticasReales
-            ? Number(estadisticas?.partidos_jugados) || 0
-            : 0,
+          ppg: Number(estadisticas?.ppg) || 0,
+          rpg: Number(estadisticas?.rpg) || 0,
+          apg: Number(estadisticas?.apg) || 0,
+          partidos_jugados:
+            Number(estadisticas?.partidos_jugados) || 0,
         };
       }
     );
@@ -106,24 +97,6 @@ useEffect(() => {
       })
     );
 
-    console.log(
-  "JUGADORES ACTUALES:",
-  jugadoresConEstadisticas
-);
-
-console.log(
-  "CESAR:",
-  jugadoresConEstadisticas.filter(
-    (j: any) =>
-      String(j.nombre ?? "")
-        .toLowerCase()
-        .includes("cesar")
-  )
-);
-
-setJugadores(jugadoresConEstadisticas);
-setPartidosActuales(partidosConFormato);
-
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
   };
@@ -131,65 +104,55 @@ setPartidosActuales(partidosConFormato);
   cargarDatos();
 }, []);
 
+  useEffect(() => {
+    const intervalo = window.setInterval(() => {
+      setAhora(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(intervalo);
+  }, []);
+
+  const inicioTorneo = new Date("2026-09-05T18:00:00-04:00");
+  const inauguracionOficial = new Date("2026-09-18T18:00:00-04:00");
+
+  const obtenerTiempo = (fechaObjetivo: Date) => {
+    const diferencia = Math.max(
+      fechaObjetivo.getTime() - ahora.getTime(),
+      0
+    );
+
+    return {
+      dias: Math.floor(diferencia / 86400000),
+      horas: Math.floor((diferencia % 86400000) / 3600000),
+      minutos: Math.floor((diferencia % 3600000) / 60000),
+      segundos: Math.floor((diferencia % 60000) / 1000),
+    };
+  };
+
+  const tiempoInicio = obtenerTiempo(inicioTorneo);
+  const tiempoInauguracion = obtenerTiempo(inauguracionOficial);
+  const torneoYaInicio = ahora >= inicioTorneo;
+  const inauguracionPendiente = ahora < inauguracionOficial;
+
   const lideresPuntos = [...jugadores]
-    .filter(
-      (jugador) =>
-        Number(jugador.partidos_jugados) > 0 &&
-        Number(jugador.ppg) > 0
-    )
+    .filter((jugador) => Number(jugador.ppg) > 0)
     .sort((a, b) => Number(b.ppg) - Number(a.ppg))
     .slice(0, 3);
 
-  const jugadoresValidosParaMvp = jugadores.filter((jugador) => {
-  const puntos = Number(
-    jugador.puntosTotales ??
-    jugador.ppg ??
-    0
-  );
-
-  const partidosJugados = Number(
-    jugador.partidos_jugados ??
-    jugador.partidosJugados ??
-    0
-  );
-
-  return puntos > 0 && partidosJugados > 0;
-});
-
-const mvpActual =
-  jugadoresValidosParaMvp.length > 0
-    ? [...jugadoresValidosParaMvp].sort(
-        (a, b) =>
-          Number(
-            b.puntosTotales ??
-            b.ppg ??
-            0
-          ) -
-          Number(
-            a.puntosTotales ??
-            a.ppg ??
-            0
-          )
-      )[0]
-    : null;
-
   const lideresRebotes = [...jugadores]
-    .filter(
-      (jugador) =>
-        Number(jugador.partidos_jugados) > 0 &&
-        Number(jugador.rpg) > 0
-    )
+    .filter((jugador) => Number(jugador.rpg) > 0)
     .sort((a, b) => Number(b.rpg) - Number(a.rpg))
     .slice(0, 3);
 
   const lideresAsistencias = [...jugadores]
-    .filter(
-      (jugador) =>
-        Number(jugador.partidos_jugados) > 0 &&
-        Number(jugador.apg) > 0
-    )
+    .filter((jugador) => Number(jugador.apg) > 0)
     .sort((a, b) => Number(b.apg) - Number(a.apg))
     .slice(0, 3);
+
+  const mvpActual =
+    lideresPuntos.length > 0
+      ? lideresPuntos[0]
+      : null;
 
   if (jugadores.length === 0) {
     return (
@@ -212,12 +175,6 @@ const mvpActual =
       partido.puntosLocal === null ||
       partido.puntosVisitante === null
     ) {
-      if (
-  Number(partido.puntosLocal) === 0 &&
-  Number(partido.puntosVisitante) === 0
-) {
-  return;
-}
       return;
     }
 
@@ -270,7 +227,7 @@ const ultimosResultados = [...partidosActuales]
   .reverse();
 
   return (
-    <><div className="relative h-[55vh] md:h-[105vh] w-full">
+    <><div className="relative h-[360px] sm:h-[430px] md:h-[560px] lg:h-[620px] w-full overflow-hidden">
 <nav className="absolute top-0 left-0 right-0 z-20 px-4 pt-2">
 
   <div className="max-w-6xl mx-auto">
@@ -352,9 +309,9 @@ const ultimosResultados = [...partidosActuales]
   alt="LIBAVIME"
   fill
   priority
-  className="object-cover object-[center_35%] md:object-center"
+  className="object-cover object-center"
 />
-    <div className="absolute inset-0 bg-black/20"></div>
+    <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/35"></div>
 
 
 </div>
@@ -367,7 +324,165 @@ const ultimosResultados = [...partidosActuales]
   
   <div className="max-w-5xl mx-auto">
 
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+    <section className="mt-8 space-y-6">
+      {!torneoYaInicio ? (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 p-6 text-white shadow-2xl md:p-10">
+          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl" />
+
+          <div className="relative text-center">
+            <p className="text-sm font-black tracking-[0.25em] text-blue-200">
+              TEMPORADA 2026
+            </p>
+
+            <h1 className="mt-3 text-3xl font-black sm:text-5xl md:text-6xl">
+              🏀 ¡ARRANCA EL TORNEO!
+            </h1>
+
+            <p className="mt-4 text-lg font-bold sm:text-2xl">
+              Sábado 5 de septiembre · 6:00 PM
+            </p>
+
+            <p className="mt-2 text-base text-blue-100 sm:text-xl">
+              📍 Club Los Prados
+            </p>
+
+            <div className="mx-auto mt-7 max-w-3xl border-t border-white/20 pt-6">
+              <p className="mb-4 text-sm font-black tracking-widest text-blue-200">
+                FALTAN
+              </p>
+
+              <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                {[
+                  { valor: tiempoInicio.dias, texto: "DÍAS" },
+                  { valor: tiempoInicio.horas, texto: "HORAS" },
+                  { valor: tiempoInicio.minutos, texto: "MIN" },
+                  { valor: tiempoInicio.segundos, texto: "SEG" },
+                ].map((item) => (
+                  <div
+                    key={item.texto}
+                    className="rounded-2xl border border-white/20 bg-white/10 px-2 py-4 backdrop-blur"
+                  >
+                    <div className="text-2xl font-black sm:text-4xl md:text-5xl">
+                      {String(item.valor).padStart(2, "0")}
+                    </div>
+                    <div className="mt-1 text-[10px] font-black tracking-wider text-blue-200 sm:text-xs">
+                      {item.texto}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <a
+                href="#proximos-partidos"
+                className="rounded-full bg-white px-7 py-3 font-black text-blue-950 shadow-lg transition hover:scale-105"
+              >
+                VER PARTIDOS
+              </a>
+              <a
+                href="#estadisticas"
+                className="rounded-full border border-white/30 bg-white/10 px-7 py-3 font-black text-white backdrop-blur transition hover:bg-white/20"
+              >
+                VER ESTADÍSTICAS
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl bg-gradient-to-r from-red-700 via-red-600 to-red-800 p-6 text-center text-white shadow-2xl md:p-10">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-black">
+            <span className="animate-pulse">🔴</span>
+            TORNEO EN CURSO
+          </div>
+          <h1 className="mt-4 text-3xl font-black sm:text-5xl">
+            ¡LIBAVIME 2026 ESTÁ EN JUEGO!
+          </h1>
+          <p className="mt-3 text-lg text-red-100">
+            Sigue partidos, resultados y estadísticas oficiales.
+          </p>
+          <a
+            href="#proximos-partidos"
+            className="mt-7 inline-block rounded-full bg-white px-7 py-3 font-black text-red-700 shadow-lg transition hover:scale-105"
+          >
+            VER LA JORNADA
+          </a>
+        </div>
+      )}
+
+      {inauguracionPendiente && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 p-1 shadow-2xl">
+          <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-white/30 blur-3xl" />
+          <div className="absolute -right-8 bottom-0 h-48 w-48 rounded-full bg-red-500/30 blur-3xl" />
+
+          <div className="relative rounded-[22px] bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-5 py-7 text-white md:px-10 md:py-10">
+            <div className="mx-auto max-w-5xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/60 bg-yellow-400/15 px-4 py-2 text-xs font-black tracking-[0.18em] text-yellow-200 backdrop-blur sm:text-sm">
+                ✨ EVENTO ESPECIAL · LIBAVIME 2026 ✨
+              </div>
+
+              <div className="mt-5 text-5xl drop-shadow-lg sm:text-6xl">🏆</div>
+
+              <p className="mt-2 text-sm font-black tracking-[0.28em] text-yellow-300">
+                GRAN INAUGURACIÓN
+              </p>
+
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl md:text-6xl">
+                INAUGURACIÓN OFICIAL
+              </h2>
+
+              <p className="mt-3 text-lg font-black text-yellow-300 sm:text-2xl">
+                TORNEO LIBAVIME 2026
+              </p>
+
+              <div className="mx-auto mt-6 grid max-w-4xl grid-cols-1 gap-3 text-center sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-xs font-black tracking-widest text-blue-200">FECHA</p>
+                  <p className="mt-1 font-black sm:text-lg">📅 Viernes 18 de septiembre</p>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-xs font-black tracking-widest text-blue-200">HORA</p>
+                  <p className="mt-1 font-black sm:text-lg">🕕 6:00 PM</p>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-xs font-black tracking-widest text-blue-200">LUGAR</p>
+                  <p className="mt-1 font-black sm:text-lg">📍 Club San Carlos</p>
+                </div>
+              </div>
+
+              <div className="mx-auto mt-7 max-w-4xl border-t border-yellow-300/30 pt-6">
+                <p className="mb-4 text-xs font-black tracking-[0.25em] text-yellow-200 sm:text-sm">
+                  ⏳ CUENTA REGRESIVA PARA LA INAUGURACIÓN
+                </p>
+
+                <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                  {[
+                    { valor: tiempoInauguracion.dias, texto: "DÍAS" },
+                    { valor: tiempoInauguracion.horas, texto: "HORAS" },
+                    { valor: tiempoInauguracion.minutos, texto: "MIN" },
+                    { valor: tiempoInauguracion.segundos, texto: "SEG" },
+                  ].map((item) => (
+                    <div
+                      key={item.texto}
+                      className="rounded-2xl border border-yellow-300/30 bg-white/10 px-2 py-4 shadow-xl backdrop-blur"
+                    >
+                      <div className="text-2xl font-black text-yellow-300 sm:text-4xl md:text-5xl">
+                        {String(item.valor).padStart(2, "0")}
+                      </div>
+                      <div className="mt-1 text-[9px] font-black tracking-wider text-blue-200 sm:text-xs">
+                        {item.texto}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+
+<div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
   <div className="bg-white p-4 rounded-xl shadow text-center">
   <h3 className="text-3xl font-bold text-blue-900">
     {equipos.length}
@@ -395,7 +510,6 @@ const ultimosResultados = [...partidosActuales]
     <p>Temporada</p>
   </div>
 </div>
-{mvpActual && (
 <Link
   href="/mvp"
   className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
@@ -403,8 +517,8 @@ const ultimosResultados = [...partidosActuales]
   <div className="flex flex-col md:flex-row items-center gap-6">
 
     <Image
-      src={mvpActual?.foto || "/logos/LIBAVIME.png"}
-      alt={mvpActual?.nombre || "MVP LIBAVIME"}
+      src={lideresPuntos[0]?.foto || "/logos/LIBAVIME.png"}
+      alt={lideresPuntos[0]?.nombre || "MVP LIBAVIME"}
       width={120}
       height={120}
       className="rounded-full border-4 border-white"
@@ -417,7 +531,7 @@ const ultimosResultados = [...partidosActuales]
       </h2>
 
       <p className="text-2xl font-bold mt-2">
-        {mvpActual?.nombre || "Sin datos"}
+        {mvpActual?.nombre || "Aún sin estadísticas"}
       </p>
 
       <p>
@@ -432,7 +546,6 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </Link>
-)}
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
@@ -450,80 +563,64 @@ const ultimosResultados = [...partidosActuales]
 
 </div>
 
-        {/* TARJETAS DE LOS 4 EQUIPOS */}
-        <section className="mt-10">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {posicionesOrdenadas.map((equipo, index) => {
-              const estilosPorEquipo: Record<
-                string,
-                { fondo: string; titulo: string; record: string }
-              > = {
-                Vikingos: {
-                  fondo: "bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500",
-                  titulo: "text-slate-900",
-                  record: "text-slate-800",
-                },
-                Gladiadores: {
-                  fondo: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600",
-                  titulo: "text-white",
-                  record: "text-white",
-                },
-                Titanes: {
-                  fondo: "bg-gradient-to-br from-orange-300 via-orange-400 to-orange-600",
-                  titulo: "text-slate-900",
-                  record: "text-slate-800",
-                },
-                Espartanos: {
-                  fondo: "bg-gradient-to-br from-red-600 via-red-700 to-red-900",
-                  titulo: "text-white",
-                  record: "text-white",
-                },
-              };
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mt-10">
+  {["Gladiadores", "Vikingos", "Titanes", "Espartanos"].map((nombreEquipo) => {
+    const equipo = posicionesOrdenadas.find(
+      (item) => item.nombre === nombreEquipo
+    );
 
-              const estilo = estilosPorEquipo[equipo.nombre] ?? {
-                fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
-                titulo: "text-white",
-                record: "text-white",
-              };
+    if (!equipo) return null;
 
-              return (
-                <Link
-                  key={equipo.slug}
-                  href={`/equipos/${equipo.slug}`}
-                  className={`${estilo.fondo} min-h-[260px] sm:min-h-[300px] lg:min-h-[360px] rounded-2xl lg:rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 hover:scale-[1.02] transition-transform duration-200`}
-                >
-                  <div className="flex flex-col items-center justify-center mb-2 sm:mb-3 lg:mb-4">
-                    <span className="text-2xl sm:text-3xl lg:text-4xl leading-none -mb-1">🏅</span>
-                    <span className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-white/20 border-2 border-white/30 shadow-lg flex items-center justify-center text-xl sm:text-2xl lg:text-3xl font-black text-white backdrop-blur-sm">
-                      {index + 1}
-                    </span>
-                  </div>
+    const estilos: Record<string, { fondo: string; texto: string }> = {
+      Gladiadores: {
+        fondo: "from-slate-300 via-slate-400 to-slate-600",
+        texto: "text-white",
+      },
+      Vikingos: {
+        fondo: "from-yellow-300 via-yellow-400 to-amber-500",
+        texto: "text-slate-900",
+      },
+      Titanes: {
+        fondo: "from-orange-300 via-orange-400 to-orange-600",
+        texto: "text-white",
+      },
+      Espartanos: {
+        fondo: "from-red-600 via-red-700 to-red-950",
+        texto: "text-white",
+      },
+    };
 
-                  <div className="h-24 sm:h-32 lg:h-40 w-full flex items-center justify-center">
-                    <Image
-                      src={equipo.logo}
-                      alt={equipo.nombre}
-                      width={160}
-                      height={160}
-                      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 30vw, 220px"
-                      className="max-w-[105px] max-h-[105px] sm:max-w-[130px] sm:max-h-[130px] lg:max-w-[160px] lg:max-h-[160px] w-auto h-auto object-contain"
-                    />
-                  </div>
+    const estilo = estilos[equipo.nombre];
 
-                  <h3 className={`text-lg sm:text-2xl lg:text-3xl font-black mt-3 sm:mt-4 lg:mt-6 leading-tight ${estilo.titulo}`}>
-                    {equipo.nombre}
-                  </h3>
+    return (
+      <Link
+        key={equipo.nombre}
+        href={`/equipos/${equipo.slug}`}
+        className={`bg-gradient-to-br ${estilo.fondo} rounded-3xl shadow-xl text-center p-5 md:p-6 transition hover:scale-[1.03]`}
+      >
+        <div className="flex h-28 items-center justify-center md:h-36">
+          <Image
+            src={equipo.logo}
+            alt={equipo.nombre}
+            width={140}
+            height={140}
+            className="max-h-full w-auto object-contain"
+          />
+        </div>
 
-                  <p className={`font-bold text-sm sm:text-base lg:text-xl mt-2 sm:mt-3 lg:mt-4 ${estilo.record}`}>
-                    Récord {equipo.ganados}-{equipo.perdidos}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        <h3 className={`mt-4 text-xl font-black md:text-2xl ${estilo.texto}`}>
+          {equipo.nombre}
+        </h3>
 
-        <div className="grid md:grid-cols-2 gap-6 mt-10">
+        <p className={`mt-2 font-bold ${estilo.texto}`}>
+          Récord {equipo.ganados}-{equipo.perdidos}
+        </p>
+      </Link>
+    );
+  })}
+</div>
+
+<div className="grid md:grid-cols-2 gap-6 mt-10">
 
 <div className="bg-white mt-10 p-6 rounded-xl shadow">
   <h2 className="text-2xl font-bold mb-4">
@@ -588,7 +685,7 @@ const ultimosResultados = [...partidosActuales]
         key={index}
         className="bg-slate-50 border-l-8 border-green-500 rounded-2xl p-5 shadow hover:shadow-lg transition"
       >
-        <div className="flex flex-col items-center justify-center gap-4 w-full md:grid md:grid-cols-3">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
           <div className="flex items-center gap-3">
 
@@ -657,7 +754,7 @@ const ultimosResultados = [...partidosActuales]
 </div>
 
 </div>
-<div className="bg-white p-6 rounded-xl shadow mt-6">
+<div id="proximos-partidos" className="bg-white p-6 rounded-xl shadow mt-6">
   <h2 className="text-3xl font-black text-blue-900 mb-6">
     📅 Próximos Partidos
   </h2>
@@ -675,11 +772,11 @@ const ultimosResultados = [...partidosActuales]
       .map((partido, index) => (
         <div
           key={index}
-          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-5 shadow hover:shadow-lg transition"
+          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-6 shadow hover:shadow-lg transition"
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 text-center">
 
               <Image
                 src={
@@ -688,9 +785,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.local}
-                width={105}
-                height={105}
-                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] object-contain flex-shrink-0"
+                width={150}
+                height={150}
+                className="h-[120px] w-[120px] object-contain md:h-[150px] md:w-[150px]"
               />
 
               <p className="font-bold text-sm md:text-lg text-center">
@@ -699,19 +796,21 @@ const ultimosResultados = [...partidosActuales]
 
             </div>
 
-            <div className="flex flex-col items-center justify-center text-center">
-  <span className="text-xs font-bold text-gray-500">
-    LIBAVIME
-  </span>
+            <div className="flex flex-col items-center">
 
-  <span className="text-3xl font-black text-red-600">
-    VS
-  </span>
-</div>
+              <span className="text-xs font-bold text-gray-500">
+                LIBAVIME
+              </span>
 
-            <div className="flex items-center gap-3">
+              <span className="text-2xl font-black text-blue-700">
+                VS
+              </span>
 
-              <p className="font-bold text-lg">
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-3 text-center">
+
+              <p className="font-bold text-sm md:text-lg text-center">
                 {partido.visitante}
               </p>
 
@@ -722,24 +821,21 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.visitante}
-                width={105}
-                height={105}
-                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] object-contain flex-shrink-0"
+                width={150}
+                height={150}
+                className="h-[120px] w-[120px] object-contain md:h-[150px] md:w-[150px]"
               />
 
             </div>
 
           </div>
 
-          <div className="mt-5 flex w-full flex-col items-center justify-center gap-2 text-center">
-  <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
-    📅 {partido.fecha}
-  </span>
+          <div className="mt-4 text-center">
+            <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-bold">
+              📅 {partido.fecha}
+            </span>
+          </div>
 
-  <span className="bg-red-600 text-white px-5 py-2 rounded-full font-black text-lg shadow">
-    🕒 {partido.hora || "Hora por confirmar"}
-  </span>
-</div>
         </div>
       ))}
 
@@ -766,7 +862,7 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
 
               <div className="text-xl">
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
@@ -775,14 +871,14 @@ const ultimosResultados = [...partidosActuales]
               <Image
                 src={jugador.foto}
                 alt={jugador.nombre}
-                width={105}
-                height={105}
-                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
               />
 
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="min-w-0 text-center">
+                <p className="font-bold text-center leading-tight">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
@@ -810,7 +906,7 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
 
               <div className="text-xl">
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
@@ -819,14 +915,14 @@ const ultimosResultados = [...partidosActuales]
               <Image
                 src={jugador.foto}
                 alt={jugador.nombre}
-                width={105}
-                height={105}
-                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
               />
 
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="min-w-0 text-center">
+                <p className="font-bold text-center leading-tight">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
@@ -854,7 +950,7 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
 
               <div className="text-xl">
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
@@ -863,14 +959,14 @@ const ultimosResultados = [...partidosActuales]
               <Image
                 src={jugador.foto}
                 alt={jugador.nombre}
-                width={105}
-                height={105}
-                className="w-[90px] h-[90px] md:w-[105px] md:h-[105px] rounded-full object-cover flex-shrink-0"
+                width={55}
+                height={55}
+                className="rounded-full object-cover"
               />
 
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="min-w-0 text-center">
+                <p className="font-bold text-center leading-tight">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
@@ -887,30 +983,7 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </div>
-</div>
-
-<footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
-  <div className="mx-auto flex max-w-3xl flex-col items-center px-4">
-
-    <p className="flex items-center justify-center gap-2 text-lg font-black tracking-wide text-slate-700 sm:text-xl">
-      <span className="text-xl sm:text-2xl">🏀</span>
-      <span>LIBAVIME</span>
-    </p>
-
-    <p className="mt-3 max-w-2xl text-center text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
-      © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
-      <span className="font-black text-blue-900">
-        Emmi De La Cruz
-      </span>
-    </p>
-
-    <p className="mt-2 text-center text-xs font-medium text-slate-400 sm:text-sm">
-      Creado para LIBAVIME
-    </p>
-
-  </div>
-</footer>
-
+</div> 
 </main>
 
 </>
