@@ -22,191 +22,92 @@ export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState("");
 
 useEffect(() => {
   const cargarDatos = async () => {
-    setCargando(true);
-    setErrorCarga("");
+    const [
+      { data: jugadoresData, error: jugadoresError },
+      { data: estadisticasData, error: estadisticasError },
+      { data: partidosData, error: partidosError },
+    ] = await Promise.all([
+      supabase.from("jugadores").select("*"),
+      supabase.from("estadisticas_jugadores").select("*"),
+      supabase
+        .from("partidos")
+        .select(`
+          id,
+          equipo_local,
+          equipo_visitante,
+          fecha,
+          hora,
+          cancha,
+          puntos_local,
+          puntos_visitante,
+          estado
+        `)
+        .order("fecha", { ascending: true })
+        .order("hora", { ascending: true }),
+    ]);
 
-    try {
-      const [
-        { data: jugadoresData, error: jugadoresError },
-        { data: estadisticasData, error: estadisticasError },
-        { data: partidosData, error: partidosError },
-      ] = await Promise.all([
-        supabase.from("jugadores").select("*"),
-        supabase
-          .from("estadisticas_partido")
-          .select(`
-            jugador_id,
-            puntos,
-            rebotes,
-            asistencias,
-            partido_id
-          `),
-        supabase
-          .from("partidos")
-          .select(`
-            id,
-            equipo_local,
-            equipo_visitante,
-            fecha,
-            hora,
-            cancha,
-            puntos_local,
-            puntos_visitante,
-            estado
-          `)
-          .order("fecha", { ascending: true })
-          .order("hora", { ascending: true }),
-      ]);
-
-      if (jugadoresError) throw jugadoresError;
-      if (estadisticasError) throw estadisticasError;
-      if (partidosError) throw partidosError;
-
-      // Solo se contabilizan estadísticas pertenecientes a partidos
-      // realmente FINALIZADOS. Así se ignoran pruebas, borradores y
-      // estadísticas huérfanas que puedan quedar en la base de datos.
-      const partidosFinalizadosIds = new Set(
-        (partidosData ?? [])
-          .filter(
-            (partido: any) =>
-              String(partido.estado ?? "").trim().toLowerCase() ===
-              "finalizado"
-          )
-          .map((partido: any) => String(partido.id))
-      );
-
-      // Misma fuente usada por /estadisticas y el panel administrativo.
-      const estadisticasPorJugador = new Map<
-        number,
-        {
-          puntos: number;
-          rebotes: number;
-          asistencias: number;
-          partidos: Set<string>;
-        }
-      >();
-
-      (estadisticasData ?? []).forEach((estadistica: any) => {
-        const partidoId = String(estadistica.partido_id ?? "");
-
-        // No permitir que una estadística de prueba, de un partido pendiente
-        // o de un partido eliminado determine el MVP.
-        if (
-          !partidoId ||
-          !partidosFinalizadosIds.has(partidoId)
-        ) {
-          return;
-        }
-
-        const jugadorId = Number(estadistica.jugador_id);
-        if (!jugadorId) return;
-
-        const actual = estadisticasPorJugador.get(jugadorId) ?? {
-          puntos: 0,
-          rebotes: 0,
-          asistencias: 0,
-          partidos: new Set<string>(),
-        };
-
-        const puntos = Number(estadistica.puntos ?? 0);
-        const rebotes = Number(estadistica.rebotes ?? 0);
-        const asistencias = Number(estadistica.asistencias ?? 0);
-
-        actual.puntos += puntos;
-        actual.rebotes += rebotes;
-        actual.asistencias += asistencias;
-
-        // Un partido solo cuenta como jugado para este jugador cuando existe
-        // al menos una estadística real registrada. Esto evita que las filas
-        // de prueba en cero hagan que un jugador aparezca con "1 partido".
-        if (
-          puntos > 0 ||
-          rebotes > 0 ||
-          asistencias > 0
-        ) {
-          actual.partidos.add(partidoId);
-        }
-
-        estadisticasPorJugador.set(jugadorId, actual);
-      });
-
-      const jugadoresConEstadisticas = (jugadoresData ?? []).map(
-        (jugador: any) => {
-          const estadisticas =
-            estadisticasPorJugador.get(Number(jugador.id)) ?? {
-              puntos: 0,
-              rebotes: 0,
-              asistencias: 0,
-              partidos: new Set<string>(),
-            };
-
-          const partidosJugados = estadisticas.partidos.size;
-
-          return {
-            ...jugador,
-            puntosTotales: estadisticas.puntos,
-            rebotesTotales: estadisticas.rebotes,
-            asistenciasTotales: estadisticas.asistencias,
-            partidosJugados,
-            ppg:
-              partidosJugados > 0
-                ? Number(
-                    (estadisticas.puntos / partidosJugados).toFixed(1)
-                  )
-                : 0,
-            rpg:
-              partidosJugados > 0
-                ? Number(
-                    (estadisticas.rebotes / partidosJugados).toFixed(1)
-                  )
-                : 0,
-            apg:
-              partidosJugados > 0
-                ? Number(
-                    (estadisticas.asistencias / partidosJugados).toFixed(1)
-                  )
-                : 0,
-          };
-        }
-      );
-
-      const partidosConFormato: Partido[] = (partidosData ?? []).map(
-        (partido: any) => ({
-          id: partido.id,
-          local: partido.equipo_local,
-          visitante: partido.equipo_visitante,
-          fecha: partido.fecha,
-          hora: partido.hora,
-          cancha: partido.cancha,
-          puntosLocal:
-            partido.puntos_local === null ||
-            partido.puntos_local === undefined
-              ? null
-              : Number(partido.puntos_local),
-          puntosVisitante:
-            partido.puntos_visitante === null ||
-            partido.puntos_visitante === undefined
-              ? null
-              : Number(partido.puntos_visitante),
-          estado: partido.estado,
-        })
-      );
-
-      setJugadores(jugadoresConEstadisticas);
-      setPartidosActuales(partidosConFormato);
-    } catch (error) {
-      console.error("Error cargando datos de inicio:", error);
-      setErrorCarga(
-        "No se pudieron cargar las estadísticas de la liga."
-      );
-    } finally {
-      setCargando(false);
+    if (jugadoresError || estadisticasError || partidosError) {
+      console.error("Error jugadores:", jugadoresError);
+      console.error("Error estadísticas:", estadisticasError);
+      console.error("Error partidos:", partidosError);
+      return;
     }
+
+    const jugadoresConEstadisticas = (jugadoresData ?? []).map(
+      (jugador: any) => {
+        const estadisticas = (estadisticasData ?? []).find(
+          (estadistica: any) =>
+            String(estadistica.jugador_id) === String(jugador.id)
+        );
+
+        const ppg = Number(estadisticas?.ppg) || 0;
+        const rpg = Number(estadisticas?.rpg) || 0;
+        const apg = Number(estadisticas?.apg) || 0;
+
+        // Si un jugador tiene una fila de prueba pero TODAS sus estadísticas
+        // están en cero, no debe aparecer con 1 partido jugado.
+        const tieneEstadisticasReales =
+          ppg > 0 || rpg > 0 || apg > 0;
+
+        return {
+          ...jugador,
+          ppg,
+          rpg,
+          apg,
+          partidos_jugados: tieneEstadisticasReales
+            ? Number(estadisticas?.partidos_jugados) || 0
+            : 0,
+        };
+      }
+    );
+
+    const partidosConFormato: Partido[] = (partidosData ?? []).map(
+      (partido: any) => ({
+        id: partido.id,
+        local: partido.equipo_local,
+        visitante: partido.equipo_visitante,
+        fecha: partido.fecha,
+        hora: partido.hora,
+        cancha: partido.cancha,
+        puntosLocal:
+          partido.puntos_local === null ||
+          partido.puntos_local === undefined
+            ? null
+            : Number(partido.puntos_local),
+        puntosVisitante:
+          partido.puntos_visitante === null ||
+          partido.puntos_visitante === undefined
+            ? null
+            : Number(partido.puntos_visitante),
+        estado: partido.estado,
+      })
+    );
+
+    setJugadores(jugadoresConEstadisticas);
+    setPartidosActuales(partidosConFormato);
   };
 
   cargarDatos();
@@ -215,73 +116,42 @@ useEffect(() => {
   const lideresPuntos = [...jugadores]
   .filter(
     (jugador) =>
-      Number(jugador.partidosJugados) > 0 &&
-      Number(jugador.puntosTotales) > 0 &&
+      Number(jugador.partidos_jugados) > 0 &&
       Number(jugador.ppg) > 0
   )
   .sort((a, b) => Number(b.ppg) - Number(a.ppg))
   .slice(0, 3);
 
-const candidatosMVP = [...jugadores]
-  .filter(
-    (jugador) =>
-      Number(jugador.partidosJugados) > 0 &&
-      Number(jugador.puntosTotales) > 0 &&
-      Number(jugador.ppg) > 0
-  )
-  .sort((a, b) => {
-    const diferenciaPPG = Number(b.ppg) - Number(a.ppg);
-
-    if (diferenciaPPG !== 0) {
-      return diferenciaPPG;
-    }
-
-    return (
-      Number(b.puntosTotales) -
-      Number(a.puntosTotales)
-    );
-  });
-
 const mvpActual =
-  candidatosMVP.length > 0
-    ? candidatosMVP[0]
+  lideresPuntos.length > 0 &&
+  Number(lideresPuntos[0].partidos_jugados) > 0 &&
+  Number(lideresPuntos[0].ppg) > 0
+    ? lideresPuntos[0]
     : null;
 
 const lideresRebotes = [...jugadores]
   .filter(
-  (jugador) =>
-    Number(jugador.partidosJugados) > 0 &&
-    Number(jugador.rebotesTotales) > 0 &&
-    Number(jugador.rpg) > 0
-)
+    (jugador) =>
+      Number(jugador.partidos_jugados) > 0 &&
+      Number(jugador.rpg) > 0
+  )
   .sort((a, b) => Number(b.rpg) - Number(a.rpg))
   .slice(0, 3);
 
 const lideresAsistencias = [...jugadores]
   .filter(
-  (jugador) =>
-    Number(jugador.partidosJugados) > 0 &&
-    Number(jugador.asistenciasTotales) > 0 &&
-    Number(jugador.apg) > 0
-)
+    (jugador) =>
+      Number(jugador.partidos_jugados) > 0 &&
+      Number(jugador.apg) > 0
+  )
   .sort((a, b) => Number(b.apg) - Number(a.apg))
   .slice(0, 3);
 
-  if (cargando) {
+  if (jugadores.length === 0) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-xl font-bold text-blue-900">
           Cargando estadísticas...
-        </p>
-      </main>
-    );
-  }
-
-  if (errorCarga) {
-    return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-6">
-        <p className="text-center text-lg font-semibold text-red-700">
-          {errorCarga}
         </p>
       </main>
     );
@@ -333,8 +203,7 @@ const lideresAsistencias = [...jugadores]
 });  
     
 const totalPuntos = jugadores.reduce(
-  (total, jugador) =>
-    total + Number(jugador.puntosTotales ?? 0),
+  (total, jugador) => total + jugador.ppg,
   0
 );
 const posicionesOrdenadas = [...posiciones].sort(
@@ -476,44 +345,42 @@ const ultimosResultados = [...partidosActuales]
     <p>Temporada</p>
   </div>
 </div>
-{mvpActual ? (
-  <Link
-    href="/mvp"
-    className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
-  >
-    <div className="flex flex-col md:flex-row items-center gap-6">
+<Link
+  href="/mvp"
+  className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
+>
+  <div className="flex flex-col md:flex-row items-center gap-6">
 
-      <Image
-        src={mvpActual.foto || "/logos/LIBAVIME.png"}
-        alt={mvpActual.nombre || "MVP LIBAVIME"}
-        width={120}
-        height={120}
-        className="rounded-full border-4 border-white"
-      />
+    <Image
+      src={lideresPuntos[0]?.foto || "/logos/LIBAVIME.png"}
+      alt={lideresPuntos[0]?.nombre || "MVP LIBAVIME"}
+      width={120}
+      height={120}
+      className="rounded-full border-4 border-white"
+    />
 
-      <div className="text-center md:text-left text-white">
+    <div className="text-center md:text-left text-white">
 
-        <h2 className="text-xl md:text-3xl font-black">
-          🏆 MVP LIBAVIME 2026
-        </h2>
+      <h2 className="text-xl md:text-3xl font-black">
+        🏆 MVP LIBAVIME 2026
+      </h2>
 
-        <p className="text-2xl font-bold mt-2">
-          {mvpActual.nombre}
-        </p>
+      <p className="text-2xl font-bold mt-2">
+        {lideresPuntos[0]?.nombre || "Sin datos"}
+      </p>
 
-        <p>
-          {mvpActual.equipo || ""}
-        </p>
+      <p>
+        {lideresPuntos[0]?.equipo || ""}
+      </p>
 
-        <p className="text-5xl font-black mt-2">
-          {mvpActual.ppg} PPG
-        </p>
-
-      </div>
+      <p className="text-5xl font-black mt-2">
+        {lideresPuntos[0]?.ppg ?? 0} PPG
+      </p>
 
     </div>
-  </Link>
-) : null}
+
+  </div>
+</Link>
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
