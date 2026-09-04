@@ -367,62 +367,71 @@ const ultimosResultados = [...partidosActuales]
 </div>
 
         {/* TARJETAS DE LOS 4 EQUIPOS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mt-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
           {posicionesOrdenadas.slice(0, 4).map((equipo, index) => {
-            const estilos = [
-              {
-                fondo: "bg-gradient-to-br from-yellow-300 to-yellow-500",
+            const estilosPorEquipo: Record<string, {
+              fondo: string;
+              titulo: string;
+              record: string;
+            }> = {
+              Vikingos: {
+                fondo: "bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500",
                 titulo: "text-slate-900",
                 record: "text-slate-800",
-                medalla: "🥇",
               },
-              {
-                fondo: "bg-gradient-to-br from-slate-300 to-slate-500",
+              Gladiadores: {
+                fondo: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600",
                 titulo: "text-white",
                 record: "text-white",
-                medalla: "🥈",
               },
-              {
-                fondo: "bg-gradient-to-br from-orange-300 to-orange-500",
+              Titanes: {
+                fondo: "bg-gradient-to-br from-orange-300 via-orange-400 to-orange-600",
                 titulo: "text-slate-900",
                 record: "text-slate-800",
-                medalla: "🥉",
               },
-              {
-                fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
+              Espartanos: {
+                fondo: "bg-gradient-to-br from-red-600 via-red-700 to-red-900",
                 titulo: "text-white",
                 record: "text-white",
-                medalla: "4️⃣",
               },
-            ];
+            };
 
-            const estilo = estilos[index] ?? estilos[3];
+            const estilo = estilosPorEquipo[equipo.nombre] ?? {
+              fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
+              titulo: "text-white",
+              record: "text-white",
+            };
+
+            const puesto = index + 1;
 
             return (
               <Link
                 key={equipo.nombre}
                 href={`/equipos/${equipo.slug}`}
-                className={`${estilo.fondo} min-h-[320px] w-full rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-5 hover:scale-105 transition-transform duration-200`}
+                className={`${estilo.fondo} min-h-[360px] w-full rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-6 hover:scale-[1.02] transition-transform duration-200`}
               >
-                <div className="text-4xl leading-none">
-                  {estilo.medalla}
+                <div className="flex flex-col items-center justify-center mb-4">
+                  <span className="text-4xl leading-none -mb-1">🏅</span>
+                  <span className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/30 shadow-lg flex items-center justify-center text-3xl font-black text-white backdrop-blur-sm">
+                    {puesto}
+                  </span>
                 </div>
 
-                <div className="mt-4 h-32 flex items-center justify-center">
+                <div className="h-40 w-full flex items-center justify-center">
                   <Image
                     src={equipo.logo}
                     alt={equipo.nombre}
-                    width={130}
-                    height={130}
-                    className="w-32 h-32 object-contain"
+                    width={160}
+                    height={160}
+                    className="max-w-[160px] max-h-[160px] w-auto h-auto object-contain"
                   />
                 </div>
 
-                <h3 className={`text-2xl font-black mt-5 leading-tight ${estilo.titulo}`}>
+                <h3 className={`text-3xl font-black mt-6 leading-tight ${estilo.titulo}`}>
                   {equipo.nombre}
                 </h3>
 
-                <p className={`font-bold text-lg mt-3 ${estilo.record}`}>
+                <p className={`font-bold text-xl mt-4 ${estilo.record}`}>
                   Récord {equipo.ganados}-{equipo.perdidos}
                 </p>
               </Link>
@@ -430,7 +439,7 @@ const ultimosResultados = [...partidosActuales]
           })}
         </div>
 
-<div className="grid md:grid-cols-2 gap-6 mt-10">
+        <div className="grid md:grid-cols-2 gap-6 mt-10">
 
 <div className="bg-white mt-10 p-6 rounded-xl shadow">
   <h2 className="text-2xl font-bold mb-4">
