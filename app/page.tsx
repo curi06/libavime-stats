@@ -22,108 +22,117 @@ export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [cargando, setCargando] = useState(true);
 
 useEffect(() => {
+  let activo = true;
+
   const cargarDatos = async () => {
-    const [
-      { data: jugadoresData, error: jugadoresError },
-      { data: estadisticasData, error: estadisticasError },
-      { data: partidosData, error: partidosError },
-    ] = await Promise.all([
-      supabase.from("jugadores").select("*"),
-      supabase.from("estadisticas_jugadores").select("*"),
-      supabase
-        .from("partidos")
-        .select(`
-          id,
-          equipo_local,
-          equipo_visitante,
-          fecha,
-          hora,
-          cancha,
-          puntos_local,
-          puntos_visitante,
-          estado
-        `)
-        .order("fecha", { ascending: true })
-        .order("hora", { ascending: true }),
-    ]);
+    try {
+      const [
+        { data: jugadoresData, error: jugadoresError },
+        { data: estadisticasData, error: estadisticasError },
+        { data: partidosData, error: partidosError },
+      ] = await Promise.all([
+        supabase.from("jugadores").select("*"),
+        supabase.from("estadisticas_jugadores").select("*"),
+        supabase
+          .from("partidos")
+          .select(`
+            id,
+            equipo_local,
+            equipo_visitante,
+            fecha,
+            hora,
+            cancha,
+            puntos_local,
+            puntos_visitante,
+            estado
+          `)
+          .order("fecha", { ascending: true })
+          .order("hora", { ascending: true }),
+      ]);
 
-    if (jugadoresError || estadisticasError || partidosError) {
-      console.error("Error jugadores:", jugadoresError);
-      console.error("Error estadísticas:", estadisticasError);
-      console.error("Error partidos:", partidosError);
-      return;
-    }
-
-    const jugadoresConEstadisticas = (jugadoresData ?? []).map(
-      (jugador: any) => {
-        const estadisticas = (estadisticasData ?? []).find(
-          (estadistica: any) =>
-            String(estadistica.jugador_id) === String(jugador.id)
-        );
-
-        return {
-          ...jugador,
-          ppg: Number(estadisticas?.ppg) || 0,
-          rpg: Number(estadisticas?.rpg) || 0,
-          apg: Number(estadisticas?.apg) || 0,
-          partidos_jugados:
-            Number(estadisticas?.partidos_jugados) || 0,
-        };
+      if (jugadoresError || estadisticasError || partidosError) {
+        console.error("Error jugadores:", jugadoresError);
+        console.error("Error estadísticas:", estadisticasError);
+        console.error("Error partidos:", partidosError);
+        return;
       }
-    );
 
-    const partidosConFormato: Partido[] = (partidosData ?? []).map(
-      (partido: any) => ({
-        id: partido.id,
-        local: partido.equipo_local,
-        visitante: partido.equipo_visitante,
-        fecha: partido.fecha,
-        hora: partido.hora,
-        cancha: partido.cancha,
-        puntosLocal:
-          partido.puntos_local === null ||
-          partido.puntos_local === undefined
-            ? null
-            : Number(partido.puntos_local),
-        puntosVisitante:
-          partido.puntos_visitante === null ||
-          partido.puntos_visitante === undefined
-            ? null
-            : Number(partido.puntos_visitante),
-        estado: partido.estado,
-      })
-    );
+      const jugadoresConEstadisticas = (jugadoresData ?? []).map(
+        (jugador: any) => {
+          const estadisticas = (estadisticasData ?? []).find(
+            (estadistica: any) =>
+              String(estadistica.jugador_id) === String(jugador.id)
+          );
 
-    setJugadores(jugadoresConEstadisticas);
-    setPartidosActuales(partidosConFormato);
+          return {
+            ...jugador,
+            ppg: Number(estadisticas?.ppg) || 0,
+            rpg: Number(estadisticas?.rpg) || 0,
+            apg: Number(estadisticas?.apg) || 0,
+            partidos_jugados:
+              Number(estadisticas?.partidos_jugados) || 0,
+          };
+        }
+      );
+
+      const partidosConFormato: Partido[] = (partidosData ?? []).map(
+        (partido: any) => ({
+          id: partido.id,
+          local: partido.equipo_local,
+          visitante: partido.equipo_visitante,
+          fecha: partido.fecha,
+          hora: partido.hora,
+          cancha: partido.cancha,
+          puntosLocal:
+            partido.puntos_local === null ||
+            partido.puntos_local === undefined
+              ? null
+              : Number(partido.puntos_local),
+          puntosVisitante:
+            partido.puntos_visitante === null ||
+            partido.puntos_visitante === undefined
+              ? null
+              : Number(partido.puntos_visitante),
+          estado: partido.estado,
+        })
+      );
+
+      if (activo) {
+        setJugadores(jugadoresConEstadisticas);
+        setPartidosActuales(partidosConFormato);
+      }
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    } finally {
+      if (activo) {
+        setCargando(false);
+      }
+    }
   };
 
   cargarDatos();
+
+  return () => {
+    activo = false;
+  };
 }, []);
 
   const lideresPuntos = [...jugadores]
-  .filter((jugador) => Number(jugador.ppg) > 0)
-  .sort((a, b) => Number(b.ppg) - Number(a.ppg))
-  .slice(0, 3);
+    .sort((a, b) => b.ppg - a.ppg)
+    .slice(0, 3);
 
-const mvpActual =
-  lideresPuntos.length > 0
-    ? lideresPuntos[0]
-    : null;
+  const lideresRebotes = [...jugadores]
+    .sort((a, b) => b.rpg - a.rpg)
+    .slice(0, 3);
 
-const lideresRebotes = [...jugadores]
-  .filter((jugador) => Number(jugador.rpg) > 0)
-  .sort((a, b) => Number(b.rpg) - Number(a.rpg))
-  .slice(0, 3);
+  const lideresAsistencias = [...jugadores]
+    .sort((a, b) => b.apg - a.apg)
+    .slice(0, 3);
 
-const lideresAsistencias = [...jugadores]
-  .filter((jugador) => Number(jugador.apg) > 0)
-  .sort((a, b) => Number(b.apg) - Number(a.apg))
-  .slice(0, 3);
-
-  if (jugadores.length === 0) {
+  if (cargando) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-xl font-bold text-blue-900">
@@ -293,7 +302,7 @@ const ultimosResultados = [...partidosActuales]
   
   <div className="max-w-5xl mx-auto">
 
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+<div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
   <div className="bg-white p-4 rounded-xl shadow text-center">
   <h3 className="text-3xl font-bold text-blue-900">
     {equipos.length}
@@ -374,80 +383,56 @@ const ultimosResultados = [...partidosActuales]
 
 </div>
 
-        {/* TARJETAS DE LOS 4 EQUIPOS */}
-        <section className="mt-10">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {posicionesOrdenadas.map((equipo, index) => {
-              const estilosPorEquipo: Record<
-                string,
-                { fondo: string; titulo: string; record: string }
-              > = {
-                Vikingos: {
-                  fondo: "bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500",
-                  titulo: "text-slate-900",
-                  record: "text-slate-800",
-                },
-                Gladiadores: {
-                  fondo: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600",
-                  titulo: "text-white",
-                  record: "text-white",
-                },
-                Titanes: {
-                  fondo: "bg-gradient-to-br from-orange-300 via-orange-400 to-orange-600",
-                  titulo: "text-slate-900",
-                  record: "text-slate-800",
-                },
-                Espartanos: {
-                  fondo: "bg-gradient-to-br from-red-600 via-red-700 to-red-900",
-                  titulo: "text-white",
-                  record: "text-white",
-                },
-              };
+        <div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-10">
 
-              const estilo = estilosPorEquipo[equipo.nombre] ?? {
-                fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
-                titulo: "text-white",
-                record: "text-white",
-              };
 
-              return (
-                <Link
-                  key={equipo.slug}
-                  href={`/equipos/${equipo.slug}`}
-                  className={`${estilo.fondo} min-h-[260px] sm:min-h-[300px] lg:min-h-[360px] rounded-2xl lg:rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 hover:scale-[1.02] transition-transform duration-200`}
-                >
-                  <div className="flex flex-col items-center justify-center mb-2 sm:mb-3 lg:mb-4">
-                    <span className="text-2xl sm:text-3xl lg:text-4xl leading-none -mb-1">🏅</span>
-                    <span className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-white/20 border-2 border-white/30 shadow-lg flex items-center justify-center text-xl sm:text-2xl lg:text-3xl font-black text-white backdrop-blur-sm">
-                      {index + 1}
-                    </span>
-                  </div>
 
-                  <div className="h-24 sm:h-32 lg:h-40 w-full flex items-center justify-center">
-                    <Image
-                      src={equipo.logo}
-                      alt={equipo.nombre}
-                      width={160}
-                      height={160}
-                      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 30vw, 220px"
-                      className="max-w-[105px] max-h-[105px] sm:max-w-[130px] sm:max-h-[130px] lg:max-w-[160px] lg:max-h-[160px] w-auto h-auto object-contain"
-                    />
-                  </div>
+</div> 
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
 
-                  <h3 className={`text-lg sm:text-2xl lg:text-3xl font-black mt-3 sm:mt-4 lg:mt-6 leading-tight ${estilo.titulo}`}>
-                    {equipo.nombre}
-                  </h3>
+  {posicionesOrdenadas.slice(0, 3).map((equipo, index) => {
 
-                  <p className={`font-bold text-sm sm:text-base lg:text-xl mt-2 sm:mt-3 lg:mt-4 ${estilo.record}`}>
-                    Récord {equipo.ganados}-{equipo.perdidos}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+    const colores = [
+      "from-yellow-300 to-yellow-500",
+      "from-gray-300 to-gray-500",
+      "from-orange-300 to-orange-500",
+    ];
 
-        <div className="grid md:grid-cols-2 gap-6 mt-10">
+    const medallas = ["🥇", "🥈", "🥉"];
+
+    return (
+      <Link
+        key={equipo.nombre}
+        href={`/equipos/${equipo.slug}`}
+        className={`bg-gradient-to-br ${colores[index]} p-6 rounded-3xl shadow-xl text-center hover:scale-105 transition`}
+      >
+        <div className="text-4xl">
+          {medallas[index]}
+        </div>
+
+        <Image
+          src={equipo.logo}
+          alt={equipo.nombre}
+          width={100}
+          height={100}
+          className="mx-auto mt-3"
+        />
+
+        <h3 className="text-2xl font-black mt-3 text-white">
+          {equipo.nombre}
+        </h3>
+
+        <p className="text-white font-bold mt-2">
+          Récord {equipo.ganados}-{equipo.perdidos}
+        </p>
+
+      </Link>
+    );
+  })}
+
+</div>
+
+<div className="grid md:grid-cols-2 gap-6 mt-10">
 
 <div className="bg-white mt-10 p-6 rounded-xl shadow">
   <h2 className="text-2xl font-bold mb-4">
@@ -512,7 +497,7 @@ const ultimosResultados = [...partidosActuales]
         key={index}
         className="bg-slate-50 border-l-8 border-green-500 rounded-2xl p-5 shadow hover:shadow-lg transition"
       >
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4 w-full">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
           <div className="flex items-center gap-3">
 
@@ -601,10 +586,9 @@ const ultimosResultados = [...partidosActuales]
           key={index}
           className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-5 shadow hover:shadow-lg transition"
         >
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-
-            <div className="flex items-center gap-3">
-
+          <div className="grid w-full grid-cols-1 items-center gap-5 md:grid-cols-[1fr_auto_1fr]">
+            {/* EQUIPO LOCAL */}
+            <div className="flex w-full items-center justify-center gap-3 md:justify-end">
               <Image
                 src={
                   equipos.find(
@@ -616,25 +600,25 @@ const ultimosResultados = [...partidosActuales]
                 height={70}
               />
 
-              <p className="font-bold text-sm md:text-lg text-center">
+              <p className="font-bold text-center text-sm md:text-lg">
                 {partido.local}
               </p>
-
             </div>
 
-            <div className="flex flex-col items-center justify-center text-center">
-  <span className="text-xs font-bold text-gray-500">
-    LIBAVIME
-  </span>
+            {/* CENTRO: VS */}
+            <div className="flex w-full flex-col items-center justify-center text-center">
+              <span className="text-xs font-bold text-gray-500">
+                LIBAVIME
+              </span>
 
-  <span className="text-3xl font-black text-red-600">
-    VS
-  </span>
-</div>
+              <span className="text-2xl font-black text-blue-700">
+                VS
+              </span>
+            </div>
 
-            <div className="flex items-center gap-3">
-
-              <p className="font-bold text-lg">
+            {/* EQUIPO VISITANTE */}
+            <div className="flex w-full items-center justify-center gap-3 md:justify-start">
+              <p className="font-bold text-center text-sm md:text-lg">
                 {partido.visitante}
               </p>
 
@@ -648,20 +632,18 @@ const ultimosResultados = [...partidosActuales]
                 width={55}
                 height={55}
               />
-
             </div>
+          </div>
+          <div className="mt-5 flex w-full flex-col items-center justify-center gap-2 text-center">
+            <span className="inline-flex items-center justify-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
+              📅 {partido.fecha}
+            </span>
 
+            <span className="inline-flex items-center justify-center bg-red-600 text-white px-5 py-2 rounded-full font-black text-lg shadow">
+              🕒 {partido.hora || "Hora por confirmar"}
+            </span>
           </div>
 
-          <div className="mt-5 flex w-full flex-col items-center justify-center gap-2 text-center">
-  <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold">
-    📅 {partido.fecha}
-  </span>
-
-  <span className="bg-red-600 text-white px-5 py-2 rounded-full font-black text-lg shadow">
-    🕒 {partido.hora || "Hora por confirmar"}
-  </span>
-</div>
         </div>
       ))}
 
@@ -809,25 +791,7 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </div>
-</div>
-
-<footer className="mt-24 border-t border-slate-300 pt-12 pb-10 text-center">
-  <p className="text-lg font-bold text-slate-700">
-    🏀 LIBAVIME
-  </p>
-
-  <p className="text-sm text-slate-500 mt-3">
-    © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
-    <span className="font-black text-blue-900">
-      Emmi De La Cruz
-    </span>
-  </p>
-
-  <p className="text-sm text-slate-400 mt-2">
-    Creado para LIBAVIME
-  </p>
-</footer>
-
+</div> 
 </main>
 
 </>
