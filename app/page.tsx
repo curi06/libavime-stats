@@ -603,7 +603,7 @@ const ultimosResultados = [...partidosActuales]
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
 
               <Image
                 src={
@@ -612,8 +612,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.local}
-                width={70}
-                height={70}
+                width={130}
+                height={130}
+                className="w-[110px] h-[110px] md:w-[130px] md:h-[130px] object-contain flex-shrink-0"
               />
 
               <p className="font-bold text-sm md:text-lg text-center">
@@ -632,7 +633,7 @@ const ultimosResultados = [...partidosActuales]
   </span>
 </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
 
               <p className="font-bold text-lg">
                 {partido.visitante}
@@ -645,8 +646,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.visitante}
-                width={55}
-                height={55}
+                width={130}
+                height={130}
+                className="w-[110px] h-[110px] md:w-[130px] md:h-[130px] object-contain flex-shrink-0"
               />
 
             </div>
@@ -688,28 +690,30 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
 
-              <div className="text-xl">
-                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              <div className="absolute left-3 flex items-center gap-3">
+                <div className="text-xl">
+                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                </div>
+
+                <Image
+                  src={jugador.foto}
+                  alt={jugador.nombre}
+                  width={105}
+                  height={105}
+                  className="rounded-full object-cover"
+                />
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
-
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="z-10 flex flex-col items-center text-center px-24">
+                <p className="font-bold text-center">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="text-red-700 font-black">
+              <p className="absolute right-3 text-red-700 font-black">
                 {jugador.ppg} PPG
               </p>
 
@@ -732,28 +736,30 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
 
-              <div className="text-xl">
-                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              <div className="absolute left-3 flex items-center gap-3">
+                <div className="text-xl">
+                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                </div>
+
+                <Image
+                  src={jugador.foto}
+                  alt={jugador.nombre}
+                  width={105}
+                  height={105}
+                  className="rounded-full object-cover"
+                />
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
-
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="z-10 flex flex-col items-center text-center px-24">
+                <p className="font-bold text-center">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="text-purple-700 font-black">
+              <p className="absolute right-3 text-purple-700 font-black">
                 {jugador.rpg} RPG
               </p>
 
@@ -776,28 +782,30 @@ const ultimosResultados = [...partidosActuales]
             href={`/jugadores/${jugador.slug}`}
             className="block"
           >
-            <div className="bg-white p-3 rounded-xl shadow flex items-center gap-3">
+            <div className="relative min-h-[130px] bg-white p-3 rounded-xl shadow flex items-center justify-center">
 
-              <div className="text-xl">
-                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+              <div className="absolute left-3 flex items-center gap-3">
+                <div className="text-xl">
+                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                </div>
+
+                <Image
+                  src={jugador.foto}
+                  alt={jugador.nombre}
+                  width={105}
+                  height={105}
+                  className="rounded-full object-cover"
+                />
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
-
-              <div className="flex-1">
-                <p className="font-bold">{jugador.nombre}</p>
-                <p className="text-sm text-gray-500">
+              <div className="z-10 flex flex-col items-center text-center px-24">
+                <p className="font-bold text-center">{jugador.nombre}</p>
+                <p className="text-sm text-gray-500 text-center">
                   {jugador.equipo}
                 </p>
               </div>
 
-              <p className="text-yellow-600 font-black">
+              <p className="absolute right-3 text-yellow-600 font-black">
                 {jugador.apg} APG
               </p>
 
