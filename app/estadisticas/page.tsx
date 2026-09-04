@@ -487,14 +487,34 @@ export default function Estadisticas() {
       ) => {
         const pageWidth =
           doc.internal.pageSize.getWidth();
+
         const centro = pageWidth / 2;
 
+        // Primero se pinta el fondo del encabezado.
+        // El logo se agrega DESPUÉS para que nunca quede tapado.
+        doc.setFillColor(
+          247,
+          249,
+          252
+        );
+
+        doc.rect(
+          0,
+          0,
+          pageWidth,
+          39,
+          "F"
+        );
+
+        // Logo oficial LIBAVIME en la esquina superior izquierda.
+        // Esta función se ejecuta en las 3 páginas del PDF.
         if (logoData) {
           try {
             const propiedades =
               doc.getImageProperties(logoData);
 
             const altoLogo = 28;
+
             const anchoLogo =
               (propiedades.width * altoLogo) /
               propiedades.height;
@@ -509,25 +529,11 @@ export default function Estadisticas() {
             );
           } catch (error) {
             console.error(
-              "No se pudo insertar el logo en el PDF:",
+              "No se pudo insertar el logo de LIBAVIME en el PDF:",
               error
             );
           }
         }
-
-        doc.setFillColor(
-          247,
-          249,
-          252
-        );
-
-        doc.rect(
-          0,
-          0,
-          pageWidth,
-          39,
-          "F"
-        );
 
         doc.setFont(
           "helvetica",
