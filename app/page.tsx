@@ -104,15 +104,10 @@ useEffect(() => {
 }, []);
 
   const lideresPuntos = [...jugadores]
-  .filter(
-    (jugador) =>
-      Number(jugador.partidosJugados) > 0 &&
-      Number(jugador.puntosTotales) > 0
-  )
-  .sort(
-    (a, b) =>
-      Number(b.ppg) - Number(a.ppg)
-  );
+  .filter((jugador) => Number(jugador.ppg) > 0)
+  .sort((a, b) => Number(b.ppg) - Number(a.ppg))
+  .slice(0, 3);
+  
   const mvpActual =
   lideresPuntos.length > 0
     ? lideresPuntos[0]
