@@ -800,7 +800,22 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </div>
-</div> 
+</div>
+
+<footer className="mt-16 border-t border-slate-300 py-8 text-center">
+  <p className="text-lg font-bold text-slate-700">
+    🏀 LIBAVIME
+  </p>
+
+  <p className="text-sm text-slate-500 mt-2">
+    © 2026 LIBAVIME · Diseñado y desarrollado por Emmi De La Cruz
+  </p>
+
+  <p className="text-sm text-slate-400 mt-1">
+    Creado para LIBAVIME
+  </p>
+</footer>
+
 </main>
 
 </>
