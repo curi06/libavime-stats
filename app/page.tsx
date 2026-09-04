@@ -366,54 +366,69 @@ const ultimosResultados = [...partidosActuales]
 
 </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-10">
+        {/* TARJETAS DE LOS 4 EQUIPOS */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mt-10">
+          {posicionesOrdenadas.slice(0, 4).map((equipo, index) => {
+            const estilos = [
+              {
+                fondo: "bg-gradient-to-br from-yellow-300 to-yellow-500",
+                titulo: "text-slate-900",
+                record: "text-slate-800",
+                medalla: "🥇",
+              },
+              {
+                fondo: "bg-gradient-to-br from-slate-300 to-slate-500",
+                titulo: "text-white",
+                record: "text-white",
+                medalla: "🥈",
+              },
+              {
+                fondo: "bg-gradient-to-br from-orange-300 to-orange-500",
+                titulo: "text-slate-900",
+                record: "text-slate-800",
+                medalla: "🥉",
+              },
+              {
+                fondo: "bg-gradient-to-br from-blue-700 to-blue-950",
+                titulo: "text-white",
+                record: "text-white",
+                medalla: "4️⃣",
+              },
+            ];
 
+            const estilo = estilos[index] ?? estilos[3];
 
+            return (
+              <Link
+                key={equipo.nombre}
+                href={`/equipos/${equipo.slug}`}
+                className={`${estilo.fondo} min-h-[320px] w-full rounded-3xl shadow-xl text-center flex flex-col items-center justify-center p-5 hover:scale-105 transition-transform duration-200`}
+              >
+                <div className="text-4xl leading-none">
+                  {estilo.medalla}
+                </div>
 
-</div> 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
+                <div className="mt-4 h-32 flex items-center justify-center">
+                  <Image
+                    src={equipo.logo}
+                    alt={equipo.nombre}
+                    width={130}
+                    height={130}
+                    className="w-32 h-32 object-contain"
+                  />
+                </div>
 
-  {posicionesOrdenadas.slice(0, 3).map((equipo, index) => {
+                <h3 className={`text-2xl font-black mt-5 leading-tight ${estilo.titulo}`}>
+                  {equipo.nombre}
+                </h3>
 
-    const colores = [
-      "from-yellow-300 to-yellow-500",
-      "from-gray-300 to-gray-500",
-      "from-orange-300 to-orange-500",
-    ];
-
-    const medallas = ["🥇", "🥈", "🥉"];
-
-    return (
-      <Link
-        key={equipo.nombre}
-        href={`/equipos/${equipo.slug}`}
-        className={`bg-gradient-to-br ${colores[index]} p-6 rounded-3xl shadow-xl text-center hover:scale-105 transition`}
-      >
-        <div className="text-4xl">
-          {medallas[index]}
+                <p className={`font-bold text-lg mt-3 ${estilo.record}`}>
+                  Récord {equipo.ganados}-{equipo.perdidos}
+                </p>
+              </Link>
+            );
+          })}
         </div>
-
-        <Image
-          src={equipo.logo}
-          alt={equipo.nombre}
-          width={100}
-          height={100}
-          className="mx-auto mt-3"
-        />
-
-        <h3 className="text-2xl font-black mt-3 text-white">
-          {equipo.nombre}
-        </h3>
-
-        <p className="text-white font-bold mt-2">
-          Récord {equipo.ganados}-{equipo.perdidos}
-        </p>
-
-      </Link>
-    );
-  })}
-
-</div>
 
 <div className="grid md:grid-cols-2 gap-6 mt-10">
 
