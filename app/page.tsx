@@ -947,12 +947,13 @@ const ultimosResultados = [...partidosActuales]
       .map((partido, index) => (
         <div
           key={index}
-          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-5 shadow hover:shadow-lg transition"
+          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-5 md:p-6 shadow hover:shadow-lg transition"
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 md:gap-4 min-w-0">
 
+              <div className="flex items-center justify-center bg-white rounded-2xl p-2 shadow-sm border border-slate-200">
               <Image
                 src={
                   equipos.find(
@@ -960,11 +961,13 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.local}
-                width={70}
-                height={70}
+                width={112}
+                height={112}
+                className="w-24 h-24 md:w-28 md:h-28 object-contain"
               />
+              </div>
 
-              <p className="font-bold text-sm md:text-lg text-center">
+              <p className="font-bold text-base md:text-xl text-center">
                 {partido.local}
               </p>
 
@@ -982,9 +985,9 @@ const ultimosResultados = [...partidosActuales]
 
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 md:gap-4 min-w-0">
 
-              <p className="font-bold text-lg">
+              <p className="font-bold text-base md:text-xl text-center">
                 {partido.visitante}
               </p>
 
@@ -995,8 +998,9 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.visitante}
-                width={55}
-                height={55}
+                width={112}
+                height={112}
+                className="w-24 h-24 md:w-28 md:h-28 object-contain"
               />
 
             </div>
