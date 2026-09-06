@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../data/equipos";
-
 
 type Partido = {
   id: number;
@@ -151,10 +149,37 @@ useEffect(() => {
     .sort((a, b) => Number(b.apg) - Number(a.apg))
     .slice(0, 3);
 
-  const mvpActual =
-    lideresPuntos.length > 0
-      ? lideresPuntos[0]
-      : null;
+  // MVP actual: el líder en puntos con estadísticas reales.
+  const mvpActual = lideresPuntos.length > 0 ? lideresPuntos[0] : null;
+
+  // =========================================================
+  // JUGADORES DESTACADOS - 2 JUGADORES POR EQUIPO
+  // =========================================================
+  const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
+    const jugadoresDelEquipo = jugadores
+      .filter(
+        (jugador) =>
+          jugador.equipo === equipo.nombre &&
+          Number(jugador.partidos_jugados) > 0
+      )
+      .sort((a, b) => {
+        const valorA =
+          Number(a.ppg || 0) +
+          Number(a.rpg || 0) +
+          Number(a.apg || 0);
+        const valorB =
+          Number(b.ppg || 0) +
+          Number(b.rpg || 0) +
+          Number(b.apg || 0);
+        return valorB - valorA;
+      })
+      .slice(0, 2);
+
+    return {
+      ...equipo,
+      jugadoresDestacados: jugadoresDelEquipo,
+    };
+  });
 
   if (jugadores.length === 0) {
     return (
@@ -229,7 +254,7 @@ const ultimosResultados = [...partidosActuales]
   .reverse();
 
   return (
-    <><div className="relative h-[360px] sm:h-[430px] md:h-[560px] lg:h-[620px] w-full overflow-hidden">
+    <><div className="relative h-[55vh] md:h-[105vh] w-full">
 <nav className="absolute top-0 left-0 right-0 z-20 px-4 pt-2">
 
   <div className="max-w-6xl mx-auto">
@@ -311,9 +336,9 @@ const ultimosResultados = [...partidosActuales]
   alt="LIBAVIME"
   fill
   priority
-  className="object-cover object-center"
+  className="object-cover object-[center_35%] md:object-center"
 />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/35"></div>
+    <div className="absolute inset-0 bg-black/20"></div>
 
 
 </div>
@@ -756,6 +781,154 @@ const ultimosResultados = [...partidosActuales]
 </div>
 
 </div>
+{/* =========================================================
+    JUGADORES DESTACADOS
+========================================================= */}
+<section className="mt-8 md:mt-10">
+  <div className="max-w-6xl mx-auto px-1 sm:px-0">
+
+    <div className="text-center mb-6 md:mb-8">
+      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-blue-950">
+        🏀 JUGADORES DESTACADOS
+      </h2>
+      <p className="mt-2 text-sm sm:text-base font-bold text-slate-500">
+        Primer partido · Serie Regular #1
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7">
+      {jugadoresDestacadosPorEquipo.map((equipo) => (
+        <div
+          key={equipo.nombre}
+          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"
+        >
+          {/* ENCABEZADO DEL EQUIPO */}
+          <div className="bg-gradient-to-r from-blue-950 to-blue-900 px-5 py-4 sm:py-5">
+            <div className="flex items-center justify-center gap-3">
+              <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl bg-white/95 p-1.5 shadow-md">
+                <Image
+                  src={equipo.logo}
+                  alt={equipo.nombre}
+                  fill
+                  sizes="56px"
+                  className="object-contain p-1"
+                />
+              </div>
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-black leading-tight text-white">
+                {equipo.nombre}
+              </h3>
+            </div>
+          </div>
+
+          {/* DOS JUGADORES */}
+          <div className="space-y-4 p-4 sm:p-5">
+            {equipo.jugadoresDestacados.length === 0 ? (
+              <div className="py-8 text-center">
+                <div className="mb-1 text-4xl">🏀</div>
+                <p className="text-sm font-semibold text-slate-500">
+                  Aún no hay estadísticas
+                </p>
+              </div>
+            ) : (
+              equipo.jugadoresDestacados.map((jugador: any, index: number) => {
+                const fotoJugador =
+                  jugador.foto &&
+                  (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
+                    ? jugador.foto
+                    : "/logos/LIBAVIME.png";
+
+                return (
+                  <Link
+                    key={jugador.id}
+                    href={jugador.slug ? `/jugadores/${jugador.slug}` : "#"}
+                    className="block"
+                  >
+                    <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 sm:p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                      {/* MEDALLA */}
+                      <div className="absolute left-3 top-3 z-10">
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-full text-base shadow-md ring-2 ring-white ${
+                            index === 0 ? "bg-yellow-400" : "bg-slate-200"
+                          }`}
+                        >
+                          {index === 0 ? "🥇" : "🥈"}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
+                        {/* FOTO MUY DESTACADA */}
+                        <div className="relative h-[132px] w-[132px] sm:h-[118px] sm:w-[118px] shrink-0 overflow-hidden rounded-full border-[6px] border-white bg-slate-200 shadow-xl ring-2 ring-slate-200">
+                          <Image
+                            src={fotoJugador}
+                            alt={jugador.nombre || "Jugador LIBAVIME"}
+                            fill
+                            sizes="132px"
+                            className="object-cover"
+                          />
+                          {index === 0 && (
+                            <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-yellow-400 text-base shadow-md ring-2 ring-white">
+                              ⭐
+                            </span>
+                          )}
+                        </div>
+
+                        {/* INFORMACIÓN MÁS SOBRESALIENTE */}
+                        <div className="min-w-0 w-full flex-1 text-center sm:text-left">
+                          <p className="text-[11px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+                            {equipo.nombre}
+                          </p>
+
+                          <h4 className="mt-1 text-[21px] sm:text-xl font-black leading-tight text-slate-950 break-words">
+                            {jugador.nombre}
+                          </h4>
+
+                          {/* ESTADÍSTICAS MUY VISIBLES */}
+                          <div className="mt-4 grid w-full grid-cols-3 gap-2.5">
+                            <div className="rounded-xl bg-blue-50 px-1.5 py-2.5 text-center ring-1 ring-blue-100">
+                              <p className="text-[10px] sm:text-[11px] font-black text-blue-600">
+                                PTS
+                              </p>
+                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-blue-950">
+                                {Number(jugador.ppg || 0).toFixed(1)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-green-50 px-1.5 py-2.5 text-center ring-1 ring-green-100">
+                              <p className="text-[10px] sm:text-[11px] font-black text-green-600">
+                                REB
+                              </p>
+                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-green-950">
+                                {Number(jugador.rpg || 0).toFixed(1)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-orange-50 px-1.5 py-2.5 text-center ring-1 ring-orange-100">
+                              <p className="text-[10px] sm:text-[11px] font-black text-orange-600">
+                                AST
+                              </p>
+                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-orange-950">
+                                {Number(jugador.apg || 0).toFixed(1)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <p className="mt-5 text-center text-[10px] sm:text-xs text-slate-400">
+      Estadísticas actualizadas automáticamente según los partidos registrados.
+    </p>
+  </div>
+</section>
+
 <div id="proximos-partidos" className="bg-white p-6 rounded-xl shadow mt-6">
   <h2 className="text-3xl font-black text-blue-900 mb-6">
     📅 Próximos Partidos
@@ -774,11 +947,11 @@ const ultimosResultados = [...partidosActuales]
       .map((partido, index) => (
         <div
           key={index}
-          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-6 shadow hover:shadow-lg transition"
+          className="bg-slate-50 border-l-8 border-blue-600 rounded-2xl p-5 shadow hover:shadow-lg transition"
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
-            <div className="flex flex-col sm:flex-row items-center gap-3 text-center">
+            <div className="flex items-center gap-3">
 
               <Image
                 src={
@@ -787,9 +960,8 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.local}
-                width={150}
-                height={150}
-                className="h-[120px] w-[120px] object-contain md:h-[150px] md:w-[150px]"
+                width={70}
+                height={70}
               />
 
               <p className="font-bold text-sm md:text-lg text-center">
@@ -810,9 +982,9 @@ const ultimosResultados = [...partidosActuales]
 
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row items-center gap-3 text-center">
+            <div className="flex items-center gap-3">
 
-              <p className="font-bold text-sm md:text-lg text-center">
+              <p className="font-bold text-lg">
                 {partido.visitante}
               </p>
 
@@ -823,9 +995,8 @@ const ultimosResultados = [...partidosActuales]
                   )?.logo || "/logo.png"
                 }
                 alt={partido.visitante}
-                width={150}
-                height={150}
-                className="h-[120px] w-[120px] object-contain md:h-[150px] md:w-[150px]"
+                width={55}
+                height={55}
               />
 
             </div>
@@ -985,72 +1156,7 @@ const ultimosResultados = [...partidosActuales]
 
   </div>
 </div>
-</div>
-
-<footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
-  <div className="mx-auto flex max-w-3xl flex-col items-center px-4">
-
-    <p className="flex items-center justify-center gap-2 text-lg font-black tracking-wide text-slate-700 sm:text-xl">
-      <span className="text-xl sm:text-2xl">🏀</span>
-      <span>LIBAVIME</span>
-    </p>
-
-    <p className="mt-3 max-w-2xl text-center text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
-      © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
-      <span className="font-black text-blue-900">
-        Emmi De La Cruz
-      </span>
-    </p>
-
-    <p className="mt-2 text-center text-xs font-medium text-slate-400 sm:text-sm">
-      Creado para LIBAVIME
-    </p>
-
-    <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-
-      <a
-        href="https://www.instagram.com/libavime?igsi=aHgyMHkzN2tweHpr"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 px-6 py-3 font-black text-white shadow-lg transition hover:scale-105 sm:w-auto"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className="h-6 w-6"
-          aria-hidden="true"
-        >
-          <path d="M7.75 2C4.574 2 2 4.574 2 7.75v8.5C2 19.426 4.574 22 7.75 22h8.5C19.426 22 22 19.426 22 16.25v-8.5C22 4.574 19.426 2 16.25 2h-8.5Zm0 1.75h8.5c2.21 0 4 1.79 4 4v8.5c0 2.21-1.79 4-4 4h-8.5c-2.21 0-4-1.79-4-4v-8.5c0-2.21 1.79-4 4-4Zm8.875 1.625a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25ZM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 1.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5Z" />
-        </svg>
-
-        <span>SÍGUENOS EN INSTAGRAM</span>
-      </a>
-
-      <a
-        href="https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-6 py-3 font-black text-white shadow-lg transition hover:scale-105 sm:w-auto"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className="h-7 w-7"
-          aria-hidden="true"
-        >
-          <path d="M23.498 6.186a2.999 2.999 0 0 0-2.112-2.122C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.386.564A2.999 2.999 0 0 0 .502 6.186C0 8.08 0 12 0 12s0 3.92.502 5.814a2.999 2.999 0 0 0 2.112 2.122C4.495 20.5 12 20.5 12 20.5s7.505 0 9.386-.564a2.999 2.999 0 0 0 2.112-2.122C24 15.92 24 12 24 12s0-3.92-.502-5.814ZM9.6 15.6V8.4L15.9 12l-6.3 3.6Z" />
-        </svg>
-
-        <span>VISITA NUESTRO YOUTUBE</span>
-      </a>
-
-    </div>
-
-  </div>
-</footer>
-
+</div> 
 </main>
 
 </>
