@@ -1159,8 +1159,80 @@ const ultimosResultados = [...partidosActuales]
     </div>
 
   </div>
-</div>
 </div> 
+</div>
+
+<footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
+  <div className="mx-auto flex max-w-3xl flex-col items-center px-4">
+
+    <p className="flex items-center justify-center gap-2 text-lg font-black tracking-wide text-slate-700 sm:text-xl">
+      <span className="text-xl sm:text-2xl">🏀</span>
+      <span>LIBAVIME</span>
+    </p>
+
+    <p className="mt-3 max-w-2xl text-center text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
+      © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
+      <span className="font-black text-blue-900">
+        Emmi De La Cruz
+      </span>
+    </p>
+
+    <p className="mt-2 text-center text-xs font-medium text-slate-400 sm:text-sm">
+      Creado para LIBAVIME
+    </p>
+
+    {/* REDES SOCIALES */}
+    <div className="mt-5 flex items-center justify-center gap-4">
+
+      {/* INSTAGRAM */}
+      <a
+        href="https://www.instagram.com/libavime?igsi=aHgyMHkzN2tweHpr"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Instagram de LIBAVIME"
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white shadow-md transition hover:scale-110"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+        </svg>
+      </a>
+
+      {/* YOUTUBE */}
+      <a
+        href="https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="YouTube de LIBAVIME"
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white shadow-md transition hover:scale-110"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.5v-7l6.2 3.5-6.2 3.5Z" />
+        </svg>
+      </a>
+
+    </div>
+
+  </div>
+</footer>
+
 </main>
 
 </>
