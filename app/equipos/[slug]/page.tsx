@@ -820,8 +820,11 @@ export default async function EquipoPage({
               </p>
 
               <p>
-              Diseñado y desarrollado por Emmi De La Cruz
-              </p>
+               Diseñado y desarrollado por{" "}
+               <span className="font-black text-grey-900 text-base">
+               Emmi De La Cruz
+               </span>
+               </p>
             </div>
           </div>
         </footer>
