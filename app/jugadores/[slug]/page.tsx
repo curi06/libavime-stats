@@ -163,6 +163,22 @@ export default async function JugadorPage({
       ? jugador.foto
       : "/logos/LIBAVIME.png";
 
+      // COLOR DEL EQUIPO
+const equipoNormalizado =
+  jugador.equipo?.trim().toLowerCase();
+
+let colorEquipo = "#1E3A8A";
+
+if (equipoNormalizado === "vikingos") {
+  colorEquipo = "#6B21A8";
+} else if (equipoNormalizado === "gladiadores") {
+  colorEquipo = "#15803D";
+} else if (equipoNormalizado === "espartanos") {
+  colorEquipo = "#FACC15";
+} else if (equipoNormalizado === "titanes") {
+  colorEquipo = "#DC2626";
+}
+
   return (
     <>
       <Navbar />
@@ -173,7 +189,10 @@ export default async function JugadorPage({
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
             {/* ENCABEZADO */}
-            <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-8 md:p-10 text-center">
+            <div
+  style={{ backgroundColor: colorEquipo }}
+  className="text-white p-8 md:p-10 text-center"
+>
 
               <Image
                 src={foto}
