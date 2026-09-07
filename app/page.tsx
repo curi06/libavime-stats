@@ -599,24 +599,28 @@ const ultimosResultados = [...partidosActuales]
     if (!equipo) return null;
 
     const estilos: Record<string, { fondo: string; texto: string }> = {
-      Gladiadores: {
-        fondo: "from-slate-300 via-slate-400 to-slate-600",
-        texto: "text-white",
-      },
-      Vikingos: {
-        fondo: "from-yellow-300 via-yellow-400 to-amber-500",
-        texto: "text-slate-900",
-      },
-      Titanes: {
-        fondo: "from-orange-300 via-orange-400 to-orange-600",
-        texto: "text-white",
-      },
-      Espartanos: {
-        fondo: "from-red-600 via-red-700 to-red-950",
-        texto: "text-white",
-      },
-    };
 
+  Gladiadores: {
+    fondo: "from-green-600 via-green-700 to-green-900",
+    texto: "text-white",
+  },
+
+  Vikingos: {
+    fondo: "from-purple-600 via-purple-700 to-purple-950",
+    texto: "text-white",
+  },
+
+  Titanes: {
+    fondo: "from-red-600 via-red-700 to-red-950",
+    texto: "text-white",
+  },
+
+  Espartanos: {
+    fondo: "from-yellow-300 via-yellow-400 to-yellow-500",
+    texto: "text-slate-900",
+  },
+
+};
     const estilo = estilos[equipo.nombre];
 
     return (
