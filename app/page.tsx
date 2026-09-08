@@ -1129,47 +1129,39 @@ const ultimosResultados = [...partidosActuales]
 
   {/* NOMBRE DEL JUGADOR */}
   <h4
-  className={`
-    font-black
-    leading-tight
-    ${
-      index === 0
-        ? "text-xl md:text-2xl"
-        : "text-lg md:text-xl"
-    }
-    ${color.texto}
-  `}
->
-  {jugador.nombre}
-</h4>
+    className={`
+      text-lg md:text-xl
+      font-black
+      leading-tight
+      ${color.texto}
+    `}
+  >
+    {jugador.nombre}
+  </h4>
 
   {/* JUGADOR DESTACADO - APARECE EN LOS DOS */}
   <p
-  className={`
-    mt-2
-    inline-flex
-    items-center
-    justify-center
-    rounded-full
-    px-4 py-1.5
-    font-black
-    uppercase
-    tracking-wider
-    shadow-md
-    ${
-      index === 0
-        ? "text-[10px] md:text-xs"
-        : "text-[9px] md:text-[10px]"
-    }
-    ${
-      equipo.nombre === "Espartanos"
-        ? "bg-yellow-300 text-yellow-950"
-        : "bg-yellow-400 text-slate-950"
-    }
-  `}
->
-  ⭐ JUGADOR DESTACADO
-</p>
+    className={`
+      mt-2
+      inline-flex
+      items-center
+      justify-center
+      rounded-full
+      px-4 py-1.5
+      text-[9px] md:text-[10px]
+      font-black
+      uppercase
+      tracking-wider
+      shadow-md
+      ${
+        equipo.nombre === "Espartanos"
+          ? "bg-yellow-300 text-yellow-950"
+          : "bg-yellow-400 text-slate-950"
+      }
+    `}
+  >
+    ⭐ JUGADOR DESTACADO
+  </p>
 
   {/* ESTADÍSTICAS */}
   <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
