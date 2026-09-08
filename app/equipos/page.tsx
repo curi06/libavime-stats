@@ -297,21 +297,21 @@ export default function Equipos() {
                 <div className="absolute -left-12 -bottom-12 w-44 h-44 rounded-full bg-black/10" />
 
                 <div className="relative h-64 md:h-72 flex items-center justify-center p-8">
-                  <Image
-                    src={equipo.logo}
-                    alt={`Logo ${equipo.nombre}`}
-                    width={220}
-                    height={220}
-                    className="
-                      max-h-full
-                      w-auto
-                      object-contain
-                      drop-shadow-2xl
-                      transition-transform
-                      duration-300
-                      group-hover:scale-110
-                    "
-                  />
+                 <Image
+  src={equipo.logo}
+  alt={`Logo ${equipo.nombre}`}
+  width={equipo.nombre === "Titanes" ? 260 : 220}
+  height={equipo.nombre === "Titanes" ? 260 : 220}
+  className="
+    max-h-full
+    w-auto
+    object-contain
+    drop-shadow-2xl
+    transition-transform
+    duration-300
+    group-hover:scale-110
+  "
+/>
                 </div>
 
                 <div

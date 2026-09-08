@@ -788,148 +788,586 @@ const ultimosResultados = [...partidosActuales]
 {/* =========================================================
     JUGADORES DESTACADOS
 ========================================================= */}
-<section className="mt-8 md:mt-10">
-  <div className="max-w-6xl mx-auto px-1 sm:px-0">
+{/* =========================================================
+    JUGADORES DESTACADOS
+========================================================= */}
+<section className="mt-10 md:mt-14">
+  <div className="max-w-7xl mx-auto px-1 sm:px-2">
 
-    <div className="text-center mb-6 md:mb-8">
-      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-blue-950">
-        🏀 JUGADORES DESTACADOS
-      </h2>
-      <p className="mt-2 text-sm sm:text-base font-bold text-slate-500">
+    {/* TÍTULO */}
+    <div className="text-center mb-8 md:mb-10">
+
+      <div className="inline-flex items-center gap-3">
+        <span className="text-4xl md:text-5xl">🏀</span>
+
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-blue-950">
+          JUGADORES{" "}
+          <span className="text-yellow-500">
+            DESTACADOS
+          </span>
+        </h2>
+      </div>
+
+      <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
         Primer partido · Serie Regular #1
+      </p>
+
+      <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
+
+    </div>
+
+    {/* EQUIPOS */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+
+      {jugadoresDestacadosPorEquipo.map((equipo) => {
+
+        const colores: Record<
+          string,
+          {
+            fondo: string;
+            borde: string;
+            brillo: string;
+            texto: string;
+            textoSuave: string;
+          }
+        > = {
+
+          Gladiadores: {
+            fondo: "from-green-950 via-green-800 to-green-600",
+            borde: "border-green-400",
+            brillo: "bg-green-400/20",
+            texto: "text-white",
+            textoSuave: "text-green-100",
+          },
+
+          Vikingos: {
+            fondo: "from-purple-950 via-purple-800 to-purple-600",
+            borde: "border-purple-400",
+            brillo: "bg-purple-400/20",
+            texto: "text-white",
+            textoSuave: "text-purple-100",
+          },
+
+          Titanes: {
+            fondo: "from-red-950 via-red-800 to-red-600",
+            borde: "border-red-400",
+            brillo: "bg-red-400/20",
+            texto: "text-white",
+            textoSuave: "text-red-100",
+          },
+
+          Espartanos: {
+            fondo: "from-yellow-700 via-yellow-500 to-yellow-300",
+            borde: "border-yellow-300",
+            brillo: "bg-white/20",
+            texto: "text-slate-950",
+            textoSuave: "text-slate-800",
+          },
+        };
+
+        const color =
+          colores[equipo.nombre] ?? colores.Gladiadores;
+
+        return (
+          <div
+            key={equipo.nombre}
+            className={`
+              group relative overflow-hidden
+              rounded-[2rem]
+              border-2 ${color.borde}
+              bg-gradient-to-br ${color.fondo}
+              shadow-2xl
+              transition-all duration-500
+              hover:-translate-y-2
+              hover:shadow-2xl
+            `}
+          >
+
+            {/* BRILLOS DECORATIVOS */}
+            <div
+              className={`
+                absolute -right-16 -top-16
+                h-48 w-48 rounded-full
+                ${color.brillo}
+                blur-2xl
+              `}
+            />
+
+            <div
+              className={`
+                absolute -left-20 -bottom-20
+                h-56 w-56 rounded-full
+                ${color.brillo}
+                blur-3xl
+              `}
+            />
+
+            {/* ENCABEZADO DEL EQUIPO */}
+<div className="relative px-5 pt-6 md:px-7 md:pt-7">
+
+  <div className="flex flex-col items-center text-center">
+
+    {/* LOGO GRANDE */}
+    <div
+      className={`
+        relative
+        h-24 w-24
+        md:h-28 md:w-28
+        overflow-hidden
+        rounded-3xl
+        bg-white
+        p-2
+        shadow-2xl
+        ring-4
+        ${
+          equipo.nombre === "Gladiadores"
+            ? "ring-green-300"
+            : equipo.nombre === "Vikingos"
+            ? "ring-purple-300"
+            : equipo.nombre === "Titanes"
+            ? "ring-red-300"
+            : "ring-yellow-200"
+        }
+      `}
+    >
+      <Image
+        src={equipo.logo}
+        alt={equipo.nombre}
+        fill
+        sizes="112px"
+        className="object-contain p-2"
+      />
+    </div>
+
+    {/* NOMBRE DEL EQUIPO */}
+    <p
+      className={`
+        mt-4
+        text-[10px] md:text-xs
+        font-black
+        uppercase
+        tracking-[0.3em]
+        ${color.textoSuave}
+      `}
+    >
+      EQUIPO
+    </p>
+
+    <h3
+      className={`
+        mt-1
+        text-3xl md:text-4xl
+        font-black
+        uppercase
+        tracking-tight
+        ${color.texto}
+      `}
+    >
+      {equipo.nombre}
+    </h3>
+
+    {/* LÍNEA DECORATIVA */}
+    <div
+      className={`
+        mt-3
+        h-1
+        w-20
+        rounded-full
+        ${
+          equipo.nombre === "Gladiadores"
+            ? "bg-green-300"
+            : equipo.nombre === "Vikingos"
+            ? "bg-purple-300"
+            : equipo.nombre === "Titanes"
+            ? "bg-red-300"
+            : "bg-yellow-200"
+        }
+      `}
+    />
+
+    {/* TEXTO */}
+    <p
+      className={`
+        mt-3
+        text-[10px] md:text-xs
+        font-black
+        uppercase
+        tracking-[0.18em]
+        ${color.textoSuave}
+      `}
+    >
+      ⭐ DOS PROTAGONISTAS DE LA JORNADA
+    </p>
+
+  </div>
+
+  {/* SEPARADOR */}
+  <div
+    className={`
+      mt-5
+      border-t
+      ${
+        equipo.nombre === "Espartanos"
+          ? "border-black/10"
+          : "border-white/20"
+      }
+    `}
+  />
+
+</div>
+
+            {/* JUGADORES */}
+            <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 md:p-7">
+
+              {equipo.jugadoresDestacados.map(
+                (jugador: any, index: number) => {
+
+                  const fotoJugador =
+                    jugador.foto &&
+                    (
+                      jugador.foto.startsWith("http") ||
+                      jugador.foto.startsWith("/")
+                    )
+                      ? jugador.foto
+                      : "/logos/LIBAVIME.png";
+
+                  const primero = index === 0;
+
+                  return (
+                    <Link
+                      key={jugador.id}
+                      href={
+                        jugador.slug
+                          ? `/jugadores/${jugador.slug}`
+                          : "#"
+                      }
+                      className="block"
+                    >
+
+                      <div
+                        className={`
+                          relative h-full
+                          overflow-hidden
+                          rounded-2xl
+                          border
+                          ${
+                            equipo.nombre === "Espartanos"
+                              ? "border-black/10 bg-black/10"
+                              : "border-white/20 bg-black/20"
+                          }
+                          backdrop-blur-sm
+                          p-4
+                          transition-all duration-300
+                          hover:scale-[1.03]
+                          hover:bg-black/30
+                        `}
+                      >
+
+                        {/* MEDALLA */}
+                        <div className="absolute left-3 top-3 z-20">
+
+                          <div
+                            className={`
+                              flex h-9 w-9
+                              items-center justify-center
+                              rounded-full
+                              text-lg
+                              shadow-xl
+                              ${
+                                primero
+                                  ? "bg-yellow-400"
+                                  : "bg-slate-200"
+                              }
+                            `}
+                          >
+                            {primero ? "🥇" : "🥈"}
+                          </div>
+
+                        </div>
+
+                        {/* FOTO */}
+                        <div className="flex justify-center pt-2">
+
+                          <div
+                          className={`
+                          relative
+                          h-36 w-36
+                          md:h-44 md:w-44
+                          overflow-hidden
+                          rounded-full
+                           border-4
+                              ${
+                                primero
+                                  ? "border-yellow-300"
+                                  : "border-white/70"
+                              }
+                              bg-white/20
+                              shadow-2xl
+                              transition-transform
+                              duration-500
+                              group-hover:scale-105
+                            `}
+                          >
+
+                            <Image
+                              src={fotoJugador}
+                              alt={
+                                jugador.nombre ||
+                                "Jugador LIBAVIME"
+                              }
+                              fill
+                              sizes="144px"
+                              className="object-cover"
+                            />
+
+                          </div>
+
+                        </div>
+
+                        {/* INFORMACIÓN */}
+<div className="mt-5 text-center">
+
+  {/* NOMBRE DEL JUGADOR */}
+  <h4
+  className={`
+    font-black
+    leading-tight
+    ${
+      index === 0
+        ? "text-xl md:text-2xl"
+        : "text-lg md:text-xl"
+    }
+    ${color.texto}
+  `}
+>
+  {jugador.nombre}
+</h4>
+
+  {/* JUGADOR DESTACADO - APARECE EN LOS DOS */}
+  <p
+  className={`
+    mt-2
+    inline-flex
+    items-center
+    justify-center
+    rounded-full
+    px-4 py-1.5
+    font-black
+    uppercase
+    tracking-wider
+    shadow-md
+    ${
+      index === 0
+        ? "text-[10px] md:text-xs"
+        : "text-[9px] md:text-[10px]"
+    }
+    ${
+      equipo.nombre === "Espartanos"
+        ? "bg-yellow-300 text-yellow-950"
+        : "bg-yellow-400 text-slate-950"
+    }
+  `}
+>
+  ⭐ JUGADOR DESTACADO
+</p>
+
+  {/* ESTADÍSTICAS */}
+  <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
+
+    {/* PUNTOS */}
+    <div
+      className={`
+        min-w-0
+        min-h-[78px]
+        rounded-xl
+        px-2 py-3 md:px-3
+        flex flex-col
+        items-center
+        justify-center
+        ${
+          equipo.nombre === "Espartanos"
+            ? "bg-white/70"
+            : "bg-white/15"
+        }
+      `}
+    >
+      <p
+        className={`
+          text-[9px] md:text-[10px]
+          font-black
+          tracking-wide
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-blue-700"
+              : "text-blue-200"
+          }
+        `}
+      >
+        PTS
+      </p>
+
+      <p
+        className={`
+          mt-1
+          text-xl md:text-2xl
+          font-black
+          leading-none
+          whitespace-nowrap
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-blue-950"
+              : "text-white"
+          }
+        `}
+      >
+        {Number(jugador.ppg || 0).toFixed(1)}
       </p>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7">
-      {jugadoresDestacadosPorEquipo.map((equipo) => (
-        <div
-          key={equipo.nombre}
-          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"
-        >
-          {/* ENCABEZADO DEL EQUIPO */}
-          <div className="bg-gradient-to-r from-blue-950 to-blue-900 px-5 py-4 sm:py-5">
-            <div className="flex items-center justify-center gap-3">
-              <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl bg-white/95 p-1.5 shadow-md">
-                <Image
-                  src={equipo.logo}
-                  alt={equipo.nombre}
-                  fill
-                  sizes="56px"
-                  className="object-contain p-1"
-                />
-              </div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-black leading-tight text-white">
-                {equipo.nombre}
-              </h3>
-            </div>
-          </div>
+    {/* REBOTES */}
+    <div
+      className={`
+        min-w-0
+        min-h-[78px]
+        rounded-xl
+        px-2 py-3 md:px-3
+        flex flex-col
+        items-center
+        justify-center
+        ${
+          equipo.nombre === "Espartanos"
+            ? "bg-white/70"
+            : "bg-white/15"
+        }
+      `}
+    >
+      <p
+        className={`
+          text-[9px] md:text-[10px]
+          font-black
+          tracking-wide
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-green-700"
+              : "text-green-200"
+          }
+        `}
+      >
+        REB
+      </p>
 
-          {/* DOS JUGADORES */}
-          <div className="space-y-4 p-4 sm:p-5">
-            {equipo.jugadoresDestacados.length === 0 ? (
-              <div className="py-8 text-center">
-                <div className="mb-1 text-4xl">🏀</div>
-                <p className="text-sm font-semibold text-slate-500">
-                  Aún no hay estadísticas
-                </p>
-              </div>
-            ) : (
-              equipo.jugadoresDestacados.map((jugador: any, index: number) => {
-                const fotoJugador =
-                  jugador.foto &&
-                  (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
-                    ? jugador.foto
-                    : "/logos/LIBAVIME.png";
-
-                return (
-                  <Link
-                    key={jugador.id}
-                    href={jugador.slug ? `/jugadores/${jugador.slug}` : "#"}
-                    className="block"
-                  >
-                    <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 sm:p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                      {/* MEDALLA */}
-                      <div className="absolute left-3 top-3 z-10">
-                        <span
-                          className={`flex h-9 w-9 items-center justify-center rounded-full text-base shadow-md ring-2 ring-white ${
-                            index === 0 ? "bg-yellow-400" : "bg-slate-200"
-                          }`}
-                        >
-                          {index === 0 ? "🥇" : "🥈"}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
-                        {/* FOTO MUY DESTACADA */}
-                        <div className="relative h-[132px] w-[132px] sm:h-[118px] sm:w-[118px] shrink-0 overflow-hidden rounded-full border-[6px] border-white bg-slate-200 shadow-xl ring-2 ring-slate-200">
-                          <Image
-                            src={fotoJugador}
-                            alt={jugador.nombre || "Jugador LIBAVIME"}
-                            fill
-                            sizes="132px"
-                            className="object-cover"
-                          />
-                          {index === 0 && (
-                            <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-yellow-400 text-base shadow-md ring-2 ring-white">
-                              ⭐
-                            </span>
-                          )}
-                        </div>
-
-                        {/* INFORMACIÓN MÁS SOBRESALIENTE */}
-                        <div className="min-w-0 w-full flex-1 text-center sm:text-left">
-                          <p className="text-[11px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
-                            {equipo.nombre}
-                          </p>
-
-                          <h4 className="mt-1 text-[21px] sm:text-xl font-black leading-tight text-slate-950 break-words">
-                            {jugador.nombre}
-                          </h4>
-
-                          {/* ESTADÍSTICAS MUY VISIBLES */}
-                          <div className="mt-4 grid w-full grid-cols-3 gap-2.5">
-                            <div className="rounded-xl bg-blue-50 px-1.5 py-2.5 text-center ring-1 ring-blue-100">
-                              <p className="text-[10px] sm:text-[11px] font-black text-blue-600">
-                                PTS
-                              </p>
-                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-blue-950">
-                                {Number(jugador.ppg || 0).toFixed(1)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-green-50 px-1.5 py-2.5 text-center ring-1 ring-green-100">
-                              <p className="text-[10px] sm:text-[11px] font-black text-green-600">
-                                REB
-                              </p>
-                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-green-950">
-                                {Number(jugador.rpg || 0).toFixed(1)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-orange-50 px-1.5 py-2.5 text-center ring-1 ring-orange-100">
-                              <p className="text-[10px] sm:text-[11px] font-black text-orange-600">
-                                AST
-                              </p>
-                              <p className="mt-0.5 text-xl sm:text-xl font-black leading-none text-orange-950">
-                                {Number(jugador.apg || 0).toFixed(1)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </div>
-      ))}
+      <p
+        className={`
+          mt-1
+          text-xl md:text-2xl
+          font-black
+          leading-none
+          whitespace-nowrap
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-green-950"
+              : "text-white"
+          }
+        `}
+      >
+        {Number(jugador.rpg || 0).toFixed(1)}
+      </p>
     </div>
 
-    <p className="mt-5 text-center text-[10px] sm:text-xs text-slate-400">
+    {/* ASISTENCIAS */}
+    <div
+      className={`
+        min-w-0
+        min-h-[78px]
+        rounded-xl
+        px-2 py-3 md:px-3
+        flex flex-col
+        items-center
+        justify-center
+        ${
+          equipo.nombre === "Espartanos"
+            ? "bg-white/70"
+            : "bg-white/15"
+        }
+      `}
+    >
+      <p
+        className={`
+          text-[9px] md:text-[10px]
+          font-black
+          tracking-wide
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-orange-700"
+              : "text-orange-200"
+          }
+        `}
+      >
+        AST
+      </p>
+
+      <p
+        className={`
+          mt-1
+          text-xl md:text-2xl
+          font-black
+          leading-none
+          whitespace-nowrap
+          ${
+            equipo.nombre === "Espartanos"
+              ? "text-orange-950"
+              : "text-white"
+          }
+        `}
+      >
+        {Number(jugador.apg || 0).toFixed(1)}
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+                      </div>
+
+                    </Link>
+                  );
+                }
+              )}
+
+            </div>
+
+            {/* PIE DEL EQUIPO */}
+            <div
+              className={`
+                relative px-5 pb-5 md:px-7 md:pb-7
+                text-center
+              `}
+            >
+
+              <p
+                className={`
+                  text-[10px] md:text-xs
+                  font-black uppercase
+                  tracking-[0.18em]
+                  ${color.textoSuave}
+                `}
+              >
+                🏀 LOS PROTAGONISTAS DE LA JORNADA
+              </p>
+
+            </div>
+
+          </div>
+        );
+      })}
+
+    </div>
+
+    <p className="mt-5 text-center text-[10px] sm:text-xs font-medium text-slate-400">
       Estadísticas actualizadas automáticamente según los partidos registrados.
     </p>
+
   </div>
 </section>
 
