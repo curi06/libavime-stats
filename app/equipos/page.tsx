@@ -251,7 +251,7 @@ export default function Equipos() {
       <div className="max-w-6xl mx-auto px-4 py-4 md:px-8 md:py-8">
         <Navbar />
 
-        <section className="mt-8 mb-10 text-center">
+        <section className="mt-20 mb-10 text-center">
           <p className="text-sm md:text-base font-bold tracking-[0.25em] text-blue-700 uppercase">
             LIBAVIME STATS
           </p>

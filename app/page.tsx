@@ -149,8 +149,7 @@ useEffect(() => {
     .sort((a, b) => Number(b.apg) - Number(a.apg))
     .slice(0, 3);
 
-  // MVP actual: el líder en puntos con estadísticas reales.
-  const mvpActual = lideresPuntos.length > 0 ? lideresPuntos[0] : null;
+
 
   // =========================================================
   // JUGADORES DESTACADOS - 2 JUGADORES POR EQUIPO
@@ -254,7 +253,7 @@ const ultimosResultados = [...partidosActuales]
   .reverse();
 
   return (
-    <><div className="relative h-[55vh] md:h-[105vh] w-full">
+    <><div className="relative h-[45vh] md:h-[82vh] w-full">
 <nav className="absolute top-0 left-0 right-0 z-20 px-4 pt-2">
 
   <div className="max-w-6xl mx-auto">
@@ -331,13 +330,30 @@ const ultimosResultados = [...partidosActuales]
   </div>
 
 </nav>
+    <div className="relative w-full bg-slate-950">
+
+  {/* MENÚ */}
+  <nav className="absolute top-0 left-0 right-0 z-20 px-4 pt-2">
+    
+    {/* AQUÍ DEJAS TODO TU MENÚ ACTUAL */}
+    
+  </nav>
+
+  {/* BANNER COMPLETO */}
+  <div className="relative h-[32vh] md:h-[70vh] w-full pt-15 md:pt-0">
     <Image
-  src="/banners/libavime-banner-2026.png"
-  alt="LIBAVIME"
-  fill
-  priority
-  className="object-cover object-[center_35%] md:object-center"
-/>
+      src="/banners/libavime-banner-2026.png"
+      alt="LIBAVIME"
+      width={1536}
+      height={1024}
+      priority
+      className="block h-auto w-full object-contain"
+    />
+
+    <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
+  </div>
+
+</div>
     <div className="absolute inset-0 bg-black/20"></div>
 
 
@@ -351,94 +367,8 @@ const ultimosResultados = [...partidosActuales]
   
   <div className="max-w-5xl mx-auto">
 
-    <section className="mt-8 space-y-6">
-      {!torneoYaInicio ? (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 p-6 text-white shadow-2xl md:p-10">
-          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl" />
-
-          <div className="relative text-center">
-            <p className="text-sm font-black tracking-[0.25em] text-blue-200">
-              TEMPORADA 2026
-            </p>
-
-            <h1 className="mt-3 text-3xl font-black sm:text-5xl md:text-6xl">
-              🏀 ¡ARRANCA EL TORNEO!
-            </h1>
-
-            <p className="mt-4 text-lg font-bold sm:text-2xl">
-              Sábado 5 de septiembre · 6:00 PM
-            </p>
-
-            <p className="mt-2 text-base text-blue-100 sm:text-xl">
-              📍 Club Los Prados
-            </p>
-
-            <div className="mx-auto mt-7 max-w-3xl border-t border-white/20 pt-6">
-              <p className="mb-4 text-sm font-black tracking-widest text-blue-200">
-                FALTAN
-              </p>
-
-              <div className="grid grid-cols-4 gap-2 sm:gap-4">
-                {[
-                  { valor: tiempoInicio.dias, texto: "DÍAS" },
-                  { valor: tiempoInicio.horas, texto: "HORAS" },
-                  { valor: tiempoInicio.minutos, texto: "MIN" },
-                  { valor: tiempoInicio.segundos, texto: "SEG" },
-                ].map((item) => (
-                  <div
-                    key={item.texto}
-                    className="rounded-2xl border border-white/20 bg-white/10 px-2 py-4 backdrop-blur"
-                  >
-                    <div className="text-2xl font-black sm:text-4xl md:text-5xl">
-                      {String(item.valor).padStart(2, "0")}
-                    </div>
-                    <div className="mt-1 text-[10px] font-black tracking-wider text-blue-200 sm:text-xs">
-                      {item.texto}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <a
-                href="#proximos-partidos"
-                className="rounded-full bg-white px-7 py-3 font-black text-blue-950 shadow-lg transition hover:scale-105"
-              >
-                VER PARTIDOS
-              </a>
-              <a
-                href="#estadisticas"
-                className="rounded-full border border-white/30 bg-white/10 px-7 py-3 font-black text-white backdrop-blur transition hover:bg-white/20"
-              >
-                VER ESTADÍSTICAS
-              </a>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-3xl bg-gradient-to-r from-red-700 via-red-600 to-red-800 p-6 text-center text-white shadow-2xl md:p-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-black">
-            <span className="animate-pulse">🔴</span>
-            TORNEO EN CURSO
-          </div>
-          <h1 className="mt-4 text-3xl font-black sm:text-5xl">
-            ¡LIBAVIME 2026 ESTÁ EN JUEGO!
-          </h1>
-          <p className="mt-3 text-lg text-red-100">
-            Sigue partidos, resultados y estadísticas oficiales.
-          </p>
-          <a
-            href="#proximos-partidos"
-            className="mt-7 inline-block rounded-full bg-white px-7 py-3 font-black text-red-700 shadow-lg transition hover:scale-105"
-          >
-            VER LA JORNADA
-          </a>
-        </div>
-      )}
-
-      {inauguracionPendiente && (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 p-1 shadow-2xl">
+  {inauguracionPendiente && (
+  <div className="relative mt-0 overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 p-1 shadow-2xl md:mt-90">
           <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-white/30 blur-3xl" />
           <div className="absolute -right-8 bottom-0 h-48 w-48 rounded-full bg-red-500/30 blur-3xl" />
 
@@ -507,7 +437,7 @@ const ultimosResultados = [...partidosActuales]
           </div>
         </div>
       )}
-    </section>
+    
 
 <div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
   <div className="bg-white p-4 rounded-xl shadow text-center">
@@ -537,42 +467,7 @@ const ultimosResultados = [...partidosActuales]
     <p>Temporada</p>
   </div>
 </div>
-<Link
-  href="/mvp"
-  className="block mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition"
->
-  <div className="flex flex-col md:flex-row items-center gap-6">
 
-    <Image
-      src={lideresPuntos[0]?.foto || "/logos/LIBAVIME.png"}
-      alt={lideresPuntos[0]?.nombre || "MVP LIBAVIME"}
-      width={120}
-      height={120}
-      className="rounded-full border-4 border-white"
-    />
-
-    <div className="text-center md:text-left text-white">
-
-      <h2 className="text-xl md:text-3xl font-black">
-        🏆 MVP LIBAVIME 2026
-      </h2>
-
-      <p className="text-2xl font-bold mt-2">
-        {mvpActual?.nombre || "Aún sin estadísticas"}
-      </p>
-
-      <p>
-        {mvpActual?.equipo || ""}
-      </p>
-
-      <p className="text-5xl font-black mt-2">
-        {mvpActual?.ppg ?? 0} PPG
-      </p>
-
-    </div>
-
-  </div>
-</Link>
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
@@ -721,15 +616,16 @@ const ultimosResultados = [...partidosActuales]
           <div className="flex items-center gap-3">
 
   <Image
-    src={
-      equipos.find(
-        (e) => e.nombre === partido.local
-      )?.logo || "/logo.png"
-    }
-    alt={partido.local}
-    width={40}
-    height={40}
-  />
+  src={
+    equipos.find(
+      (e) => e.nombre === partido.local
+    )?.logo || "/logo.png"
+  }
+  alt={partido.local}
+  width={70}
+  height={70}
+  className="object-contain"
+/>
 
   <div>
     <p className="font-bold">
@@ -762,15 +658,16 @@ const ultimosResultados = [...partidosActuales]
   </div>
 
   <Image
-    src={
-      equipos.find(
-        (e) => e.nombre === partido.visitante
-      )?.logo || "/logo.png"
-    }
-    alt={partido.visitante}
-    width={40}
-    height={40}
-  />
+  src={
+    equipos.find(
+      (e) => e.nombre === partido.visitante
+    )?.logo || "/logo.png"
+  }
+  alt={partido.visitante}
+  width={80}
+  height={80}
+  className="object-contain"
+/>
 
 </div>
           </div>
@@ -1110,15 +1007,24 @@ const ultimosResultados = [...partidosActuales]
                           >
 
                             <Image
-                              src={fotoJugador}
-                              alt={
-                                jugador.nombre ||
-                                "Jugador LIBAVIME"
-                              }
-                              fill
-                              sizes="144px"
-                              className="object-cover"
-                            />
+  src={fotoJugador}
+  alt={
+    jugador.nombre ||
+    "Jugador LIBAVIME"
+  }
+  fill
+  sizes="192px"
+  className={`
+    object-cover
+    transition-transform
+    duration-500
+    ${
+      primero
+        ? "scale-[1.38] object-[center_38%]"
+        : "scale-[1.32] object-[center_38%]"
+    }
+  `}
+/>
 
                           </div>
 
@@ -1479,13 +1385,15 @@ const ultimosResultados = [...partidosActuales]
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
+              <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-red-500 bg-white shadow-lg">
+  <Image
+    src={jugador.foto}
+    alt={jugador.nombre}
+    fill
+    sizes="72px"
+    className="object-cover object-[center_38%] scale-[1.45]"
+  />
+</div>
 
               <div className="min-w-0 text-center">
                 <p className="font-bold text-center leading-tight">{jugador.nombre}</p>
@@ -1523,13 +1431,15 @@ const ultimosResultados = [...partidosActuales]
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
+             <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-purple-500 bg-white shadow-lg">
+  <Image
+    src={jugador.foto}
+    alt={jugador.nombre}
+    fill
+    sizes="72px"
+    className="object-cover object-[center_38%] scale-[1.45]"
+  />
+</div>
 
               <div className="min-w-0 text-center">
                 <p className="font-bold text-center leading-tight">{jugador.nombre}</p>
@@ -1567,13 +1477,15 @@ const ultimosResultados = [...partidosActuales]
                 {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
               </div>
 
-              <Image
-                src={jugador.foto}
-                alt={jugador.nombre}
-                width={55}
-                height={55}
-                className="rounded-full object-cover"
-              />
+              <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-yellow-500 bg-white shadow-lg">
+  <Image
+    src={jugador.foto}
+    alt={jugador.nombre}
+    fill
+    sizes="72px"
+    className="object-cover object-[center_38%] scale-[1.45]"
+  />
+</div>
 
               <div className="min-w-0 text-center">
                 <p className="font-bold text-center leading-tight">{jugador.nombre}</p>

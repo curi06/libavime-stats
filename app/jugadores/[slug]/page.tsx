@@ -183,7 +183,7 @@ if (equipoNormalizado === "vikingos") {
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
+      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10 md:pt-20">
         <div className="max-w-5xl mx-auto">
 
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -194,13 +194,34 @@ if (equipoNormalizado === "vikingos") {
   className="text-white p-8 md:p-10 text-center"
 >
 
-              <Image
-                src={foto}
-                alt={jugador.nombre}
-                width={220}
-                height={220}
-                className="mx-auto rounded-full border-4 border-white object-cover"
-              />
+             {/* FOTO DEL JUGADOR */}
+<div
+  className="
+    relative
+    mx-auto
+    h-56
+    w-56
+    overflow-hidden
+    rounded-full
+    border-4
+    border-white
+    bg-white
+    shadow-2xl
+  "
+>
+  <Image
+    src={foto}
+    alt={jugador.nombre}
+    fill
+    sizes="224px"
+    className="object-cover"
+    style={{
+      transform: "scale(1.45)",
+      transformOrigin: "center center",
+      objectPosition: "50% 20%",
+    }}
+  />
+</div>
 
               <h1 className="text-4xl md:text-5xl font-black mt-6">
                 {jugador.nombre}

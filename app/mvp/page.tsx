@@ -218,13 +218,36 @@ export default async function MVPPage() {
               </h1>
             </div>
 
-            <Image
-              src={foto}
-              alt={mvp.nombre}
-              width={220}
-              height={220}
-              className="mx-auto rounded-full border-4 border-white object-cover"
-            />
+            {/* FOTO DEL MVP */}
+<div
+  className="
+    relative
+    mx-auto
+    h-56
+    w-56
+    overflow-hidden
+    rounded-full
+    border-4
+    border-yellow-300
+    bg-white
+    shadow-2xl
+    ring-4
+    ring-yellow-200/40
+  "
+>
+  <Image
+    src={foto}
+    alt={mvp.nombre}
+    fill
+    sizes="224px"
+    className="object-cover"
+    style={{
+      transform: "scale(1.45)",
+      transformOrigin: "center center",
+      objectPosition: "50% 20%",
+    }}
+  />
+</div>
 
             <h2 className="text-3xl md:text-4xl font-black mt-6">
               {mvp.nombre}

@@ -289,6 +289,391 @@ export default function Estadisticas() {
     }
   );
 
+  // ==========================================
+  // LIDERATOS COMPLETOS DE LA LIGA
+  // Se incluyen todos los jugadores registrados.
+  // ==========================================
+
+  const rankingPuntos = [...jugadores].sort((a, b) => {
+    const diferencia = Number(b.ppg ?? 0) - Number(a.ppg ?? 0);
+    if (diferencia !== 0) return diferencia;
+
+    const diferenciaTotal =
+      Number(b.puntosTotales ?? 0) - Number(a.puntosTotales ?? 0);
+    if (diferenciaTotal !== 0) return diferenciaTotal;
+
+    return String(a.nombre ?? "").localeCompare(
+      String(b.nombre ?? "")
+    );
+  });
+
+  const rankingRebotes = [...jugadores].sort((a, b) => {
+    const diferencia = Number(b.rpg ?? 0) - Number(a.rpg ?? 0);
+    if (diferencia !== 0) return diferencia;
+
+    const diferenciaTotal =
+      Number(b.rebotesTotales ?? 0) - Number(a.rebotesTotales ?? 0);
+    if (diferenciaTotal !== 0) return diferenciaTotal;
+
+    return String(a.nombre ?? "").localeCompare(
+      String(b.nombre ?? "")
+    );
+  });
+
+  const rankingAsistencias = [...jugadores].sort((a, b) => {
+    const diferencia = Number(b.apg ?? 0) - Number(a.apg ?? 0);
+    if (diferencia !== 0) return diferencia;
+
+    const diferenciaTotal =
+      Number(b.asistenciasTotales ?? 0) - Number(a.asistenciasTotales ?? 0);
+    if (diferenciaTotal !== 0) return diferenciaTotal;
+
+    return String(a.nombre ?? "").localeCompare(
+      String(b.nombre ?? "")
+    );
+  });
+
+  async function exportarLideratosPDF() {
+    try {
+      if (jugadores.length === 0) {
+        alert("No hay jugadores disponibles para exportar los lideratos.");
+        return;
+      }
+
+      const jspdfModule = await import("jspdf");
+      const autoTableModule = await import("jspdf-autotable");
+
+      const jsPDF = jspdfModule.default;
+      const autoTable =
+        (autoTableModule.default || autoTableModule) as any;
+
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const fecha = new Date().toLocaleDateString("es-DO", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+      let logoData: string | null = null;
+
+      try {
+        const respuesta = await fetch("/logos/LIBAVIME.png");
+
+        if (respuesta.ok) {
+          const blob = await respuesta.blob();
+
+          logoData = await new Promise<string>((resolve, reject) => {
+            const lector = new FileReader();
+
+            lector.onloadend = () => {
+              if (typeof lector.result === "string") {
+                resolve(lector.result);
+              } else {
+                reject(new Error("No se pudo convertir el logo"));
+              }
+            };
+
+            lector.onerror = () => {
+              reject(new Error("Error leyendo el logo"));
+            };
+
+            lector.readAsDataURL(blob);
+          });
+        }
+      } catch (error) {
+        console.error("No se pudo cargar el logo de LIBAVIME:", error);
+      }
+
+      const dibujarEncabezadoLideratos = (
+        tituloPrincipal: string,
+        subtitulo: string,
+        paginaRanking: number,
+        totalPaginasRanking: number
+      ) => {
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        doc.setFillColor(247, 249, 252);
+        doc.rect(0, 0, pageWidth, 45, "F");
+
+        if (logoData) {
+          try {
+            const propiedades = doc.getImageProperties(logoData);
+            const altoLogo = 29;
+            const anchoLogo =
+              (propiedades.width * altoLogo) / propiedades.height;
+
+            doc.addImage(
+              logoData,
+              "PNG",
+              12,
+              6,
+              anchoLogo,
+              altoLogo
+            );
+          } catch (error) {
+            console.error(
+              "No se pudo insertar el logo de LIBAVIME en el PDF:",
+              error
+            );
+          }
+        }
+
+        // TÍTULO PRINCIPAL GRANDE Y CLARO
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(20);
+        doc.setTextColor(20, 50, 100);
+        doc.text("LIDERATOS DE LA LIGA", pageWidth / 2, 14, {
+          align: "center",
+        });
+
+        doc.setFontSize(15);
+        doc.text(tituloPrincipal, pageWidth / 2, 22, {
+          align: "center",
+        });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(75, 80, 90);
+        doc.text(
+          "LIBAVIME · TORNEO 2026 · RANKING OFICIAL",
+          pageWidth / 2,
+          29,
+          { align: "center" }
+        );
+
+        doc.setFontSize(8.5);
+        doc.text(subtitulo, pageWidth / 2, 35, {
+          align: "center",
+        });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(20, 50, 100);
+        doc.text(
+          `Clasificación ${paginaRanking} de ${totalPaginasRanking}`,
+          pageWidth - 12,
+          35,
+          { align: "right" }
+        );
+
+        doc.setDrawColor(20, 50, 100);
+        doc.setLineWidth(0.8);
+        doc.line(12, 41, pageWidth - 12, 41);
+      };
+
+      const dibujarPieLideratos = (
+        pagina: number,
+        totalPaginas: number
+      ) => {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        doc.setDrawColor(20, 50, 100);
+        doc.setLineWidth(0.45);
+        doc.line(12, pageHeight - 14, pageWidth - 12, pageHeight - 14);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`Fecha de emisión: ${fecha}`, 12, pageHeight - 7);
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(20, 50, 100);
+        doc.text(
+          "Diseño y desarrollo: Emmi De La Cruz",
+          pageWidth / 2,
+          pageHeight - 7,
+          { align: "center" }
+        );
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(90, 90, 90);
+        doc.text(
+          `Página ${pagina} de ${totalPaginas}`,
+          pageWidth - 12,
+          pageHeight - 7,
+          { align: "right" }
+        );
+      };
+
+      const crearPaginaRanking = (
+        lista: any[],
+        campo: "ppg" | "rpg" | "apg",
+        titulo: string,
+        subtitulo: string,
+        inicio: number,
+        fin: number,
+        numeroPaginaRanking: number,
+        totalPaginasRanking: number
+      ) => {
+        const filas = lista.slice(inicio, fin).map((jugador, index) => [
+          String(inicio + index + 1),
+          String(jugador.nombre ?? ""),
+          String(jugador.equipo ?? "—"),
+          String(jugador.partidosJugados ?? 0),
+          Number(jugador[campo] ?? 0).toFixed(1),
+        ]);
+
+        dibujarEncabezadoLideratos(
+          titulo,
+          subtitulo,
+          numeroPaginaRanking,
+          totalPaginasRanking
+        );
+
+        autoTable(doc, {
+          startY: 49,
+          head: [
+            [
+              "POSICIÓN",
+              "JUGADOR",
+              "EQUIPO",
+              "JJ",
+              campo === "ppg"
+                ? "PUNTOS POR PARTIDO"
+                : campo === "rpg"
+                ? "REBOTES POR PARTIDO"
+                : "ASISTENCIAS POR PARTIDO",
+            ],
+          ],
+          body: filas,
+          theme: "grid",
+          tableWidth: 273,
+          margin: {
+            top: 49,
+            right: 12,
+            bottom: 18,
+            left: 12,
+          },
+          styles: {
+            fontSize: 10,
+            cellPadding: 2.7,
+            minCellHeight: 9,
+            valign: "middle",
+            lineColor: [195, 201, 210],
+            lineWidth: 0.25,
+            textColor: [45, 50, 60],
+            overflow: "linebreak",
+          },
+          headStyles: {
+            fillColor: [20, 50, 100],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            halign: "center",
+            valign: "middle",
+            fontSize: 9.5,
+            cellPadding: 3,
+          },
+          alternateRowStyles: {
+            fillColor: [247, 249, 252],
+          },
+          columnStyles: {
+            0: {
+              halign: "center",
+              cellWidth: 25,
+              fontStyle: "bold",
+            },
+            1: {
+              cellWidth: 92,
+              fontStyle: "bold",
+            },
+            2: {
+              cellWidth: 62,
+            },
+            3: {
+              halign: "center",
+              cellWidth: 24,
+            },
+            4: {
+              halign: "center",
+              cellWidth: 70,
+              fontStyle: "bold",
+              fontSize: 11,
+            },
+          },
+        });
+      };
+
+      // Cada liderato ocupa 2 páginas para que los renglones sean
+      // grandes, claros y fáciles de leer. Son 44 jugadores: 22 + 22.
+      const rankings = [
+        {
+          lista: rankingPuntos,
+          campo: "ppg" as const,
+          titulo: "LÍDERES EN PUNTOS",
+          subtitulo: "Promedio de puntos por partido · Mayor a menor",
+        },
+        {
+          lista: rankingRebotes,
+          campo: "rpg" as const,
+          titulo: "LÍDERES EN REBOTES",
+          subtitulo: "Promedio de rebotes por partido · Mayor a menor",
+        },
+        {
+          lista: rankingAsistencias,
+          campo: "apg" as const,
+          titulo: "LÍDERES EN ASISTENCIAS",
+          subtitulo: "Promedio de asistencias por partido · Mayor a menor",
+        },
+      ];
+
+      rankings.forEach((ranking, rankingIndex) => {
+        const totalPaginasRanking = 2;
+
+        if (rankingIndex > 0) {
+          doc.addPage();
+        }
+
+        crearPaginaRanking(
+          ranking.lista,
+          ranking.campo,
+          ranking.titulo,
+          ranking.subtitulo,
+          0,
+          22,
+          1,
+          totalPaginasRanking
+        );
+
+        doc.addPage();
+
+        crearPaginaRanking(
+          ranking.lista,
+          ranking.campo,
+          ranking.titulo,
+          ranking.subtitulo,
+          22,
+          44,
+          2,
+          totalPaginasRanking
+        );
+      });
+
+      const totalPaginas = doc.getNumberOfPages();
+
+      for (let pagina = 1; pagina <= totalPaginas; pagina++) {
+        doc.setPage(pagina);
+        dibujarPieLideratos(pagina, totalPaginas);
+      }
+
+      doc.save(
+        `Lideratos_LIBAVIME_2026_${new Date()
+          .toISOString()
+          .slice(0, 10)}.pdf`
+      );
+    } catch (error) {
+      console.error("Error al generar el PDF de lideratos:", error);
+      alert(
+        "No se pudo generar el PDF de lideratos. Inténtalo nuevamente."
+      );
+    }
+  }
+
   async function exportarPDF() {
     try {
       if (jugadoresOrdenados.length === 0) {
@@ -1319,22 +1704,39 @@ export default function Estadisticas() {
                                     "
                                   >
 
-                                    <Image
-                                      src={foto}
-                                      alt={
-                                        jugador.nombre ??
-                                        "Jugador LIBAVIME"
-                                      }
-                                      width={48}
-                                      height={48}
-                                      className="
-                                        rounded-full
-                                        object-cover
-                                        border
-                                        border-slate-200
-                                        shrink-0
-                                      "
-                                    />
+                                    {/* FOTO DEL JUGADOR */}
+<div
+  className="
+    relative
+    h-20
+    w-20
+    min-h-20
+    min-w-20
+    shrink-0
+    overflow-hidden
+    rounded-full
+    border-4
+    border-blue-600
+    bg-white
+    shadow-lg
+  "
+>
+  <Image
+    src={foto}
+    alt={
+      jugador.nombre ??
+      "Jugador LIBAVIME"
+    }
+    fill
+    sizes="80px"
+    className="object-cover"
+    style={{
+      transform: "scale(1.45)",
+      transformOrigin: "center center",
+      objectPosition: "50% 20%",
+    }}
+  />
+</div>
 
                                     <span className="whitespace-nowrap">
                                       {jugador.nombre}
@@ -1354,23 +1756,39 @@ export default function Estadisticas() {
                                     "
                                   >
 
-                                    <Image
-                                      src={foto}
-                                      alt={
-                                        jugador.nombre ??
-                                        "Jugador LIBAVIME"
-                                      }
-                                      width={48}
-                                      height={48}
-                                      className="
-                                        rounded-full
-                                        object-cover
-                                        border
-                                        border-slate-200
-                                        shrink-0
-                                      "
-                                    />
-
+  {/* FOTO DEL JUGADOR */}
+<div
+  className="
+    relative
+    h-20
+    w-20
+    min-h-20
+    min-w-20
+    shrink-0
+    overflow-hidden
+    rounded-full
+    border-4
+    border-blue-600
+    bg-white
+    shadow-lg
+  "
+>
+  <Image
+    src={foto}
+    alt={
+      jugador.nombre ??
+      "Jugador LIBAVIME"
+    }
+    fill
+    sizes="80px"
+    className="object-cover"
+    style={{
+      transform: "scale(2.2)",
+      transformOrigin: "center center",
+      objectPosition: "50% 32%",
+    }}
+  />
+</div>
                                     <span className="whitespace-nowrap">
                                       {jugador.nombre}
                                     </span>
@@ -1511,6 +1929,314 @@ export default function Estadisticas() {
 
             </div>
 
+          </section>
+
+          {/* ==========================================
+              LIDERATOS COMPLETOS DE LA LIGA
+          ========================================== */}
+
+          <section className="mb-10">
+
+            <div className="text-center mb-6">
+              <h2 className="text-2xl md:text-4xl font-black text-blue-900">
+                🏆 Lideratos de la Liga
+              </h2>
+
+              <p className="text-slate-600 mt-2">
+                Los 44 jugadores ordenados del 1 al 44 en cada categoría
+              </p>
+
+              <button
+                type="button"
+                onClick={exportarLideratosPDF}
+                disabled={jugadores.length === 0}
+                className="
+                  mt-4
+                  inline-flex
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-xl
+                  bg-emerald-700
+                  px-6
+                  py-3
+                  font-bold
+                  text-white
+                  shadow-lg
+                  transition
+                  hover:bg-emerald-600
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                📄 Exportar lideratos en PDF
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* PUNTOS */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-red-700 to-red-500 p-5 text-white text-center">
+                  <h3 className="text-xl md:text-2xl font-black">
+                    🏀 LÍDERES EN PUNTOS
+                  </h3>
+                  <p className="text-red-100 text-sm mt-1">
+                    Ranking 1–44 · PPG
+                  </p>
+                </div>
+
+                <div className="max-h-[720px] overflow-y-auto">
+                  {rankingPuntos.map((jugador, index) => {
+                    const foto =
+                      jugador.foto &&
+                      (jugador.foto.startsWith("http") ||
+                        jugador.foto.startsWith("/"))
+                        ? jugador.foto
+                        : "/logos/LIBAVIME.png";
+
+                    const contenido = (
+                      <>
+                        <div className="w-8 text-center font-black text-red-700">
+                          {index === 0
+                            ? "🥇"
+                            : index === 1
+                            ? "🥈"
+                            : index === 2
+                            ? "🥉"
+                            : index + 1}
+                        </div>
+
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-red-500 bg-white shadow">
+                          <Image
+                            src={foto}
+                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                            style={{
+                              transform: "scale(1.45)",
+                              transformOrigin: "center center",
+                              objectPosition: "50% 46%",
+                            }}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 truncate">
+                            {jugador.nombre}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {jugador.equipo ?? "Sin equipo"}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-xl font-black text-red-700">
+                            {Number(jugador.ppg ?? 0).toFixed(1)}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500">
+                            PPG
+                          </p>
+                        </div>
+                      </>
+                    );
+
+                    return jugador.slug ? (
+                      <Link
+                        key={jugador.id ?? index}
+                        href={`/jugadores/${jugador.slug}`}
+                        className="flex items-center gap-3 px-4 py-3 border-b hover:bg-red-50 transition"
+                      >
+                        {contenido}
+                      </Link>
+                    ) : (
+                      <div
+                        key={jugador.id ?? index}
+                        className="flex items-center gap-3 px-4 py-3 border-b"
+                      >
+                        {contenido}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* REBOTES */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-800 to-purple-500 p-5 text-white text-center">
+                  <h3 className="text-xl md:text-2xl font-black">
+                    💪 LÍDERES EN REBOTES
+                  </h3>
+                  <p className="text-purple-100 text-sm mt-1">
+                    Ranking 1–44 · RPG
+                  </p>
+                </div>
+
+                <div className="max-h-[720px] overflow-y-auto">
+                  {rankingRebotes.map((jugador, index) => {
+                    const foto =
+                      jugador.foto &&
+                      (jugador.foto.startsWith("http") ||
+                        jugador.foto.startsWith("/"))
+                        ? jugador.foto
+                        : "/logos/LIBAVIME.png";
+
+                    const contenido = (
+                      <>
+                        <div className="w-8 text-center font-black text-purple-700">
+                          {index === 0
+                            ? "🥇"
+                            : index === 1
+                            ? "🥈"
+                            : index === 2
+                            ? "🥉"
+                            : index + 1}
+                        </div>
+
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-purple-500 bg-white shadow">
+                          <Image
+                            src={foto}
+                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                            style={{
+                              transform: "scale(1.45)",
+                              transformOrigin: "center center",
+                              objectPosition: "50% 46%",
+                            }}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 truncate">
+                            {jugador.nombre}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {jugador.equipo ?? "Sin equipo"}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-xl font-black text-purple-700">
+                            {Number(jugador.rpg ?? 0).toFixed(1)}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500">
+                            RPG
+                          </p>
+                        </div>
+                      </>
+                    );
+
+                    return jugador.slug ? (
+                      <Link
+                        key={jugador.id ?? index}
+                        href={`/jugadores/${jugador.slug}`}
+                        className="flex items-center gap-3 px-4 py-3 border-b hover:bg-purple-50 transition"
+                      >
+                        {contenido}
+                      </Link>
+                    ) : (
+                      <div
+                        key={jugador.id ?? index}
+                        className="flex items-center gap-3 px-4 py-3 border-b"
+                      >
+                        {contenido}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ASISTENCIAS */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 p-5 text-white text-center">
+                  <h3 className="text-xl md:text-2xl font-black">
+                    🎯 LÍDERES EN ASISTENCIAS
+                  </h3>
+                  <p className="text-yellow-100 text-sm mt-1">
+                    Ranking 1–44 · APG
+                  </p>
+                </div>
+
+                <div className="max-h-[720px] overflow-y-auto">
+                  {rankingAsistencias.map((jugador, index) => {
+                    const foto =
+                      jugador.foto &&
+                      (jugador.foto.startsWith("http") ||
+                        jugador.foto.startsWith("/"))
+                        ? jugador.foto
+                        : "/logos/LIBAVIME.png";
+
+                    const contenido = (
+                      <>
+                        <div className="w-8 text-center font-black text-yellow-700">
+                          {index === 0
+                            ? "🥇"
+                            : index === 1
+                            ? "🥈"
+                            : index === 2
+                            ? "🥉"
+                            : index + 1}
+                        </div>
+
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-yellow-500 bg-white shadow">
+                          <Image
+                            src={foto}
+                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                            style={{
+                              transform: "scale(1.45)",
+                              transformOrigin: "center center",
+                              objectPosition: "50% 46%",
+                            }}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 truncate">
+                            {jugador.nombre}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {jugador.equipo ?? "Sin equipo"}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-xl font-black text-yellow-700">
+                            {Number(jugador.apg ?? 0).toFixed(1)}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500">
+                            APG
+                          </p>
+                        </div>
+                      </>
+                    );
+
+                    return jugador.slug ? (
+                      <Link
+                        key={jugador.id ?? index}
+                        href={`/jugadores/${jugador.slug}`}
+                        className="flex items-center gap-3 px-4 py-3 border-b hover:bg-yellow-50 transition"
+                      >
+                        {contenido}
+                      </Link>
+                    ) : (
+                      <div
+                        key={jugador.id ?? index}
+                        className="flex items-center gap-3 px-4 py-3 border-b"
+                      >
+                        {contenido}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
           </section>
 
           {/* TABLA DE POSICIONES */}
