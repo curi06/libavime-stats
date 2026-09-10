@@ -847,7 +847,7 @@ export default async function EquipoPage({
               </h2>
               <p className="text-gray-500 mt-1">
                 {partidoSeleccionado
-                  ? `Partido #${partidoSeleccionado.id} · ${partidoSeleccionado.equipo_local ?? partidoSeleccionado.local ?? "Local"} vs ${partidoSeleccionado.equipo_visitante ?? partidoSeleccionado.visitante ?? "Visitante"}`
+                  ? `Partido #${partidoSeleccionado.id} · ${partidoSeleccionado.equipo_local ?? "Local"} vs ${partidoSeleccionado.equipo_visitante ?? "Visitante"}`
                   : "Sin partido seleccionado"}
               </p>
             </div>
