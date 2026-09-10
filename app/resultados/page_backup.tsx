@@ -5,7 +5,6 @@ import Navbar from "../components/Navbar";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../../data/equipos";
 import Image from "next/image";
-import Link from "next/link";
 
 type Partido = {
   id: number;
@@ -237,12 +236,6 @@ export default function Resultados() {
                           📍 {partido.cancha}
                         </p>
                       )}
-                      <Link
-  href={`/partidos/${partido.id}`}
-  className="inline-flex items-center justify-center mt-4 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-800 hover:-translate-y-0.5"
->
-  🏀 VER BOXSCORE
-</Link>
 
                     </div>
 

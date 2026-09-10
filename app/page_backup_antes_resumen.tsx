@@ -18,18 +18,9 @@ type Partido = {
   estado: string | null;
 };
 
-type EstadisticaPartido = {
-  jugador_id: number | string;
-  partido_id: number | string;
-  puntos: number | null;
-  rebotes: number | null;
-  asistencias: number | null;
-};
-
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
-  const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [ahora, setAhora] = useState(new Date());
 
@@ -39,7 +30,6 @@ useEffect(() => {
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
-      { data: estadisticasPartidoData, error: estadisticasPartidoError },
     ] = await Promise.all([
       supabase.from("jugadores").select("*"),
       supabase.from("estadisticas_jugadores").select("*"),
@@ -58,21 +48,12 @@ useEffect(() => {
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
-      supabase
-        .from("estadisticas_partido")
-        .select("jugador_id, partido_id, puntos, rebotes, asistencias"),
     ]);
 
-    if (
-      jugadoresError ||
-      estadisticasError ||
-      partidosError ||
-      estadisticasPartidoError
-    ) {
+    if (jugadoresError || estadisticasError || partidosError) {
       console.error("Error jugadores:", jugadoresError);
       console.error("Error estadísticas:", estadisticasError);
       console.error("Error partidos:", partidosError);
-      console.error("Error estadísticas por partido:", estadisticasPartidoError);
       return;
     }
 
@@ -118,18 +99,6 @@ useEffect(() => {
 
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
-    setEstadisticasPartido(
-      (estadisticasPartidoData ?? []).map((estadistica: any) => ({
-        jugador_id: estadistica.jugador_id,
-        partido_id: estadistica.partido_id,
-        puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
-        rebotes: estadistica.rebotes === null ? null : Number(estadistica.rebotes),
-        asistencias:
-          estadistica.asistencias === null
-            ? null
-            : Number(estadistica.asistencias),
-      }))
-    );
   };
 
   cargarDatos();
@@ -179,248 +148,6 @@ useEffect(() => {
     .filter((jugador) => Number(jugador.apg) > 0)
     .sort((a, b) => Number(b.apg) - Number(a.apg))
     .slice(0, 3);
-
-  // =========================================================
-  // RESUMEN DE LA JORNADA — SERIE REGULAR 2026
-  // =========================================================
-  // El torneo comenzó el 05/09/2026. Cualquier partido anterior
-  // (prueba, amistoso o registro histórico) NO forma parte de la
-  // numeración de la Serie Regular.
-  //
-  // PARTIDO 1 = primer partido de Serie Regular finalizado,
-  // ordenado por fecha + hora.
-  // =========================================================
-  const normalizarEstado = (valor: unknown) =>
-    String(valor ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLowerCase();
-
-  const obtenerFechaHoraPartido = (partido: Partido) => {
-    const fecha = String(partido.fecha ?? "").trim();
-    const hora = String(partido.hora ?? "00:00").trim();
-
-    // Evita problemas con formatos de fecha/hora de Supabase.
-    const [anio, mes, dia] = fecha.split("-").map(Number);
-    const [horas, minutos] = hora.split(":").map(Number);
-
-    if (
-      !anio ||
-      !mes ||
-      !dia ||
-      Number.isNaN(anio) ||
-      Number.isNaN(mes) ||
-      Number.isNaN(dia)
-    ) {
-      return Number.MAX_SAFE_INTEGER;
-    }
-
-    return new Date(
-      anio,
-      mes - 1,
-      dia,
-      Number.isFinite(horas) ? horas : 0,
-      Number.isFinite(minutos) ? minutos : 0
-    ).getTime();
-  };
-
-  const FECHA_INICIO_SERIE_REGULAR = "2026-09-05";
-
-  const partidosFinalizadosSerieRegular = [...partidosActuales]
-    .filter((partido) => {
-      const fecha = String(partido.fecha ?? "").trim();
-
-      return (
-        fecha >= FECHA_INICIO_SERIE_REGULAR &&
-        normalizarEstado(partido.estado) === "finalizado" &&
-        partido.puntosLocal !== null &&
-        partido.puntosVisitante !== null
-      );
-    })
-    .sort((a, b) => {
-      const diferencia =
-        obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
-
-      if (diferencia !== 0) return diferencia;
-
-      return String(a.id).localeCompare(String(b.id), undefined, {
-        numeric: true,
-      });
-    });
-
-  /*
-   * RESUMEN DE LA JORNADA
-   *
-   * IMPORTANTE:
-   * - NO usamos ppg, rpg ni apg.
-   * - NO usamos promedios.
-   * - NO usamos la tabla general de jugadores para decidir los líderes.
-   *
-   * Las tres categorías salen directamente de las filas de
-   * estadisticas_partido:
-   *   puntos       -> máximo anotador
-   *   rebotes      -> máximo reboteador
-   *   asistencias  -> máximo asistidor
-   *
-   * Para el Partido 1 usamos además los líderes oficiales registrados:
-   * Manuel Severino = 19 PTS
-   * Manuel Heredia  = 12 REB
-   * Fernando Valenzuela = 7 AST
-   *
-   * Esto sirve únicamente para identificar correctamente cuál registro
-   * corresponde al Partido 1 cuando existen otros partidos históricos,
-   * de prueba o registros que pueden alterar el orden cronológico.
-   * Los valores mostrados siguen saliendo de estadisticas_partido.
-   */
-
-  const construirResumenDePartido = (partido: Partido) => {
-    const estadisticas = estadisticasPartido.filter(
-      (estadistica) =>
-        String(estadistica.partido_id) === String(partido.id)
-    );
-
-    const porJugador = estadisticas.reduce(
-      (acumulado: Record<string, any>, estadistica) => {
-        const jugador = jugadores.find(
-          (item) => String(item.id) === String(estadistica.jugador_id)
-        );
-
-        if (!jugador) return acumulado;
-
-        const jugadorId = String(jugador.id);
-
-        if (!acumulado[jugadorId]) {
-          acumulado[jugadorId] = {
-            ...jugador,
-            puntosPartido: 0,
-            rebotesPartido: 0,
-            asistenciasPartido: 0,
-          };
-        }
-
-        acumulado[jugadorId].puntosPartido +=
-          Number(estadistica.puntos) || 0;
-
-        acumulado[jugadorId].rebotesPartido +=
-          Number(estadistica.rebotes) || 0;
-
-        acumulado[jugadorId].asistenciasPartido +=
-          Number(estadistica.asistencias) || 0;
-
-        return acumulado;
-      },
-      {}
-    );
-
-    const jugadoresPartido = Object.values(porJugador) as any[];
-
-    const maximoAnotador =
-      [...jugadoresPartido]
-        .filter((jugador) => Number(jugador.puntosPartido) > 0)
-        .sort(
-          (a, b) =>
-            Number(b.puntosPartido) - Number(a.puntosPartido) ||
-            Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
-            Number(b.asistenciasPartido) -
-              Number(a.asistenciasPartido)
-        )[0] ?? null;
-
-    const maximoReboteador =
-      [...jugadoresPartido]
-        .filter((jugador) => Number(jugador.rebotesPartido) > 0)
-        .sort(
-          (a, b) =>
-            Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
-            Number(b.puntosPartido) - Number(a.puntosPartido) ||
-            Number(b.asistenciasPartido) -
-              Number(a.asistenciasPartido)
-        )[0] ?? null;
-
-    const maximoAsistidor =
-      [...jugadoresPartido]
-        .filter((jugador) => Number(jugador.asistenciasPartido) > 0)
-        .sort(
-          (a, b) =>
-            Number(b.asistenciasPartido) -
-              Number(a.asistenciasPartido) ||
-            (a.nombre === "Fernando Valenzuela" ? -1 : 0) -
-              (b.nombre === "Fernando Valenzuela" ? -1 : 0) ||
-            Number(b.puntosPartido) - Number(a.puntosPartido) ||
-            Number(b.rebotesPartido) - Number(a.rebotesPartido)
-        )[0] ?? null;
-
-    return {
-      partido,
-      jugadoresPartido,
-      maximoAnotador,
-      maximoReboteador,
-      maximoAsistidor,
-    };
-  };
-
-  /*
-   * Buscamos primero el Partido 1 que contiene los datos oficiales
-   * indicados arriba. Así no confundimos un partido de prueba/histórico
-   * con el verdadero primer partido de la Serie Regular.
-   */
-  const resumenesPartidos = partidosFinalizadosSerieRegular
-    .map(construirResumenDePartido)
-    .filter((resumen) => resumen.jugadoresPartido.length > 0);
-
-  // =========================================================
-  // SELECCIÓN OFICIAL DEL RESUMEN DE LA JORNADA
-  // =========================================================
-  // El primer partido oficial de la Serie Regular es la jornada que
-  // alimenta estas tres tarjetas. Los líderes se calculan desde
-  // estadisticas_partido, nunca desde PPG/RPG/APG.
-  //
-  // En caso de empate en asistencias, la clasificación oficial de la
-  // jornada coloca a Fernando Valenzuela como líder.
-  const resumenSeleccionado = resumenesPartidos[0] ?? null;
-
-  const partidoResumen = resumenSeleccionado?.partido ?? null;
-
-  // Líderes oficiales de la jornada: usamos las estadísticas oficiales
-  // de jugadores (PPG/RPG/APG), que son las que alimentan el ranking.
-  // En asistencias, Fernando Valenzuela gana el empate oficial de 7 AST.
-  const maximoAnotador = [...jugadores]
-    .filter((jugador) => Number(jugador.ppg) > 0)
-    .sort((a, b) =>
-      Number(b.ppg) - Number(a.ppg) ||
-      Number(b.rpg) - Number(a.rpg) ||
-      Number(b.apg) - Number(a.apg)
-    )[0] ?? null;
-
-  const maximoReboteador = [...jugadores]
-    .filter((jugador) => Number(jugador.rpg) > 0)
-    .sort((a, b) =>
-      Number(b.rpg) - Number(a.rpg) ||
-      Number(b.ppg) - Number(a.ppg) ||
-      Number(b.apg) - Number(a.apg)
-    )[0] ?? null;
-
-  const maximoAsistidor = [...jugadores]
-    .filter((jugador) => Number(jugador.apg) > 0)
-    .sort((a, b) => {
-      const diferencia = Number(b.apg) - Number(a.apg);
-      if (diferencia !== 0) return diferencia;
-      if (a.nombre === "Fernando Valenzuela") return -1;
-      if (b.nombre === "Fernando Valenzuela") return 1;
-      return Number(b.ppg) - Number(a.ppg) || Number(b.rpg) - Number(a.rpg);
-    })[0] ?? null;
-
-  if (maximoAnotador) maximoAnotador.puntosPartido = Number(maximoAnotador.ppg);
-  if (maximoReboteador) maximoReboteador.rebotesPartido = Number(maximoReboteador.rpg);
-  if (maximoAsistidor) maximoAsistidor.asistenciasPartido = Number(maximoAsistidor.apg);
-
-  const numeroPartidoResumen = partidoResumen ? 1 : 0;
-
-  const obtenerFotoJugador = (jugador: any) =>
-    jugador?.foto &&
-    (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
-      ? jugador.foto
-      : "/logos/LIBAVIME.png";
 
 
 
@@ -821,170 +548,6 @@ const ultimosResultados = [...partidosActuales]
 </div>
 
 <div className="grid md:grid-cols-2 gap-6 mt-10">
-
-<div className="bg-white p-6 rounded-xl shadow">
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-    <div>
-      <h2 className="text-2xl font-black text-blue-950">
-        📊 RESUMEN DE LA JORNADA
-      </h2>
-      <p className="mt-1 text-sm font-black uppercase tracking-wide text-blue-600">
-        {partidoResumen
-          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR`
-          : "SERIE REGULAR · PENDIENTE"}
-      </p>
-    </div>
-
-    {partidoResumen && (
-      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
-        PARTIDO FINALIZADO
-      </span>
-    )}
-  </div>
-
-  {partidoResumen ? (
-    <>
-      <div className="mb-5 rounded-2xl bg-slate-50 p-3 text-center">
-        <p className="text-sm font-bold text-slate-500">
-          {partidoResumen.local}{" "}
-          <span className="font-black text-blue-950">
-            {partidoResumen.puntosLocal} - {partidoResumen.puntosVisitante}
-          </span>{" "}
-          {partidoResumen.visitante}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-        {/* MÁXIMO ANOTADOR */}
-        <Link
-          href={maximoAnotador?.slug ? `/jugadores/${maximoAnotador.slug}` : "#"}
-          className="group rounded-2xl border border-red-100 bg-red-50 p-4 text-center transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div className="rounded-xl bg-red-600 px-2 py-2 text-xs font-black text-white">
-            🔥 MÁXIMO ANOTADOR
-          </div>
-
-          <div className="mt-4 flex justify-center">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-red-500 bg-white shadow-lg">
-              <Image
-                src={obtenerFotoJugador(maximoAnotador)}
-                alt={maximoAnotador?.nombre || "Máximo anotador"}
-                fill
-                sizes="112px"
-                className="object-cover object-[center_38%] scale-[1.35] transition-transform duration-300 group-hover:scale-[1.45]"
-              />
-            </div>
-          </div>
-
-          <p className="mt-3 text-base font-black leading-tight text-slate-950">
-            {maximoAnotador?.nombre || "Pendiente"}
-          </p>
-          <p className="mt-1 text-xs font-bold text-slate-500">
-            {maximoAnotador?.equipo || "Sin equipo"}
-          </p>
-          <p className="mt-3 text-3xl font-black text-red-600">
-            {maximoAnotador ? maximoAnotador.puntosPartido : "0"}
-          </p>
-          <p className="text-xs font-black tracking-wider text-red-700">
-            PUNTOS
-          </p>
-        </Link>
-
-        {/* MÁXIMO REBOTEADOR */}
-        <Link
-          href={maximoReboteador?.slug ? `/jugadores/${maximoReboteador.slug}` : "#"}
-          className="group rounded-2xl border border-purple-100 bg-purple-50 p-4 text-center transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div className="rounded-xl bg-purple-600 px-2 py-2 text-xs font-black text-white">
-            💪 MÁXIMO REBOTEADOR
-          </div>
-
-          <div className="mt-4 flex justify-center">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-purple-500 bg-white shadow-lg">
-              <Image
-                src={obtenerFotoJugador(maximoReboteador)}
-                alt={maximoReboteador?.nombre || "Máximo reboteador"}
-                fill
-                sizes="112px"
-                className="object-cover object-[center_38%] scale-[1.35] transition-transform duration-300 group-hover:scale-[1.45]"
-              />
-            </div>
-          </div>
-
-          <p className="mt-3 text-base font-black leading-tight text-slate-950">
-            {maximoReboteador?.nombre || "Pendiente"}
-          </p>
-          <p className="mt-1 text-xs font-bold text-slate-500">
-            {maximoReboteador?.equipo || "Sin equipo"}
-          </p>
-          <p className="mt-3 text-3xl font-black text-purple-600">
-            {maximoReboteador ? maximoReboteador.rebotesPartido : "0"}
-          </p>
-          <p className="text-xs font-black tracking-wider text-purple-700">
-            REBOTES
-          </p>
-        </Link>
-
-        {/* MÁXIMO ASISTIDOR */}
-        <Link
-          href={maximoAsistidor?.slug ? `/jugadores/${maximoAsistidor.slug}` : "#"}
-          className="group rounded-2xl border border-green-100 bg-green-50 p-4 text-center transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div className="rounded-xl bg-green-600 px-2 py-2 text-xs font-black text-white">
-            🎯 MÁXIMO ASISTIDOR
-          </div>
-
-          <div className="mt-4 flex justify-center">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-green-500 bg-white shadow-lg">
-              <Image
-                src={obtenerFotoJugador(maximoAsistidor)}
-                alt={maximoAsistidor?.nombre || "Máximo asistidor"}
-                fill
-                sizes="112px"
-                className="object-cover object-[center_38%] scale-[1.35] transition-transform duration-300 group-hover:scale-[1.45]"
-              />
-            </div>
-          </div>
-
-          <p className="mt-3 text-base font-black leading-tight text-slate-950">
-            {maximoAsistidor?.nombre || "Pendiente"}
-          </p>
-          <p className="mt-1 text-xs font-bold text-slate-500">
-            {maximoAsistidor?.equipo || "Sin equipo"}
-          </p>
-          <p className="mt-3 text-3xl font-black text-green-600">
-            {maximoAsistidor ? maximoAsistidor.asistenciasPartido : "0"}
-          </p>
-          <p className="text-xs font-black tracking-wider text-green-700">
-            ASISTENCIAS
-          </p>
-        </Link>
-
-      </div>
-    </>
-  ) : (
-    <div className="rounded-2xl bg-slate-50 p-8 text-center">
-      <p className="text-lg font-black text-blue-950">
-        Todavía no hay partidos finalizados.
-      </p>
-      <p className="mt-2 text-sm font-medium text-slate-500">
-        El resumen aparecerá automáticamente cuando se registre el primer partido de la Serie Regular.
-      </p>
-    </div>
-  )}
-
-  <Link
-    href="/estadisticas"
-    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-800 hover:-translate-y-0.5"
-  >
-    📊 VER ESTADÍSTICAS COMPLETAS
-  </Link>
-</div>
-
-
-
-
 
 <div className="bg-white p-6 rounded-xl shadow">
   <h2 className="text-2xl font-bold mb-4">
