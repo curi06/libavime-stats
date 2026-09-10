@@ -107,10 +107,13 @@ function obtenerFoto(
 
 export default async function EquipoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ partido?: string }>;
 }) {
   const { slug } = await params;
+  const { partido: partidoSeleccionadoParam } = await searchParams;
 
   const equipoData = (
     equipos as Equipo[]
@@ -175,6 +178,17 @@ export default async function EquipoPage({
     );
 
   /* =========================================
+     BOXSCORE / ESTADÍSTICAS POR PARTIDO
+  ========================================== */
+
+  const {
+    data: estadisticasPartidoData,
+    error: estadisticasPartidoError,
+  } = await supabase
+    .from("estadisticas_partido")
+    .select("jugador_id, partido_id, puntos, rebotes, asistencias");
+
+  /* =========================================
      PARTIDOS
   ========================================== */
 
@@ -202,6 +216,13 @@ export default async function EquipoPage({
     );
   }
 
+  if (estadisticasPartidoError) {
+    console.error(
+      "Error cargando estadísticas por partido:",
+      estadisticasPartidoError
+    );
+  }
+
   if (partidosError) {
     console.error(
       "Error cargando partidos:",
@@ -222,6 +243,33 @@ export default async function EquipoPage({
         ]
       )
     );
+
+  /* =========================================
+     ESTADÍSTICAS ACUMULADAS POR JUGADOR
+     (para ordenar las tarjetas de la plantilla)
+  ========================================== */
+
+  const estadisticasAcumuladasPorJugador =
+    new Map<number, { puntos: number; rebotes: number; asistencias: number }>();
+
+  (estadisticasPartidoData ?? []).forEach((estadistica: any) => {
+    const jugadorId = Number(estadistica.jugador_id);
+
+    if (!jugadorId) return;
+
+    const actual =
+      estadisticasAcumuladasPorJugador.get(jugadorId) ?? {
+        puntos: 0,
+        rebotes: 0,
+        asistencias: 0,
+      };
+
+    actual.puntos += Number(estadistica.puntos) || 0;
+    actual.rebotes += Number(estadistica.rebotes) || 0;
+    actual.asistencias += Number(estadistica.asistencias) || 0;
+
+    estadisticasAcumuladasPorJugador.set(jugadorId, actual);
+  });
 
   /* =========================================
      CONSTRUIR JUGADORES
@@ -259,18 +307,152 @@ export default async function EquipoPage({
       };
     })
     .sort((a, b) => {
-      const numeroA =
-        a.numero === null ? 999 : a.numero;
+      const statsA =
+        estadisticasAcumuladasPorJugador.get(Number(a.id)) ?? {
+          puntos: 0,
+          rebotes: 0,
+          asistencias: 0,
+        };
 
-      const numeroB =
-        b.numero === null ? 999 : b.numero;
+      const statsB =
+        estadisticasAcumuladasPorJugador.get(Number(b.id)) ?? {
+          puntos: 0,
+          rebotes: 0,
+          asistencias: 0,
+        };
 
-      if (numeroA !== numeroB) {
-        return numeroA - numeroB;
+      // Ranking de plantilla: mayor cantidad de puntos acumulados primero.
+      if (statsB.puntos !== statsA.puntos) {
+        return statsB.puntos - statsA.puntos;
+      }
+
+      // Desempates: rebotes acumulados, asistencias acumuladas y nombre.
+      if (statsB.rebotes !== statsA.rebotes) {
+        return statsB.rebotes - statsA.rebotes;
+      }
+
+      if (statsB.asistencias !== statsA.asistencias) {
+        return statsB.asistencias - statsA.asistencias;
       }
 
       return a.nombre.localeCompare(b.nombre);
     });
+
+  /* =========================================
+     PARTIDOS DEL EQUIPO + BOXSCORE POR PARTIDO
+  ========================================== */
+
+  const nombreEquipoNormalizado =
+    normalizarEquipo(nombreEquipo);
+
+  const partidosEquipo = (partidosData ?? [])
+    .filter((partido: any) => {
+      const local = normalizarEquipo(
+        partido.equipo_local ?? partido.local
+      );
+
+      const visitante = normalizarEquipo(
+        partido.equipo_visitante ?? partido.visitante
+      );
+
+      return (
+        local === nombreEquipoNormalizado ||
+        visitante === nombreEquipoNormalizado
+      );
+    })
+    .sort((a: any, b: any) => Number(b.id) - Number(a.id));
+
+  const partidoSeleccionado =
+    partidosEquipo.find(
+      (partido: any) =>
+        String(partido.id) === String(partidoSeleccionadoParam)
+    ) ?? partidosEquipo[0] ?? null;
+
+  const partidoSeleccionadoId = partidoSeleccionado
+    ? String(partidoSeleccionado.id)
+    : null;
+
+  const estadisticasPartidoSeleccionado =
+    (estadisticasPartidoData ?? []).filter(
+      (estadistica: any) =>
+        partidoSeleccionadoId !== null &&
+        String(estadistica.partido_id) === partidoSeleccionadoId
+    );
+
+  const estadisticasDelPartidoPorJugador =
+    new Map<
+      number,
+      {
+        puntos: number;
+        rebotes: number;
+        asistencias: number;
+      }
+    >();
+
+  estadisticasPartidoSeleccionado.forEach(
+    (estadistica: any) => {
+      const jugadorId = Number(estadistica.jugador_id);
+
+      if (!jugadorId) return;
+
+      const actual =
+        estadisticasDelPartidoPorJugador.get(jugadorId) ?? {
+          puntos: 0,
+          rebotes: 0,
+          asistencias: 0,
+        };
+
+      actual.puntos += Number(estadistica.puntos) || 0;
+      actual.rebotes += Number(estadistica.rebotes) || 0;
+      actual.asistencias += Number(estadistica.asistencias) || 0;
+
+      estadisticasDelPartidoPorJugador.set(jugadorId, actual);
+    }
+  );
+
+  const boxscore = jugadores
+    .map((jugador) => {
+      const estadistica =
+        estadisticasDelPartidoPorJugador.get(jugador.id);
+
+      return {
+        ...jugador,
+        puntosTotales: estadistica?.puntos ?? 0,
+        rebotesTotales: estadistica?.rebotes ?? 0,
+        asistenciasTotales: estadistica?.asistencias ?? 0,
+        partidosBoxscore: estadistica ? 1 : 0,
+      };
+    })
+    .sort((a, b) => {
+      if (b.puntosTotales !== a.puntosTotales) {
+        return b.puntosTotales - a.puntosTotales;
+      }
+
+      if (b.rebotesTotales !== a.rebotesTotales) {
+        return b.rebotesTotales - a.rebotesTotales;
+      }
+
+      if (b.asistenciasTotales !== a.asistenciasTotales) {
+        return b.asistenciasTotales - a.asistenciasTotales;
+      }
+
+      return a.nombre.localeCompare(b.nombre);
+    });
+
+  const totalPuntosEquipo = boxscore.reduce(
+    (total, jugador) => total + jugador.puntosTotales,
+    0
+  );
+
+  const totalRebotesEquipo = boxscore.reduce(
+    (total, jugador) => total + jugador.rebotesTotales,
+    0
+  );
+
+  const totalAsistenciasEquipo = boxscore.reduce(
+    (total, jugador) => total + jugador.asistenciasTotales,
+    0
+  );
 
   /* =========================================
      RÉCORD DEL EQUIPO
@@ -278,9 +460,6 @@ export default async function EquipoPage({
 
   let ganados = 0;
   let perdidos = 0;
-
-  const nombreEquipoNormalizado =
-    normalizarEquipo(nombreEquipo);
 
   (partidosData ?? []).forEach(
     (partido: any) => {
@@ -577,6 +756,269 @@ export default async function EquipoPage({
         ====================================== */}
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-10">
+          {/* =====================================
+              SELECTOR DE PARTIDO
+          ====================================== */}
+
+          <section className="mb-8">
+            <div className="mb-4">
+              <h2 className="text-2xl md:text-3xl font-black text-blue-950">
+                🏀 Boxscore por partido
+              </h2>
+              <p className="text-gray-500 mt-1">
+                Selecciona un partido para ver las estadísticas de ese encuentro desde 0.
+              </p>
+            </div>
+
+            {partidosEquipo.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {partidosEquipo.map((partido: any) => {
+                  const esSeleccionado =
+                    String(partido.id) === partidoSeleccionadoId;
+
+                  const local = partido.equipo_local ?? partido.local ?? "Local";
+                  const visitante = partido.equipo_visitante ?? partido.visitante ?? "Visitante";
+                  const puntosLocal = Number(
+                    partido.puntos_local ?? partido.puntosLocal ?? 0
+                  );
+                  const puntosVisitante = Number(
+                    partido.puntos_visitante ?? partido.puntosVisitante ?? 0
+                  );
+
+                  return (
+                    <Link
+                      key={partido.id}
+                      href={`/equipos/${slug}?partido=${partido.id}`}
+                      className={`rounded-2xl border-2 p-4 transition-all shadow-sm hover:-translate-y-0.5 hover:shadow-lg ${
+                        esSeleccionado
+                          ? "border-blue-700 bg-blue-50 shadow-md"
+                          : "border-slate-200 bg-white hover:border-blue-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                          Partido #{partido.id}
+                        </span>
+                        {esSeleccionado && (
+                          <span className="rounded-full bg-blue-700 px-3 py-1 text-[11px] font-black text-white">
+                            SELECCIONADO
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <p className="text-sm font-black text-slate-800">
+                          {local}
+                        </p>
+                        <span className="text-xs font-black text-slate-400">VS</span>
+                        <p className="text-right text-sm font-black text-slate-800">
+                          {visitante}
+                        </p>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <p className="text-2xl font-black text-blue-950">
+                          {puntosLocal}
+                        </p>
+                        <span className="text-xs font-bold text-slate-400">FINAL</span>
+                        <p className="text-right text-2xl font-black text-blue-950">
+                          {puntosVisitante}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-500">
+                Este equipo todavía no tiene partidos finalizados. El Boxscore comenzará en 0 cuando se registre el primer partido.
+              </div>
+            )}
+          </section>
+
+          {/* =====================================
+              RESUMEN ESTADÍSTICO DEL EQUIPO
+          ====================================== */}
+
+          <section className="mb-10">
+            <div className="mb-5">
+              <h2 className="text-2xl md:text-3xl font-black text-blue-950">
+                📊 Estadísticas del equipo
+              </h2>
+              <p className="text-gray-500 mt-1">
+                {partidoSeleccionado
+                  ? `Partido #${partidoSeleccionado.id} · ${partidoSeleccionado.equipo_local ?? partidoSeleccionado.local ?? "Local"} vs ${partidoSeleccionado.equipo_visitante ?? partidoSeleccionado.visitante ?? "Visitante"}`
+                  : "Sin partido seleccionado"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-2xl bg-red-50 border border-red-200 p-5 shadow-sm text-center">
+                <p className="text-sm font-black uppercase tracking-wider text-red-700">
+                  🏀 Puntos
+                </p>
+                <p className="text-4xl font-black text-red-900 mt-1">
+                  {totalPuntosEquipo}
+                </p>
+                <p className="text-xs text-red-700/70 mt-1">TOTAL EQUIPO</p>
+              </div>
+
+              <div className="rounded-2xl bg-purple-50 border border-purple-200 p-5 shadow-sm text-center">
+                <p className="text-sm font-black uppercase tracking-wider text-purple-700">
+                  💪 Rebotes
+                </p>
+                <p className="text-4xl font-black text-purple-900 mt-1">
+                  {totalRebotesEquipo}
+                </p>
+                <p className="text-xs text-purple-700/70 mt-1">TOTAL EQUIPO</p>
+              </div>
+
+              <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-5 shadow-sm text-center">
+                <p className="text-sm font-black uppercase tracking-wider text-yellow-700">
+                  🎯 Asistencias
+                </p>
+                <p className="text-4xl font-black text-yellow-800 mt-1">
+                  {totalAsistenciasEquipo}
+                </p>
+                <p className="text-xs text-yellow-700/70 mt-1">TOTAL EQUIPO</p>
+              </div>
+            </div>
+          </section>
+
+          {/* =====================================
+              BOXSCORE DE TEMPORADA
+          ====================================== */}
+
+          <section className="mb-10">
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+              <div
+                className="px-6 py-5 text-white"
+                style={{ backgroundColor: estilo.acento }}
+              >
+                <h2 className="text-2xl md:text-3xl font-black">
+                  🏀 Boxscore del partido — {nombreEquipo}
+                </h2>
+                <p className="mt-1 opacity-90">
+                  Ranking del partido: mayor a menor en puntos. Los valores se reinician en cada partido.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <th className="px-4 py-4 text-center font-black">#</th>
+                      <th className="px-5 py-4 text-left font-black">Jugador</th>
+                      <th className="px-4 py-4 text-center font-black">PJ</th>
+                      <th className="px-4 py-4 text-center font-black">PTS</th>
+                      <th className="px-4 py-4 text-center font-black">REB</th>
+                      <th className="px-4 py-4 text-center font-black">AST</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {boxscore.map((jugador, index) => {
+                      const foto = obtenerFoto(jugador.foto);
+
+                      return (
+                        <tr
+                          key={jugador.id}
+                          className="border-t border-slate-100 hover:bg-slate-50 transition"
+                        >
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-full font-black ${
+                                index === 0
+                                  ? "bg-yellow-400 text-yellow-950"
+                                  : index === 1
+                                    ? "bg-slate-300 text-slate-800"
+                                    : index === 2
+                                      ? "bg-orange-300 text-orange-950"
+                                      : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {index + 1}
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-3">
+                            <Link
+                              href={`/jugadores/${jugador.slug}`}
+                              className="flex items-center gap-3 group"
+                            >
+                              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-white" style={{ borderColor: estilo.borde }}>
+                                <Image
+                                  src={foto}
+                                  alt={jugador.nombre}
+                                  fill
+                                  sizes="44px"
+                                  className="object-cover"
+                                  style={{
+                                    transform: "scale(1.25)",
+                                    transformOrigin: "center center",
+                                    objectPosition: "50% 40%",
+                                  }}
+                                />
+                              </div>
+
+                              <div>
+                                <p className="font-black text-blue-950 group-hover:text-blue-700 transition">
+                                  {jugador.nombre}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  #{jugador.numero ?? "-"}
+                                </p>
+                              </div>
+                            </Link>
+                          </td>
+
+                          <td className="px-4 py-3 text-center font-bold text-slate-700">
+                            {jugador.partidosBoxscore}
+                          </td>
+
+                          <td className="px-4 py-3 text-center text-lg font-black text-red-700">
+                            {jugador.puntosTotales}
+                          </td>
+
+                          <td className="px-4 py-3 text-center text-lg font-black text-purple-700">
+                            {jugador.rebotesTotales}
+                          </td>
+
+                          <td className="px-4 py-3 text-center text-lg font-black text-yellow-700">
+                            {jugador.asistenciasTotales}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-300 bg-slate-50">
+                      <td className="px-4 py-4 text-center font-black text-slate-500">
+                        —
+                      </td>
+                      <td className="px-5 py-4 font-black text-blue-950">
+                        TOTAL EQUIPO
+                      </td>
+                      <td className="px-4 py-4 text-center font-black text-slate-700">
+                        —
+                      </td>
+                      <td className="px-4 py-4 text-center text-xl font-black text-red-700">
+                        {totalPuntosEquipo}
+                      </td>
+                      <td className="px-4 py-4 text-center text-xl font-black text-purple-700">
+                        {totalRebotesEquipo}
+                      </td>
+                      <td className="px-4 py-4 text-center text-xl font-black text-yellow-700">
+                        {totalAsistenciasEquipo}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-7">
             <div>
               <h2 className="text-3xl md:text-4xl font-black text-blue-950">
