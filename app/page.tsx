@@ -181,7 +181,7 @@ useEffect(() => {
     .slice(0, 3);
 
   // =========================================================
-  // RESUMEN DE LA JORNADA — SERIE REGULAR 2026
+  // LOS PROTAGONISTAS — SERIE REGULAR 2026
   // =========================================================
   // El torneo comenzó el 05/09/2026. Cualquier partido anterior
   // (prueba, amistoso o registro histórico) NO forma parte de la
@@ -250,7 +250,7 @@ useEffect(() => {
     });
 
   /*
-   * RESUMEN DE LA JORNADA
+   * LOS PROTAGONISTAS
    *
    * IMPORTANTE:
    * - NO usamos ppg, rpg ni apg.
@@ -549,7 +549,7 @@ const ultimosResultados = [...partidosActuales]
   <a href="/jugadores">👤 Jugadores</a>
   <a href="/calendario">📅 Calendario</a>
   <a href="/resultados">🏆 Resultados</a>
-<a href="/clasificacion">🏆 Clasificación</a>
+<a href="/clasificacion">🏆 Posiciones</a>
 <a href="/estadisticas">📊 Estadísticas</a>
 <a href="/mvp">🏆 MVP</a>
 
@@ -825,9 +825,9 @@ const ultimosResultados = [...partidosActuales]
 <div className="bg-white p-6 rounded-xl shadow">
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
     <div>
-      <h2 className="text-2xl font-black text-blue-950">
-        📊 RESUMEN DE LA JORNADA
-      </h2>
+      <h2 className="text-2xl md:text-3xl font-black">
+  🏀 LOS PROTAGONISTAS
+</h2>
       <p className="mt-1 text-sm font-black uppercase tracking-wide text-blue-600">
         {partidoResumen
           ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR`
@@ -1280,7 +1280,7 @@ const ultimosResultados = [...partidosActuales]
         ${color.textoSuave}
       `}
     >
-      ⭐ DOS PROTAGONISTAS DE LA JORNADA
+      ⭐ LOS PROTAGONISTAS DE LA JORNADA
     </p>
 
   </div>
