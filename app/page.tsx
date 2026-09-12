@@ -549,7 +549,7 @@ const ultimosResultados = [...partidosActuales]
   <a href="/jugadores">👤 Jugadores</a>
   <a href="/calendario">📅 Calendario</a>
   <a href="/resultados">🏆 Resultados</a>
-<a href="/clasificacion">🏆 Posiciones</a>
+<a href="/Posiciones">🏆 Posiciones</a>
 <a href="/estadisticas">📊 Estadísticas</a>
 <a href="/mvp">🏆 MVP</a>
 
@@ -591,7 +591,7 @@ const ultimosResultados = [...partidosActuales]
             <a href="/jugadores">👤 Jugadores</a>
             <a href="/calendario">📅 Calendario</a>
             <a href="/resultados">🏆 Resultados</a>
-<a href="/clasificacion">🏆 Clasificación</a>
+<a href="/Posiciones">🏆 Posiciones</a>
 <a href="/estadisticas">📊 Estadísticas</a>
 <a href="/mvp">🏆 MVP</a>
           </div>
