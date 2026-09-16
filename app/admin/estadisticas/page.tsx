@@ -204,9 +204,7 @@ export default function AdminEstadisticasPage() {
 
   async function guardarEstadisticas() {
     if (!partidoSeleccionado) {
-      setMensaje(
-        "Selecciona un partido primero."
-      );
+      setMensaje("Selecciona un partido primero.");
       return;
     }
 
@@ -220,54 +218,101 @@ export default function AdminEstadisticasPage() {
     setGuardando(true);
     setMensaje("");
 
-    const datos = jugadoresDelPartido.map(
-      (jugador) => ({
-        partido_id: Number(
-          partidoSeleccionado
-        ),
+    try {
+      const partidoId = Number(partidoSeleccionado);
 
+      if (!Number.isInteger(partidoId)) {
+        setMensaje("El partido seleccionado no es válido.");
+        return;
+      }
+
+      const datos = jugadoresDelPartido.map((jugador) => ({
+        partido_id: partidoId,
         jugador_id: jugador.id,
-
-        puntos: Number(
-          estadisticas[jugador.id]?.puntos ?? 0
+        puntos: Math.max(
+          0,
+          Number(estadisticas[jugador.id]?.puntos ?? 0)
         ),
-
-        rebotes: Number(
-          estadisticas[jugador.id]?.rebotes ?? 0
+        rebotes: Math.max(
+          0,
+          Number(estadisticas[jugador.id]?.rebotes ?? 0)
         ),
-
-        asistencias: Number(
-          estadisticas[jugador.id]?.asistencias ?? 0
+        asistencias: Math.max(
+          0,
+          Number(estadisticas[jugador.id]?.asistencias ?? 0)
         ),
-      })
-    );
+      }));
 
-    const { error } = await supabase
-      .from("estadisticas_partido")
-      .upsert(datos, {
-        onConflict: "partido_id,jugador_id",
+      console.log("GUARDANDO ESTADISTICAS:", datos);
+
+      const { error } = await supabase
+        .from("estadisticas_partido")
+        .upsert(datos, {
+          onConflict: "partido_id,jugador_id",
+        });
+
+      if (error) {
+        console.error("ERROR SUPABASE:", error);
+        setMensaje(`Error al guardar: ${error.message}`);
+        return;
+      }
+
+      const { data: verificadas, error: errorVerificacion } =
+        await supabase
+          .from("estadisticas_partido")
+          .select("jugador_id, puntos, rebotes, asistencias")
+          .eq("partido_id", partidoId);
+
+      if (errorVerificacion) {
+        console.error(
+          "ERROR AL VERIFICAR ESTADISTICAS:",
+          errorVerificacion
+        );
+        setMensaje(
+          `Se guardó, pero no se pudo verificar: ${errorVerificacion.message}`
+        );
+        return;
+      }
+
+      console.log("ESTADISTICAS VERIFICADAS:", verificadas);
+
+      const estadisticasVerificadas: Record<
+        number,
+        Estadistica
+      > = {};
+
+      (verificadas ?? []).forEach((estadistica) => {
+        const jugadorId = Number(estadistica.jugador_id);
+
+        estadisticasVerificadas[jugadorId] = {
+          jugador_id: jugadorId,
+          puntos: Number(estadistica.puntos) || 0,
+          rebotes: Number(estadistica.rebotes) || 0,
+          asistencias:
+            Number(estadistica.asistencias) || 0,
+        };
       });
 
-    if (error) {
-      console.error(error);
+      setEstadisticas(estadisticasVerificadas);
 
       setMensaje(
-        `Error al guardar: ${error.message}`
+        `¡Estadísticas guardadas correctamente! ${
+          verificadas?.length ?? 0
+        } registros guardados.`
       );
+    } catch (error) {
+      console.error("ERROR INESPERADO AL GUARDAR:", error);
 
+      setMensaje(
+        `Error inesperado: ${
+          error instanceof Error
+            ? error.message
+            : "No se pudo guardar."
+        }`
+      );
+    } finally {
       setGuardando(false);
-      return;
     }
-
-    setMensaje(
-      "¡Estadísticas guardadas correctamente!"
-    );
-
-    await seleccionarPartido(
-      partidoSeleccionado
-    );
-
-    setGuardando(false);
   }
 
   if (cargando) {
