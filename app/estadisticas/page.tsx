@@ -2075,10 +2075,10 @@ export default function Estadisticas() {
 
                         <div className="text-right">
                           <p className="text-xl font-black text-red-700">
-                            {Number(jugador.ppg ?? 0).toFixed(1)}
+                            {Number(jugador.puntosTotales ?? 0)}
                           </p>
                           <p className="text-[10px] font-bold text-slate-500">
-                            PPG
+                            PTS
                           </p>
                         </div>
                       </>
@@ -2162,10 +2162,10 @@ export default function Estadisticas() {
 
                         <div className="text-right">
                           <p className="text-xl font-black text-purple-700">
-                            {Number(jugador.rpg ?? 0).toFixed(1)}
+                            {Number(jugador.rebotesTotales ?? 0)}
                           </p>
                           <p className="text-[10px] font-bold text-slate-500">
-                            RPG
+                            REB
                           </p>
                         </div>
                       </>
@@ -2249,10 +2249,10 @@ export default function Estadisticas() {
 
                         <div className="text-right">
                           <p className="text-xl font-black text-yellow-700">
-                            {Number(jugador.apg ?? 0).toFixed(1)}
+                            {Number(jugador.asistenciasTotales ?? 0)}
                           </p>
                           <p className="text-[10px] font-bold text-slate-500">
-                            APG
+                            AST
                           </p>
                         </div>
                       </>
