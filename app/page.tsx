@@ -39,10 +39,11 @@ useEffect(() => {
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
-      { data: estadisticasPartidoData, error: estadisticasPartidoError },
     ] = await Promise.all([
       supabase.from("jugadores").select("*"),
-      supabase.from("estadisticas_jugadores").select("*"),
+      supabase
+        .from("estadisticas_partido")
+        .select("jugador_id, partido_id, puntos, rebotes, asistencias"),
       supabase
         .from("partidos")
         .select(`
@@ -58,38 +59,92 @@ useEffect(() => {
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
-      supabase
-        .from("estadisticas_partido")
-        .select("jugador_id, partido_id, puntos, rebotes, asistencias"),
     ]);
 
     if (
       jugadoresError ||
       estadisticasError ||
-      partidosError ||
-      estadisticasPartidoError
+      partidosError
     ) {
       console.error("Error jugadores:", jugadoresError);
       console.error("Error estadísticas:", estadisticasError);
       console.error("Error partidos:", partidosError);
-      console.error("Error estadísticas por partido:", estadisticasPartidoError);
       return;
     }
 
+    // LIDERATOS OFICIALES: misma lógica que /estadisticas.
+    // Se calculan sumando las estadísticas de cada partido finalizado.
+    const partidosFinalizados = new Set(
+      (partidosData ?? [])
+        .filter(
+          (partido: any) =>
+            String(partido.estado ?? "")
+              .trim()
+              .toLowerCase() === "finalizado"
+        )
+        .map((partido: any) => Number(partido.id))
+    );
+
+    const acumuladosPorJugador = new Map<
+      number,
+      {
+        partidos: Set<number>;
+        puntos: number;
+        rebotes: number;
+        asistencias: number;
+      }
+    >();
+
+    (estadisticasData ?? []).forEach((registro: any) => {
+      const jugadorId = Number(registro.jugador_id);
+      const partidoId = Number(registro.partido_id);
+
+      if (!partidosFinalizados.has(partidoId)) return;
+
+      if (!acumuladosPorJugador.has(jugadorId)) {
+        acumuladosPorJugador.set(jugadorId, {
+          partidos: new Set<number>(),
+          puntos: 0,
+          rebotes: 0,
+          asistencias: 0,
+        });
+      }
+
+      const acumulado = acumuladosPorJugador.get(jugadorId)!;
+
+      acumulado.partidos.add(partidoId);
+      acumulado.puntos += Number(registro.puntos) || 0;
+      acumulado.rebotes += Number(registro.rebotes) || 0;
+      acumulado.asistencias += Number(registro.asistencias) || 0;
+    });
+
     const jugadoresConEstadisticas = (jugadoresData ?? []).map(
       (jugador: any) => {
-        const estadisticas = (estadisticasData ?? []).find(
-          (estadistica: any) =>
-            String(estadistica.jugador_id) === String(jugador.id)
-        );
+        const acumulado = acumuladosPorJugador.get(Number(jugador.id));
+
+        const partidosJugados = acumulado?.partidos.size ?? 0;
+        const puntosTotales = acumulado?.puntos ?? 0;
+        const rebotesTotales = acumulado?.rebotes ?? 0;
+        const asistenciasTotales = acumulado?.asistencias ?? 0;
 
         return {
           ...jugador,
-          ppg: Number(estadisticas?.ppg) || 0,
-          rpg: Number(estadisticas?.rpg) || 0,
-          apg: Number(estadisticas?.apg) || 0,
-          partidos_jugados:
-            Number(estadisticas?.partidos_jugados) || 0,
+          puntosTotales,
+          rebotesTotales,
+          asistenciasTotales,
+          ppg:
+            partidosJugados > 0
+              ? Number((puntosTotales / partidosJugados).toFixed(1))
+              : 0,
+          rpg:
+            partidosJugados > 0
+              ? Number((rebotesTotales / partidosJugados).toFixed(1))
+              : 0,
+          apg:
+            partidosJugados > 0
+              ? Number((asistenciasTotales / partidosJugados).toFixed(1))
+              : 0,
+          partidos_jugados: partidosJugados,
         };
       }
     );
@@ -119,7 +174,7 @@ useEffect(() => {
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
     setEstadisticasPartido(
-      (estadisticasPartidoData ?? []).map((estadistica: any) => ({
+      (estadisticasData ?? []).map((estadistica: any) => ({
         jugador_id: estadistica.jugador_id,
         partido_id: estadistica.partido_id,
         puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
@@ -165,19 +220,36 @@ useEffect(() => {
   const torneoYaInicio = ahora >= inicioTorneo;
   const inauguracionPendiente = ahora < inauguracionOficial;
 
-  const lideresPuntos = [...jugadores]
-    .filter((jugador) => Number(jugador.ppg) > 0)
-    .sort((a, b) => Number(b.ppg) - Number(a.ppg))
+  const ordenarPorTotal = (
+    campo: "puntosTotales" | "rebotesTotales" | "asistenciasTotales"
+  ) =>
+    [...jugadores].sort((a, b) => {
+      const diferencia =
+        Number(b[campo] ?? 0) - Number(a[campo] ?? 0);
+
+      if (diferencia !== 0) return diferencia;
+
+      const jj =
+        Number(b.partidos_jugados ?? 0) -
+        Number(a.partidos_jugados ?? 0);
+
+      if (jj !== 0) return jj;
+
+      return String(a.nombre ?? "").localeCompare(
+        String(b.nombre ?? "")
+      );
+    });
+
+  const lideresPuntos = ordenarPorTotal("puntosTotales")
+    .filter((jugador) => Number(jugador.puntosTotales ?? 0) > 0)
     .slice(0, 3);
 
-  const lideresRebotes = [...jugadores]
-    .filter((jugador) => Number(jugador.rpg) > 0)
-    .sort((a, b) => Number(b.rpg) - Number(a.rpg))
+  const lideresRebotes = ordenarPorTotal("rebotesTotales")
+    .filter((jugador) => Number(jugador.rebotesTotales ?? 0) > 0)
     .slice(0, 3);
 
-  const lideresAsistencias = [...jugadores]
-    .filter((jugador) => Number(jugador.apg) > 0)
-    .sort((a, b) => Number(b.apg) - Number(a.apg))
+  const lideresAsistencias = ordenarPorTotal("asistenciasTotales")
+    .filter((jugador) => Number(jugador.asistenciasTotales ?? 0) > 0)
     .slice(0, 3);
 
   // =========================================================
@@ -1805,7 +1877,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-red-700 font-black">
-                {jugador.ppg} PPG
+                {jugador.puntosTotales} PTS
               </p>
 
             </div>
@@ -1851,7 +1923,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-purple-700 font-black">
-                {jugador.rpg} RPG
+                {jugador.rebotesTotales} REB
               </p>
 
             </div>
@@ -1897,7 +1969,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-yellow-600 font-black">
-                {jugador.apg} APG
+                {jugador.asistenciasTotales} AST
               </p>
 
             </div>
