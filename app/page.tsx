@@ -430,11 +430,23 @@ useEffect(() => {
   // =========================================================
   // JUGADORES DESTACADOS - 2 CON MÁS PUNTOS POR EQUIPO
   // =========================================================
-  // Los protagonistas de cada equipo se determinan EXCLUSIVAMENTE
-  // por los puntos anotados en el último partido finalizado.
-  // Las tarjetas muestran además REB y AST de ese mismo partido.
+  // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
+  // Así se muestran siempre los 4 equipos, aunque el último partido
+  // general solo haya enfrentado a 2 de ellos.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
-    const jugadoresDelEquipo = [...jugadoresDeLaJornada]
+    const resumenDelEquipo = [...resumenesPartidos]
+      .reverse()
+      .find((resumen) =>
+        resumen.jugadoresPartido.some(
+          (jugador) =>
+            jugador.equipo === equipo.nombre &&
+            (Number(jugador.puntosPartido || 0) > 0 ||
+              Number(jugador.rebotesPartido || 0) > 0 ||
+              Number(jugador.asistenciasPartido || 0) > 0)
+        )
+      );
+
+    const jugadoresDelEquipo = [...(resumenDelEquipo?.jugadoresPartido ?? [])]
       .filter(
         (jugador) =>
           jugador.equipo === equipo.nombre &&
@@ -444,8 +456,7 @@ useEffect(() => {
         (a, b) =>
           Number(b.puntosPartido || 0) - Number(a.puntosPartido || 0) ||
           Number(b.rebotesPartido || 0) - Number(a.rebotesPartido || 0) ||
-          Number(b.asistenciasPartido || 0) -
-            Number(a.asistenciasPartido || 0)
+          Number(b.asistenciasPartido || 0) - Number(a.asistenciasPartido || 0)
       )
       .slice(0, 2);
 
