@@ -42,9 +42,7 @@ useEffect(() => {
       { data: estadisticasPartidoData, error: estadisticasPartidoError },
     ] = await Promise.all([
       supabase.from("jugadores").select("*"),
-      supabase
-        .from("estadisticas_partido")
-        .select("jugador_id, partido_id, puntos, rebotes, asistencias"),
+      supabase.from("estadisticas_jugadores").select("*"),
       supabase
         .from("partidos")
         .select(`
@@ -78,91 +76,20 @@ useEffect(() => {
       return;
     }
 
-    // =========================================================
-    // LIDERATOS OFICIALES DE LA LIGA
-    // MISMA LOGICA QUE /estadisticas
-    //
-    // PTS = suma de puntos de todos los partidos finalizados
-    // REB = suma de rebotes de todos los partidos finalizados
-    // AST = suma de asistencias de todos los partidos finalizados
-    // JJ  = cantidad de partidos finalizados con registro estadistico
-    //
-    // Los TOP 3 de Inicio salen de estos mismos totales.
-    // NO se usan PPG/RPG/APG para ordenar.
-    // =========================================================
-
-    const partidosFinalizados = new Set(
-      (partidosData ?? [])
-        .filter((partido: any) =>
-          String(partido.estado ?? "")
-            .normalize("NFD")
-            .replace(/[\\u0300-\\u036f]/g, "")
-            .trim()
-            .toLowerCase() === "finalizado"
-        )
-        .map((partido: any) => Number(partido.id))
-    );
-
-    const acumuladosPorJugador = new Map<
-      number,
-      {
-        partidos: Set<number>;
-        puntos: number;
-        rebotes: number;
-        asistencias: number;
-      }
-    >();
-
-    (estadisticasData ?? []).forEach((registro: any) => {
-      const jugadorId = Number(registro.jugador_id);
-      const partidoId = Number(registro.partido_id);
-
-      if (!partidosFinalizados.has(partidoId)) return;
-
-      if (!acumuladosPorJugador.has(jugadorId)) {
-        acumuladosPorJugador.set(jugadorId, {
-          partidos: new Set<number>(),
-          puntos: 0,
-          rebotes: 0,
-          asistencias: 0,
-        });
-      }
-
-      const acumulado = acumuladosPorJugador.get(jugadorId)!;
-
-      acumulado.partidos.add(partidoId);
-      acumulado.puntos += Number(registro.puntos) || 0;
-      acumulado.rebotes += Number(registro.rebotes) || 0;
-      acumulado.asistencias += Number(registro.asistencias) || 0;
-    });
-
     const jugadoresConEstadisticas = (jugadoresData ?? []).map(
       (jugador: any) => {
-        const acumulado = acumuladosPorJugador.get(Number(jugador.id));
-
-        const partidosJugados = acumulado?.partidos.size ?? 0;
-        const puntosTotales = acumulado?.puntos ?? 0;
-        const rebotesTotales = acumulado?.rebotes ?? 0;
-        const asistenciasTotales = acumulado?.asistencias ?? 0;
+        const estadisticas = (estadisticasData ?? []).find(
+          (estadistica: any) =>
+            String(estadistica.jugador_id) === String(jugador.id)
+        );
 
         return {
           ...jugador,
-          puntosTotales,
-          rebotesTotales,
-          asistenciasTotales,
-          partidos_jugados: partidosJugados,
-          ppg:
-            partidosJugados > 0
-              ? Number((puntosTotales / partidosJugados).toFixed(1))
-              : 0,
-          rpg:
-            partidosJugados > 0
-              ? Number((rebotesTotales / partidosJugados).toFixed(1))
-              : 0,
-          apg:
-            partidosJugados > 0
-              ? Number((asistenciasTotales / partidosJugados).toFixed(1))
-              : 0,
+          ppg: Number(estadisticas?.ppg) || 0,
+          rpg: Number(estadisticas?.rpg) || 0,
+          apg: Number(estadisticas?.apg) || 0,
+          partidos_jugados:
+            Number(estadisticas?.partidos_jugados) || 0,
         };
       }
     );
@@ -238,43 +165,19 @@ useEffect(() => {
   const torneoYaInicio = ahora >= inicioTorneo;
   const inauguracionPendiente = ahora < inauguracionOficial;
 
-  // =========================================================
-  // TOP 3 DE INICIO
-  // EXACTAMENTE EL MISMO CRITERIO DE /estadisticas
-  // TOTAL ACUMULADO: mayor a menor
-  // Desempate: JJ y luego nombre.
-  // =========================================================
-
-  const ordenarPorTotal = (
-    campo: "puntosTotales" | "rebotesTotales" | "asistenciasTotales"
-  ) =>
-    [...jugadores].sort((a, b) => {
-      const diferencia =
-        Number(b[campo] ?? 0) - Number(a[campo] ?? 0);
-
-      if (diferencia !== 0) return diferencia;
-
-      const jj =
-        Number(b.partidos_jugados ?? 0) -
-        Number(a.partidos_jugados ?? 0);
-
-      if (jj !== 0) return jj;
-
-      return String(a.nombre ?? "").localeCompare(
-        String(b.nombre ?? "")
-      );
-    });
-
-  const lideresPuntos = ordenarPorTotal("puntosTotales")
-    .filter((jugador) => Number(jugador.puntosTotales ?? 0) > 0)
+  const lideresPuntos = [...jugadores]
+    .filter((jugador) => Number(jugador.ppg) > 0)
+    .sort((a, b) => Number(b.ppg) - Number(a.ppg))
     .slice(0, 3);
 
-  const lideresRebotes = ordenarPorTotal("rebotesTotales")
-    .filter((jugador) => Number(jugador.rebotesTotales ?? 0) > 0)
+  const lideresRebotes = [...jugadores]
+    .filter((jugador) => Number(jugador.rpg) > 0)
+    .sort((a, b) => Number(b.rpg) - Number(a.rpg))
     .slice(0, 3);
 
-  const lideresAsistencias = ordenarPorTotal("asistenciasTotales")
-    .filter((jugador) => Number(jugador.asistenciasTotales ?? 0) > 0)
+  const lideresAsistencias = [...jugadores]
+    .filter((jugador) => Number(jugador.apg) > 0)
+    .sort((a, b) => Number(b.apg) - Number(a.apg))
     .slice(0, 3);
 
   // =========================================================
@@ -457,31 +360,30 @@ useEffect(() => {
   };
 
   /*
-   * Buscamos primero el Partido 1 que contiene los datos oficiales
-   * indicados arriba. Así no confundimos un partido de prueba/histórico
-   * con el verdadero primer partido de la Serie Regular.
+   * RESUMEN DINÁMICO DE LA JORNADA
+   *
+   * Se toman únicamente partidos finalizados de la Serie Regular que
+   * tengan estadísticas registradas.
+   *
+   * IMPORTANTE:
+   * - Siempre se muestra el ÚLTIMO partido con estadísticas.
+   * - Al registrar un nuevo partido, la página de inicio cambia
+   *   automáticamente al nuevo partido.
+   * - Todas las estadísticas mostradas salen de estadisticas_partido.
    */
   const resumenesPartidos = partidosFinalizadosSerieRegular
     .map(construirResumenDePartido)
     .filter((resumen) => resumen.jugadoresPartido.length > 0);
 
-  // =========================================================
-  // SELECCIÓN OFICIAL DEL RESUMEN DE LA JORNADA
-  // =========================================================
-  // El primer partido oficial de la Serie Regular es la jornada que
-  // alimenta estas tres tarjetas. Los líderes se calculan desde
-  // estadisticas_partido, nunca desde PPG/RPG/APG.
-  //
-  // En caso de empate en asistencias, la clasificación oficial de la
-  // jornada coloca a Fernando Valenzuela como líder.
-  const resumenSeleccionado = resumenesPartidos[0] ?? null;
+  const indiceResumenSeleccionado = resumenesPartidos.length - 1;
+  const resumenSeleccionado =
+    indiceResumenSeleccionado >= 0
+      ? resumenesPartidos[indiceResumenSeleccionado]
+      : null;
 
   const partidoResumen = resumenSeleccionado?.partido ?? null;
 
-  // Líderes oficiales de la jornada: usamos las estadísticas oficiales
-  // de jugadores (PPG/RPG/APG), que son las que alimentan el ranking.
-  // En asistencias, Fernando Valenzuela gana el empate oficial de 7 AST.
-  // LÍDERES DE LA JORNADA: salen directamente de estadisticas_partido.
+  // Líderes del ÚLTIMO partido finalizado.
   const jugadoresDeLaJornada = resumenSeleccionado?.jugadoresPartido ?? [];
 
   const maximoAnotador =
@@ -514,7 +416,8 @@ useEffect(() => {
           Number(b.rebotesPartido) - Number(a.rebotesPartido)
       )[0] ?? null;
 
-  const numeroPartidoResumen = partidoResumen ? 1 : 0;
+  const numeroPartidoResumen =
+    indiceResumenSeleccionado >= 0 ? indiceResumenSeleccionado + 1 : 0;
 
   const obtenerFotoJugador = (jugador: any) =>
     jugador?.foto &&
@@ -525,37 +428,36 @@ useEffect(() => {
 
 
   // =========================================================
-  // JUGADORES DESTACADOS - 2 JUGADORES POR EQUIPO
+  // JUGADORES DESTACADOS - 2 CON MÁS PUNTOS POR EQUIPO
   // =========================================================
+  // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
+  // Así se muestran siempre los 4 equipos, aunque el último partido
+  // general solo haya enfrentado a 2 de ellos.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
-    const jugadoresDelEquipo = [...jugadoresDeLaJornada]
+    const resumenDelEquipo = [...resumenesPartidos]
+      .reverse()
+      .find((resumen) =>
+        resumen.jugadoresPartido.some(
+          (jugador) =>
+            jugador.equipo === equipo.nombre &&
+            (Number(jugador.puntosPartido || 0) > 0 ||
+              Number(jugador.rebotesPartido || 0) > 0 ||
+              Number(jugador.asistenciasPartido || 0) > 0)
+        )
+      );
+
+    const jugadoresDelEquipo = [...(resumenDelEquipo?.jugadoresPartido ?? [])]
       .filter(
         (jugador) =>
           jugador.equipo === equipo.nombre &&
-          (
-            Number(jugador.puntosPartido) > 0 ||
-            Number(jugador.rebotesPartido) > 0 ||
-            Number(jugador.asistenciasPartido) > 0
-          )
+          Number(jugador.puntosPartido || 0) > 0
       )
-      .sort((a, b) => {
-        const valorA =
-          Number(a.puntosPartido || 0) +
-          Number(a.rebotesPartido || 0) +
-          Number(a.asistenciasPartido || 0);
-        const valorB =
-          Number(b.puntosPartido || 0) +
-          Number(b.rebotesPartido || 0) +
-          Number(b.asistenciasPartido || 0);
-
-        return (
-          valorB - valorA ||
+      .sort(
+        (a, b) =>
           Number(b.puntosPartido || 0) - Number(a.puntosPartido || 0) ||
           Number(b.rebotesPartido || 0) - Number(a.rebotesPartido || 0) ||
-          Number(b.asistenciasPartido || 0) -
-            Number(a.asistenciasPartido || 0)
-        );
-      })
+          Number(b.asistenciasPartido || 0) - Number(a.asistenciasPartido || 0)
+      )
       .slice(0, 2);
 
     return {
@@ -941,7 +843,7 @@ const ultimosResultados = [...partidosActuales]
 </h2>
       <p className="mt-1 text-sm font-black uppercase tracking-wide text-blue-600">
         {partidoResumen
-          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR`
+          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR · ÚLTIMO FINALIZADO`
           : "SERIE REGULAR · PENDIENTE"}
       </p>
     </div>
@@ -1204,7 +1106,9 @@ const ultimosResultados = [...partidosActuales]
       </div>
 
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
-        Primer partido · Serie Regular #1
+        {partidoResumen
+          ? `Partido ${numeroPartidoResumen} · Último partido finalizado`
+          : "Serie Regular · Pendiente"}
       </p>
 
       <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
@@ -1901,7 +1805,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-red-700 font-black">
-                {Number(jugador.puntosTotales ?? 0)} PTS
+                {jugador.ppg} PPG
               </p>
 
             </div>
@@ -1947,7 +1851,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-purple-700 font-black">
-                {Number(jugador.rebotesTotales ?? 0)} REB
+                {jugador.rpg} RPG
               </p>
 
             </div>
@@ -1993,7 +1897,7 @@ const ultimosResultados = [...partidosActuales]
               </div>
 
               <p className="text-yellow-600 font-black">
-                {Number(jugador.asistenciasTotales ?? 0)} AST
+                {jugador.apg} APG
               </p>
 
             </div>
