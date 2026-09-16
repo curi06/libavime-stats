@@ -40,104 +40,138 @@ export default function Estadisticas() {
   }
 
   async function cargarJugadores() {
-  const [
-    { data: jugadoresData, error: jugadoresError },
-    { data: estadisticasData, error: estadisticasError },
-  ] = await Promise.all([
-    supabase
-      .from("jugadores")
-      .select("*")
-      .order("nombre"),
+    const [
+      { data: jugadoresData, error: jugadoresError },
+      { data: estadisticasData, error: estadisticasError },
+      { data: partidosData, error: partidosError },
+    ] = await Promise.all([
+      supabase
+        .from("jugadores")
+        .select("*")
+        .order("nombre"),
 
-    supabase
-      .from("estadisticas_jugadores")
-      .select(`
-        jugador_id,
-        ppg,
-        rpg,
-        apg,
-        partidos_jugados
-      `),
-  ]);
+      supabase
+        .from("estadisticas_partido")
+        .select(`
+          jugador_id,
+          partido_id,
+          puntos,
+          rebotes,
+          asistencias
+        `),
 
-  if (jugadoresError) {
-    console.error(
-      "Error cargando jugadores:",
-      jugadoresError
+      supabase
+        .from("partidos")
+        .select("*")
+        .eq("estado", "Finalizado"),
+    ]);
+
+    if (jugadoresError) {
+      console.error("Error cargando jugadores:", jugadoresError);
+      return;
+    }
+
+    if (estadisticasError) {
+      console.error("Error cargando estadísticas por partido:", estadisticasError);
+      return;
+    }
+
+    if (partidosError) {
+      console.error("Error cargando partidos:", partidosError);
+      return;
+    }
+
+    const partidosFinalizados = new Set(
+      (partidosData ?? []).map((partido: any) => Number(partido.id))
     );
-    return;
-  }
 
-  if (estadisticasError) {
-    console.error(
-      "Error cargando estadísticas:",
-      estadisticasError
-    );
-    return;
-  }
+    // ============================================================
+    // ESTADÍSTICAS OFICIALES
+    // Se calculan directamente partido por partido.
+    //
+    // PTS = suma de puntos de todos los partidos finalizados
+    // REB = suma de rebotes de todos los partidos finalizados
+    // AST = suma de asistencias de todos los partidos finalizados
+    // JJ  = cantidad de partidos finalizados con registro estadístico
+    //
+    // Luego:
+    // PPG = PTS / JJ
+    // RPG = REB / JJ
+    // APG = AST / JJ
+    // ============================================================
 
-  const estadisticasPorJugador = new Map(
-    (estadisticasData ?? []).map(
-      (estadistica: any) => [
-        Number(estadistica.jugador_id),
-        estadistica,
-      ]
-    )
-  );
+    const acumuladosPorJugador = new Map<
+      number,
+      {
+        partidos: Set<number>;
+        puntos: number;
+        rebotes: number;
+        asistencias: number;
+      }
+    >();
 
-  const jugadoresConEstadisticas =
-    (jugadoresData ?? []).map(
-      (jugador: any) => {
-        const estadisticas =
-          estadisticasPorJugador.get(
-            Number(jugador.id)
-          );
+    (estadisticasData ?? []).forEach((registro: any) => {
+      const jugadorId = Number(registro.jugador_id);
+      const partidoId = Number(registro.partido_id);
 
-        const partidosJugados =
-          Number(
-            estadisticas?.partidos_jugados
-          ) || 0;
+      // Solo cuentan partidos oficialmente finalizados.
+      if (!partidosFinalizados.has(partidoId)) return;
 
-        const ppg =
-          Number(estadisticas?.ppg) || 0;
+      if (!acumuladosPorJugador.has(jugadorId)) {
+        acumuladosPorJugador.set(jugadorId, {
+          partidos: new Set<number>(),
+          puntos: 0,
+          rebotes: 0,
+          asistencias: 0,
+        });
+      }
 
-        const rpg =
-          Number(estadisticas?.rpg) || 0;
+      const acumulado = acumuladosPorJugador.get(jugadorId)!;
 
-        const apg =
-          Number(estadisticas?.apg) || 0;
+      acumulado.partidos.add(partidoId);
+      acumulado.puntos += Number(registro.puntos) || 0;
+      acumulado.rebotes += Number(registro.rebotes) || 0;
+      acumulado.asistencias += Number(registro.asistencias) || 0;
+    });
+
+    const jugadoresConEstadisticas =
+      (jugadoresData ?? []).map((jugador: any) => {
+        const acumulado = acumuladosPorJugador.get(Number(jugador.id));
+
+        const partidosJugados = acumulado?.partidos.size ?? 0;
+        const puntosTotales = acumulado?.puntos ?? 0;
+        const rebotesTotales = acumulado?.rebotes ?? 0;
+        const asistenciasTotales = acumulado?.asistencias ?? 0;
 
         return {
           ...jugador,
 
-          puntosTotales:
-            Number(
-              (ppg * partidosJugados).toFixed(1)
-            ),
-
-          rebotesTotales:
-            Number(
-              (rpg * partidosJugados).toFixed(1)
-            ),
-
-          asistenciasTotales:
-            Number(
-              (apg * partidosJugados).toFixed(1)
-            ),
+          puntosTotales,
+          rebotesTotales,
+          asistenciasTotales,
 
           partidosJugados,
 
-          ppg,
+          ppg:
+            partidosJugados > 0
+              ? Number((puntosTotales / partidosJugados).toFixed(1))
+              : 0,
 
-          rpg,
+          rpg:
+            partidosJugados > 0
+              ? Number((rebotesTotales / partidosJugados).toFixed(1))
+              : 0,
 
-          apg,
+          apg:
+            partidosJugados > 0
+              ? Number((asistenciasTotales / partidosJugados).toFixed(1))
+              : 0,
         };
-      }
-    );
+      });
 
-  setJugadores(jugadoresConEstadisticas);
-}
+    setJugadores(jugadoresConEstadisticas);
+  }
+
   async function cargarTabla() {
     const { data, error } = await supabase
       .from("partidos")
@@ -258,49 +292,48 @@ export default function Estadisticas() {
     setTabla(tablaFinal);
   }
 
-  const jugadoresOrdenados = [...jugadores].sort(
-    (a, b) => {
-      const puntos =
-        Number(b.ppg) - Number(a.ppg);
+  // ============================================================
+  // RANKING GENERAL
+  // Los lideratos se ordenan por TOTALES acumulados, no por promedio.
+  // ============================================================
 
-      if (puntos !== 0) {
-        return puntos;
-      }
+  const jugadoresOrdenados = [...jugadores].sort((a, b) => {
+    const puntos = Number(b.puntosTotales ?? 0) - Number(a.puntosTotales ?? 0);
 
-      const rebotes =
-        Number(b.rpg) - Number(a.rpg);
+    if (puntos !== 0) return puntos;
 
-      if (rebotes !== 0) {
-        return rebotes;
-      }
+    const rebotes =
+      Number(b.rebotesTotales ?? 0) - Number(a.rebotesTotales ?? 0);
 
-      const asistencias =
-        Number(b.apg) - Number(a.apg);
+    if (rebotes !== 0) return rebotes;
 
-      if (asistencias !== 0) {
-        return asistencias;
-      }
+    const asistencias =
+      Number(b.asistenciasTotales ?? 0) -
+      Number(a.asistenciasTotales ?? 0);
 
-      return String(
-        a.nombre ?? ""
-      ).localeCompare(
-        String(b.nombre ?? "")
-      );
-    }
-  );
+    if (asistencias !== 0) return asistencias;
+
+    return String(a.nombre ?? "").localeCompare(
+      String(b.nombre ?? "")
+    );
+  });
 
   // ==========================================
   // LIDERATOS COMPLETOS DE LA LIGA
-  // Se incluyen todos los jugadores registrados.
+  // CRITERIO: TOTAL ACUMULADO
   // ==========================================
 
   const rankingPuntos = [...jugadores].sort((a, b) => {
-    const diferencia = Number(b.ppg ?? 0) - Number(a.ppg ?? 0);
+    const diferencia =
+      Number(b.puntosTotales ?? 0) - Number(a.puntosTotales ?? 0);
+
     if (diferencia !== 0) return diferencia;
 
-    const diferenciaTotal =
-      Number(b.puntosTotales ?? 0) - Number(a.puntosTotales ?? 0);
-    if (diferenciaTotal !== 0) return diferenciaTotal;
+    const jj =
+      Number(b.partidosJugados ?? 0) -
+      Number(a.partidosJugados ?? 0);
+
+    if (jj !== 0) return jj;
 
     return String(a.nombre ?? "").localeCompare(
       String(b.nombre ?? "")
@@ -308,12 +341,16 @@ export default function Estadisticas() {
   });
 
   const rankingRebotes = [...jugadores].sort((a, b) => {
-    const diferencia = Number(b.rpg ?? 0) - Number(a.rpg ?? 0);
+    const diferencia =
+      Number(b.rebotesTotales ?? 0) - Number(a.rebotesTotales ?? 0);
+
     if (diferencia !== 0) return diferencia;
 
-    const diferenciaTotal =
-      Number(b.rebotesTotales ?? 0) - Number(a.rebotesTotales ?? 0);
-    if (diferenciaTotal !== 0) return diferenciaTotal;
+    const jj =
+      Number(b.partidosJugados ?? 0) -
+      Number(a.partidosJugados ?? 0);
+
+    if (jj !== 0) return jj;
 
     return String(a.nombre ?? "").localeCompare(
       String(b.nombre ?? "")
@@ -321,12 +358,17 @@ export default function Estadisticas() {
   });
 
   const rankingAsistencias = [...jugadores].sort((a, b) => {
-    const diferencia = Number(b.apg ?? 0) - Number(a.apg ?? 0);
+    const diferencia =
+      Number(b.asistenciasTotales ?? 0) -
+      Number(a.asistenciasTotales ?? 0);
+
     if (diferencia !== 0) return diferencia;
 
-    const diferenciaTotal =
-      Number(b.asistenciasTotales ?? 0) - Number(a.asistenciasTotales ?? 0);
-    if (diferenciaTotal !== 0) return diferenciaTotal;
+    const jj =
+      Number(b.partidosJugados ?? 0) -
+      Number(a.partidosJugados ?? 0);
+
+    if (jj !== 0) return jj;
 
     return String(a.nombre ?? "").localeCompare(
       String(b.nombre ?? "")
@@ -503,7 +545,7 @@ export default function Estadisticas() {
 
       const crearPaginaRanking = (
         lista: any[],
-        campo: "ppg" | "rpg" | "apg",
+        campo: "puntosTotales" | "rebotesTotales" | "asistenciasTotales",
         titulo: string,
         subtitulo: string,
         inicio: number,
@@ -516,7 +558,7 @@ export default function Estadisticas() {
           String(jugador.nombre ?? ""),
           String(jugador.equipo ?? "—"),
           String(jugador.partidosJugados ?? 0),
-          Number(jugador[campo] ?? 0).toFixed(1),
+          Number(jugador[campo] ?? 0),
         ]);
 
         dibujarEncabezadoLideratos(
@@ -534,11 +576,11 @@ export default function Estadisticas() {
               "JUGADOR",
               "EQUIPO",
               "JJ",
-              campo === "ppg"
-                ? "PUNTOS POR PARTIDO"
-                : campo === "rpg"
-                ? "REBOTES POR PARTIDO"
-                : "ASISTENCIAS POR PARTIDO",
+              campo === "puntosTotales"
+                ? "PUNTOS TOTALES"
+                : campo === "rebotesTotales"
+                ? "REBOTES TOTALES"
+                : "ASISTENCIAS TOTALES",
             ],
           ],
           body: filas,
@@ -604,21 +646,21 @@ export default function Estadisticas() {
       const rankings = [
         {
           lista: rankingPuntos,
-          campo: "ppg" as const,
+          campo: "puntosTotales" as const,
           titulo: "LÍDERES EN PUNTOS",
-          subtitulo: "Promedio de puntos por partido · Mayor a menor",
+          subtitulo: "Puntos totales acumulados · Mayor a menor",
         },
         {
           lista: rankingRebotes,
-          campo: "rpg" as const,
+          campo: "rebotesTotales" as const,
           titulo: "LÍDERES EN REBOTES",
-          subtitulo: "Promedio de rebotes por partido · Mayor a menor",
+          subtitulo: "Rebotes totales acumulados · Mayor a menor",
         },
         {
           lista: rankingAsistencias,
-          campo: "apg" as const,
+          campo: "asistenciasTotales" as const,
           titulo: "LÍDERES EN ASISTENCIAS",
-          subtitulo: "Promedio de asistencias por partido · Mayor a menor",
+          subtitulo: "Asistencias totales acumuladas · Mayor a menor",
         },
       ];
 
@@ -1982,7 +2024,7 @@ export default function Estadisticas() {
                     🏀 LÍDERES EN PUNTOS
                   </h3>
                   <p className="text-red-100 text-sm mt-1">
-                    Ranking 1–44 · PPG
+                    Ranking 1–44 · PUNTOS TOTALES
                   </p>
                 </div>
 
@@ -2069,7 +2111,7 @@ export default function Estadisticas() {
                     💪 LÍDERES EN REBOTES
                   </h3>
                   <p className="text-purple-100 text-sm mt-1">
-                    Ranking 1–44 · RPG
+                    Ranking 1–44 · REBOTES TOTALES
                   </p>
                 </div>
 
@@ -2156,7 +2198,7 @@ export default function Estadisticas() {
                     🎯 LÍDERES EN ASISTENCIAS
                   </h3>
                   <p className="text-yellow-100 text-sm mt-1">
-                    Ranking 1–44 · APG
+                    Ranking 1–44 · ASISTENCIAS TOTALES
                   </p>
                 </div>
 
