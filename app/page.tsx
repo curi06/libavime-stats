@@ -384,35 +384,38 @@ useEffect(() => {
   // Líderes oficiales de la jornada: usamos las estadísticas oficiales
   // de jugadores (PPG/RPG/APG), que son las que alimentan el ranking.
   // En asistencias, Fernando Valenzuela gana el empate oficial de 7 AST.
-  const maximoAnotador = [...jugadores]
-    .filter((jugador) => Number(jugador.ppg) > 0)
-    .sort((a, b) =>
-      Number(b.ppg) - Number(a.ppg) ||
-      Number(b.rpg) - Number(a.rpg) ||
-      Number(b.apg) - Number(a.apg)
-    )[0] ?? null;
+  // LÍDERES DE LA JORNADA: salen directamente de estadisticas_partido.
+  const jugadoresDeLaJornada = resumenSeleccionado?.jugadoresPartido ?? [];
 
-  const maximoReboteador = [...jugadores]
-    .filter((jugador) => Number(jugador.rpg) > 0)
-    .sort((a, b) =>
-      Number(b.rpg) - Number(a.rpg) ||
-      Number(b.ppg) - Number(a.ppg) ||
-      Number(b.apg) - Number(a.apg)
-    )[0] ?? null;
+  const maximoAnotador =
+    [...jugadoresDeLaJornada]
+      .filter((jugador) => Number(jugador.puntosPartido) > 0)
+      .sort(
+        (a, b) =>
+          Number(b.puntosPartido) - Number(a.puntosPartido) ||
+          Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
+          Number(b.asistenciasPartido) - Number(a.asistenciasPartido)
+      )[0] ?? null;
 
-  const maximoAsistidor = [...jugadores]
-    .filter((jugador) => Number(jugador.apg) > 0)
-    .sort((a, b) => {
-      const diferencia = Number(b.apg) - Number(a.apg);
-      if (diferencia !== 0) return diferencia;
-      if (a.nombre === "Fernando Valenzuela") return -1;
-      if (b.nombre === "Fernando Valenzuela") return 1;
-      return Number(b.ppg) - Number(a.ppg) || Number(b.rpg) - Number(a.rpg);
-    })[0] ?? null;
+  const maximoReboteador =
+    [...jugadoresDeLaJornada]
+      .filter((jugador) => Number(jugador.rebotesPartido) > 0)
+      .sort(
+        (a, b) =>
+          Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
+          Number(b.puntosPartido) - Number(a.puntosPartido) ||
+          Number(b.asistenciasPartido) - Number(a.asistenciasPartido)
+      )[0] ?? null;
 
-  if (maximoAnotador) maximoAnotador.puntosPartido = Number(maximoAnotador.ppg);
-  if (maximoReboteador) maximoReboteador.rebotesPartido = Number(maximoReboteador.rpg);
-  if (maximoAsistidor) maximoAsistidor.asistenciasPartido = Number(maximoAsistidor.apg);
+  const maximoAsistidor =
+    [...jugadoresDeLaJornada]
+      .filter((jugador) => Number(jugador.asistenciasPartido) > 0)
+      .sort(
+        (a, b) =>
+          Number(b.asistenciasPartido) - Number(a.asistenciasPartido) ||
+          Number(b.puntosPartido) - Number(a.puntosPartido) ||
+          Number(b.rebotesPartido) - Number(a.rebotesPartido)
+      )[0] ?? null;
 
   const numeroPartidoResumen = partidoResumen ? 1 : 0;
 
@@ -428,22 +431,33 @@ useEffect(() => {
   // JUGADORES DESTACADOS - 2 JUGADORES POR EQUIPO
   // =========================================================
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
-    const jugadoresDelEquipo = jugadores
+    const jugadoresDelEquipo = [...jugadoresDeLaJornada]
       .filter(
         (jugador) =>
           jugador.equipo === equipo.nombre &&
-          Number(jugador.partidos_jugados) > 0
+          (
+            Number(jugador.puntosPartido) > 0 ||
+            Number(jugador.rebotesPartido) > 0 ||
+            Number(jugador.asistenciasPartido) > 0
+          )
       )
       .sort((a, b) => {
         const valorA =
-          Number(a.ppg || 0) +
-          Number(a.rpg || 0) +
-          Number(a.apg || 0);
+          Number(a.puntosPartido || 0) +
+          Number(a.rebotesPartido || 0) +
+          Number(a.asistenciasPartido || 0);
         const valorB =
-          Number(b.ppg || 0) +
-          Number(b.rpg || 0) +
-          Number(b.apg || 0);
-        return valorB - valorA;
+          Number(b.puntosPartido || 0) +
+          Number(b.rebotesPartido || 0) +
+          Number(b.asistenciasPartido || 0);
+
+        return (
+          valorB - valorA ||
+          Number(b.puntosPartido || 0) - Number(a.puntosPartido || 0) ||
+          Number(b.rebotesPartido || 0) - Number(a.rebotesPartido || 0) ||
+          Number(b.asistenciasPartido || 0) -
+            Number(a.asistenciasPartido || 0)
+        );
       })
       .slice(0, 2);
 
@@ -1505,7 +1519,7 @@ const ultimosResultados = [...partidosActuales]
           }
         `}
       >
-        {Number(jugador.ppg || 0).toFixed(1)}
+        {Number(jugador.puntosPartido || 0)}
       </p>
     </div>
 
@@ -1555,7 +1569,7 @@ const ultimosResultados = [...partidosActuales]
           }
         `}
       >
-        {Number(jugador.rpg || 0).toFixed(1)}
+        {Number(jugador.rebotesPartido || 0)}
       </p>
     </div>
 
@@ -1605,7 +1619,7 @@ const ultimosResultados = [...partidosActuales]
           }
         `}
       >
-        {Number(jugador.apg || 0).toFixed(1)}
+        {Number(jugador.asistenciasPartido || 0)}
       </p>
     </div>
 
