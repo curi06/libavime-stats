@@ -360,31 +360,30 @@ useEffect(() => {
   };
 
   /*
-   * Buscamos primero el Partido 1 que contiene los datos oficiales
-   * indicados arriba. Así no confundimos un partido de prueba/histórico
-   * con el verdadero primer partido de la Serie Regular.
+   * RESUMEN DINÁMICO DE LA JORNADA
+   *
+   * Se toman únicamente partidos finalizados de la Serie Regular que
+   * tengan estadísticas registradas.
+   *
+   * IMPORTANTE:
+   * - Siempre se muestra el ÚLTIMO partido con estadísticas.
+   * - Al registrar un nuevo partido, la página de inicio cambia
+   *   automáticamente al nuevo partido.
+   * - Todas las estadísticas mostradas salen de estadisticas_partido.
    */
   const resumenesPartidos = partidosFinalizadosSerieRegular
     .map(construirResumenDePartido)
     .filter((resumen) => resumen.jugadoresPartido.length > 0);
 
-  // =========================================================
-  // SELECCIÓN OFICIAL DEL RESUMEN DE LA JORNADA
-  // =========================================================
-  // El primer partido oficial de la Serie Regular es la jornada que
-  // alimenta estas tres tarjetas. Los líderes se calculan desde
-  // estadisticas_partido, nunca desde PPG/RPG/APG.
-  //
-  // En caso de empate en asistencias, la clasificación oficial de la
-  // jornada coloca a Fernando Valenzuela como líder.
-  const resumenSeleccionado = resumenesPartidos[0] ?? null;
+  const indiceResumenSeleccionado = resumenesPartidos.length - 1;
+  const resumenSeleccionado =
+    indiceResumenSeleccionado >= 0
+      ? resumenesPartidos[indiceResumenSeleccionado]
+      : null;
 
   const partidoResumen = resumenSeleccionado?.partido ?? null;
 
-  // Líderes oficiales de la jornada: usamos las estadísticas oficiales
-  // de jugadores (PPG/RPG/APG), que son las que alimentan el ranking.
-  // En asistencias, Fernando Valenzuela gana el empate oficial de 7 AST.
-  // LÍDERES DE LA JORNADA: salen directamente de estadisticas_partido.
+  // Líderes del ÚLTIMO partido finalizado.
   const jugadoresDeLaJornada = resumenSeleccionado?.jugadoresPartido ?? [];
 
   const maximoAnotador =
@@ -417,7 +416,8 @@ useEffect(() => {
           Number(b.rebotesPartido) - Number(a.rebotesPartido)
       )[0] ?? null;
 
-  const numeroPartidoResumen = partidoResumen ? 1 : 0;
+  const numeroPartidoResumen =
+    indiceResumenSeleccionado >= 0 ? indiceResumenSeleccionado + 1 : 0;
 
   const obtenerFotoJugador = (jugador: any) =>
     jugador?.foto &&
@@ -428,37 +428,25 @@ useEffect(() => {
 
 
   // =========================================================
-  // JUGADORES DESTACADOS - 2 JUGADORES POR EQUIPO
+  // JUGADORES DESTACADOS - 2 CON MÁS PUNTOS POR EQUIPO
   // =========================================================
+  // Los protagonistas de cada equipo se determinan EXCLUSIVAMENTE
+  // por los puntos anotados en el último partido finalizado.
+  // Las tarjetas muestran además REB y AST de ese mismo partido.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
     const jugadoresDelEquipo = [...jugadoresDeLaJornada]
       .filter(
         (jugador) =>
           jugador.equipo === equipo.nombre &&
-          (
-            Number(jugador.puntosPartido) > 0 ||
-            Number(jugador.rebotesPartido) > 0 ||
-            Number(jugador.asistenciasPartido) > 0
-          )
+          Number(jugador.puntosPartido || 0) > 0
       )
-      .sort((a, b) => {
-        const valorA =
-          Number(a.puntosPartido || 0) +
-          Number(a.rebotesPartido || 0) +
-          Number(a.asistenciasPartido || 0);
-        const valorB =
-          Number(b.puntosPartido || 0) +
-          Number(b.rebotesPartido || 0) +
-          Number(b.asistenciasPartido || 0);
-
-        return (
-          valorB - valorA ||
+      .sort(
+        (a, b) =>
           Number(b.puntosPartido || 0) - Number(a.puntosPartido || 0) ||
           Number(b.rebotesPartido || 0) - Number(a.rebotesPartido || 0) ||
           Number(b.asistenciasPartido || 0) -
             Number(a.asistenciasPartido || 0)
-        );
-      })
+      )
       .slice(0, 2);
 
     return {
@@ -844,7 +832,7 @@ const ultimosResultados = [...partidosActuales]
 </h2>
       <p className="mt-1 text-sm font-black uppercase tracking-wide text-blue-600">
         {partidoResumen
-          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR`
+          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR · ÚLTIMO FINALIZADO`
           : "SERIE REGULAR · PENDIENTE"}
       </p>
     </div>
@@ -1107,7 +1095,9 @@ const ultimosResultados = [...partidosActuales]
       </div>
 
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
-        Primer partido · Serie Regular #1
+        {partidoResumen
+          ? `Partido ${numeroPartidoResumen} · Último partido finalizado`
+          : "Serie Regular · Pendiente"}
       </p>
 
       <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />

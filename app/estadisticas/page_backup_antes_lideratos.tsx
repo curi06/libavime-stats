@@ -1,16 +1,41 @@
 "use client";
 
-import Navbar from "../components/Navbar";
-import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function Estadisticas() {
-  const [tabla, setTabla] = useState<any[]>([]);
-  const [jugadores, setJugadores] = useState<any[]>([]);
+type Jugador = {
+  id: number;
+  nombre: string;
+  equipo: string | null;
+};
+
+type Partido = {
+  id: number;
+  equipo_local: string | null;
+  equipo_visitante: string | null;
+  fecha: string | null;
+};
+
+type Estadistica = {
+  jugador_id: number;
+  puntos: number;
+  rebotes: number;
+  asistencias: number;
+};
+
+export default function AdminEstadisticasPage() {
+  const [partidos, setPartidos] = useState<Partido[]>([]);
+  const [jugadores, setJugadores] = useState<Jugador[]>([]);
+  const [partidoSeleccionado, setPartidoSeleccionado] =
+    useState<string>("");
+
+  const [estadisticas, setEstadisticas] = useState<
+    Record<number, Estadistica>
+  >({});
+
   const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -18,1475 +43,466 @@ export default function Estadisticas() {
 
   async function cargarDatos() {
     setCargando(true);
-    setErrorCarga("");
+    setMensaje("");
 
-    try {
-      await Promise.all([
-        cargarTabla(),
-        cargarJugadores(),
-      ]);
-    } catch (error) {
-      console.error(
-        "Error general cargando estadísticas:",
-        error
+    const { data: partidosData, error: partidosError } =
+      await supabase
+        .from("partidos")
+        .select(
+          "id, equipo_local, equipo_visitante, fecha"
+        )
+        .order("fecha", { ascending: false });
+
+    const { data: jugadoresData, error: jugadoresError } =
+      await supabase
+        .from("jugadores")
+        .select("id, nombre, equipo")
+        .order("nombre");
+
+    console.log("PARTIDOS:", partidosData);
+    console.log("JUGADORES:", jugadoresData);
+    console.log("ERROR PARTIDOS:", partidosError);
+    console.log("ERROR JUGADORES:", jugadoresError);
+
+    if (partidosError) {
+      console.error(partidosError);
+      setMensaje(
+        `Error al cargar partidos: ${partidosError.message}`
       );
-
-      setErrorCarga(
-        "Ocurrió un error al cargar las estadísticas."
-      );
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  async function cargarJugadores() {
-  const [
-    { data: jugadoresData, error: jugadoresError },
-    { data: estadisticasData, error: estadisticasError },
-  ] = await Promise.all([
-    supabase
-      .from("jugadores")
-      .select("*")
-      .order("nombre"),
-
-    supabase
-      .from("estadisticas_jugadores")
-      .select(`
-        jugador_id,
-        ppg,
-        rpg,
-        apg,
-        partidos_jugados
-      `),
-  ]);
-
-  if (jugadoresError) {
-    console.error(
-      "Error cargando jugadores:",
-      jugadoresError
-    );
-    return;
-  }
-
-  if (estadisticasError) {
-    console.error(
-      "Error cargando estadísticas:",
-      estadisticasError
-    );
-    return;
-  }
-
-  const estadisticasPorJugador = new Map(
-    (estadisticasData ?? []).map(
-      (estadistica: any) => [
-        Number(estadistica.jugador_id),
-        estadistica,
-      ]
-    )
-  );
-
-  const jugadoresConEstadisticas =
-    (jugadoresData ?? []).map(
-      (jugador: any) => {
-        const estadisticas =
-          estadisticasPorJugador.get(
-            Number(jugador.id)
-          );
-
-        const partidosJugados =
-          Number(
-            estadisticas?.partidos_jugados
-          ) || 0;
-
-        const ppg =
-          Number(estadisticas?.ppg) || 0;
-
-        const rpg =
-          Number(estadisticas?.rpg) || 0;
-
-        const apg =
-          Number(estadisticas?.apg) || 0;
-
-        return {
-          ...jugador,
-
-          puntosTotales:
-            Number(
-              (ppg * partidosJugados).toFixed(1)
-            ),
-
-          rebotesTotales:
-            Number(
-              (rpg * partidosJugados).toFixed(1)
-            ),
-
-          asistenciasTotales:
-            Number(
-              (apg * partidosJugados).toFixed(1)
-            ),
-
-          partidosJugados,
-
-          ppg,
-
-          rpg,
-
-          apg,
-        };
-      }
-    );
-
-  setJugadores(jugadoresConEstadisticas);
-}
-  async function cargarTabla() {
-    const { data, error } = await supabase
-      .from("partidos")
-      .select("*")
-      .eq("estado", "Finalizado");
-
-    if (error) {
-      console.error(
-        "Error cargando tabla:",
-        error
-      );
-
-      throw error;
     }
 
-    if (!data) {
-      setTabla([]);
+    if (jugadoresError) {
+      console.error(jugadoresError);
+      setMensaje(
+        `Error al cargar jugadores: ${jugadoresError.message}`
+      );
+    }
+
+    if (!partidosError) {
+      setPartidos(
+        (partidosData ?? []) as Partido[]
+      );
+    }
+
+    if (!jugadoresError) {
+      setJugadores(
+        (jugadoresData ?? []) as Jugador[]
+      );
+    }
+
+    setCargando(false);
+  }
+
+  async function seleccionarPartido(partidoId: string) {
+    setPartidoSeleccionado(partidoId);
+    setMensaje("");
+    setEstadisticas({});
+
+    if (!partidoId) {
       return;
     }
 
-    const posiciones: any = {};
+    const { data, error } = await supabase
+      .from("estadisticas_partido")
+      .select(
+        "jugador_id, puntos, rebotes, asistencias"
+      )
+      .eq("partido_id", Number(partidoId));
 
-    data.forEach((partido: any) => {
-      const local =
-        partido.equipo_local ??
-        partido.local ??
-        "";
+    if (error) {
+      console.error(error);
+      setMensaje(
+        `Error al cargar estadísticas: ${error.message}`
+      );
+      return;
+    }
 
-      const visitante =
-        partido.equipo_visitante ??
-        partido.visitante ??
-        "";
+    const estadisticasExistentes: Record<
+      number,
+      Estadistica
+    > = {};
 
-      const puntosLocal =
-        partido.puntos_local ??
-        partido.puntosLocal;
-
-      const puntosVisitante =
-        partido.puntos_visitante ??
-        partido.puntosVisitante;
-
-      if (
-        !local ||
-        !visitante ||
-        puntosLocal === null ||
-        puntosLocal === undefined ||
-        puntosVisitante === null ||
-        puntosVisitante === undefined
-      ) {
-        return;
-      }
-
-      if (!posiciones[local]) {
-        posiciones[local] = {
-          equipo: local,
-          pj: 0,
-          pg: 0,
-          pp: 0,
-          pts: 0,
-        };
-      }
-
-      if (!posiciones[visitante]) {
-        posiciones[visitante] = {
-          equipo: visitante,
-          pj: 0,
-          pg: 0,
-          pp: 0,
-          pts: 0,
-        };
-      }
-
-      posiciones[local].pj++;
-      posiciones[visitante].pj++;
-
-      if (
-        Number(puntosLocal) >
-        Number(puntosVisitante)
-      ) {
-        posiciones[local].pg++;
-        posiciones[local].pts += 2;
-
-        posiciones[visitante].pp++;
-        posiciones[visitante].pts += 1;
-      } else if (
-        Number(puntosVisitante) >
-        Number(puntosLocal)
-      ) {
-        posiciones[visitante].pg++;
-        posiciones[visitante].pts += 2;
-
-        posiciones[local].pp++;
-        posiciones[local].pts += 1;
-      } else {
-        posiciones[local].pts += 1;
-        posiciones[visitante].pts += 1;
-      }
+    (data ?? []).forEach((estadistica) => {
+      estadisticasExistentes[
+        Number(estadistica.jugador_id)
+      ] = {
+        jugador_id: Number(
+          estadistica.jugador_id
+        ),
+        puntos: Number(estadistica.puntos) || 0,
+        rebotes: Number(estadistica.rebotes) || 0,
+        asistencias:
+          Number(estadistica.asistencias) || 0,
+      };
     });
 
-    const tablaFinal = Object.values(
-      posiciones
-    ).sort(
-      (a: any, b: any) => {
-        if (b.pts !== a.pts) {
-          return b.pts - a.pts;
-        }
-
-        if (b.pg !== a.pg) {
-          return b.pg - a.pg;
-        }
-
-        return a.equipo.localeCompare(
-          b.equipo
-        );
-      }
-    );
-
-    setTabla(tablaFinal);
+    setEstadisticas(estadisticasExistentes);
   }
 
-  const jugadoresOrdenados = [...jugadores].sort(
-    (a, b) => {
-      const puntos =
-        Number(b.ppg) - Number(a.ppg);
-
-      if (puntos !== 0) {
-        return puntos;
-      }
-
-      const rebotes =
-        Number(b.rpg) - Number(a.rpg);
-
-      if (rebotes !== 0) {
-        return rebotes;
-      }
-
-      const asistencias =
-        Number(b.apg) - Number(a.apg);
-
-      if (asistencias !== 0) {
-        return asistencias;
-      }
-
-      return String(
-        a.nombre ?? ""
-      ).localeCompare(
-        String(b.nombre ?? "")
-      );
-    }
+  const partidoActual = partidos.find(
+    (partido) =>
+      partido.id === Number(partidoSeleccionado)
   );
 
-  async function exportarPDF() {
-    try {
-      if (jugadoresOrdenados.length === 0) {
-        alert(
-          "No hay jugadores disponibles para exportar."
+  const normalizarTexto = (texto: string | null) =>
+    (texto ?? "")
+      .trim()
+      .toLowerCase();
+
+  const jugadoresDelPartido = partidoActual
+    ? jugadores.filter((jugador) => {
+        const equipoJugador = normalizarTexto(
+          jugador.equipo
         );
-        return;
-      }
 
-      const jspdfModule = await import("jspdf");
-      const autoTableModule = await import("jspdf-autotable");
+        const equipoLocal = normalizarTexto(
+          partidoActual.equipo_local
+        );
 
-      const jsPDF = jspdfModule.default;
-      const autoTable =
-        (
-          autoTableModule.default ||
-          autoTableModule
-        ) as any;
+        const equipoVisitante = normalizarTexto(
+          partidoActual.equipo_visitante
+        );
 
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
+        return (
+          equipoJugador === equipoLocal ||
+          equipoJugador === equipoVisitante
+        );
+      })
+    : [];
 
-      const fecha = new Date().toLocaleDateString(
-        "es-DO",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }
+  function actualizarEstadistica(
+    jugadorId: number,
+    campo: "puntos" | "rebotes" | "asistencias",
+    valor: string
+  ) {
+    const numero =
+      valor === "" ? 0 : Number(valor);
+
+    setEstadisticas((actual) => ({
+      ...actual,
+
+      [jugadorId]: {
+        jugador_id: jugadorId,
+
+        puntos:
+          campo === "puntos"
+            ? numero
+            : actual[jugadorId]?.puntos ?? 0,
+
+        rebotes:
+          campo === "rebotes"
+            ? numero
+            : actual[jugadorId]?.rebotes ?? 0,
+
+        asistencias:
+          campo === "asistencias"
+            ? numero
+            : actual[jugadorId]?.asistencias ?? 0,
+      },
+    }));
+  }
+
+  async function guardarEstadisticas() {
+    if (!partidoSeleccionado) {
+      setMensaje(
+        "Selecciona un partido primero."
       );
-
-      const jugadoresExportacion =
-        jugadoresOrdenados.map((jugador, index) => ({
-          ...jugador,
-          posicion: index + 1,
-        }));
-
-      const obtenerLider = (
-        campo: "puntosTotales" | "rebotesTotales" | "asistenciasTotales"
-      ) => {
-        const ordenados = [
-          ...jugadoresExportacion,
-        ].sort(
-          (a, b) =>
-            Number(b[campo] ?? 0) -
-            Number(a[campo] ?? 0)
-        );
-
-        return ordenados[0] ?? null;
-      };
-
-      const liderPuntos =
-        obtenerLider("puntosTotales");
-
-      const liderRebotes =
-        obtenerLider("rebotesTotales");
-
-      const liderAsistencias =
-        obtenerLider("asistenciasTotales");
-
-      const maxPuntos = Math.max(
-        ...jugadoresExportacion.map((jugador) =>
-          Number(jugador.puntosTotales ?? 0)
-        ),
-        0
-      );
-
-      const maxRebotes = Math.max(
-        ...jugadoresExportacion.map((jugador) =>
-          Number(jugador.rebotesTotales ?? 0)
-        ),
-        0
-      );
-
-      const maxAsistencias = Math.max(
-        ...jugadoresExportacion.map((jugador) =>
-          Number(jugador.asistenciasTotales ?? 0)
-        ),
-        0
-      );
-
-      let logoData: string | null = null;
-
-      try {
-        const respuesta = await fetch(
-          "/logos/LIBAVIME.png"
-        );
-
-        if (respuesta.ok) {
-          const blob = await respuesta.blob();
-
-          logoData = await new Promise<string>(
-            (resolve, reject) => {
-              const lector = new FileReader();
-
-              lector.onloadend = () => {
-                if (
-                  typeof lector.result === "string"
-                ) {
-                  resolve(lector.result);
-                } else {
-                  reject(
-                    new Error(
-                      "No se pudo convertir el logo"
-                    )
-                  );
-                }
-              };
-
-              lector.onerror = () => {
-                reject(
-                  new Error(
-                    "Error leyendo el logo"
-                  )
-                );
-              };
-
-              lector.readAsDataURL(blob);
-            }
-          );
-        }
-      } catch (error) {
-        console.error(
-          "No se pudo cargar el logo de LIBAVIME:",
-          error
-        );
-      }
-
-      const dibujarEncabezado = (
-        subtitulo = ""
-      ) => {
-        const pageWidth =
-          doc.internal.pageSize.getWidth();
-
-        const centro = pageWidth / 2;
-
-        // Primero se pinta el fondo del encabezado.
-        // El logo se agrega DESPUÉS para que nunca quede tapado.
-        doc.setFillColor(
-          247,
-          249,
-          252
-        );
-
-        doc.rect(
-          0,
-          0,
-          pageWidth,
-          39,
-          "F"
-        );
-
-        // Logo oficial LIBAVIME en la esquina superior izquierda.
-        // Esta función se ejecuta en las 3 páginas del PDF.
-        if (logoData) {
-          try {
-            const propiedades =
-              doc.getImageProperties(logoData);
-
-            const altoLogo = 28;
-
-            const anchoLogo =
-              (propiedades.width * altoLogo) /
-              propiedades.height;
-
-            doc.addImage(
-              logoData,
-              "PNG",
-              12,
-              5,
-              anchoLogo,
-              altoLogo
-            );
-          } catch (error) {
-            console.error(
-              "No se pudo insertar el logo de LIBAVIME en el PDF:",
-              error
-            );
-          }
-        }
-
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-
-        doc.setFontSize(18);
-
-        doc.setTextColor(
-          20,
-          50,
-          100
-        );
-
-        doc.text(
-          "ESTADÍSTICAS OFICIALES DE JUGADORES",
-          centro,
-          16,
-          {
-            align: "center",
-          }
-        );
-
-        doc.setFontSize(12);
-
-        doc.text(
-          "LIGA DE BALONCESTO DE VISITADORES MÉDICOS",
-          centro,
-          24,
-          {
-            align: "center",
-          }
-        );
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-
-        doc.setFontSize(9.5);
-
-        doc.setTextColor(
-          90,
-          90,
-          90
-        );
-
-        doc.text(
-          subtitulo ||
-            "TORNEO 2026 · LIBAVIME",
-          centro,
-          31,
-          {
-            align: "center",
-          }
-        );
-
-        doc.setDrawColor(
-          20,
-          50,
-          100
-        );
-
-        doc.setLineWidth(0.7);
-
-        doc.line(
-          12,
-          39,
-          pageWidth - 12,
-          39
-        );
-      };
-
-      const dibujarResumen = () => {
-        const pageWidth =
-          doc.internal.pageSize.getWidth();
-
-        const margen = 12;
-        const separacion = 4;
-        const cantidad = 4;
-
-        const anchoTotal =
-          pageWidth -
-          margen * 2 -
-          separacion * (cantidad - 1);
-
-        const anchoTarjeta =
-          anchoTotal / cantidad;
-
-        const y = 46;
-        const alto = 20;
-
-        const tarjetas = [
-          {
-            titulo: "LÍDER EN PUNTOS",
-            valor: liderPuntos
-              ? `${liderPuntos.nombre} · ${Number(
-                  liderPuntos.puntosTotales ?? 0
-                )} PTS`
-              : "Sin datos",
-            color: [188, 90, 42] as [
-              number,
-              number,
-              number
-            ],
-          },
-          {
-            titulo: "LÍDER EN REBOTES",
-            valor: liderRebotes
-              ? `${liderRebotes.nombre} · ${Number(
-                  liderRebotes.rebotesTotales ?? 0
-                )} REB`
-              : "Sin datos",
-            color: [88, 110, 171] as [
-              number,
-              number,
-              number
-            ],
-          },
-          {
-            titulo: "LÍDER EN ASISTENCIAS",
-            valor: liderAsistencias
-              ? `${liderAsistencias.nombre} · ${Number(
-                  liderAsistencias.asistenciasTotales ?? 0
-                )} AST`
-              : "Sin datos",
-            color: [161, 91, 31] as [
-              number,
-              number,
-              number
-            ],
-          },
-          {
-            titulo: "JUGADORES REGISTRADOS",
-            valor: `${jugadoresExportacion.length} jugadores`,
-            color: [20, 50, 100] as [
-              number,
-              number,
-              number
-            ],
-          },
-        ];
-
-        tarjetas.forEach(
-          (tarjeta, index) => {
-            const x =
-              margen +
-              index *
-                (anchoTarjeta + separacion);
-
-            doc.setFillColor(
-              255,
-              255,
-              255
-            );
-
-            doc.setDrawColor(
-              225,
-              230,
-              238
-            );
-
-            doc.roundedRect(
-              x,
-              y,
-              anchoTarjeta,
-              alto,
-              2,
-              2,
-              "FD"
-            );
-
-            doc.setFillColor(
-              ...tarjeta.color
-            );
-
-            doc.roundedRect(
-              x,
-              y,
-              2.8,
-              alto,
-              2,
-              2,
-              "F"
-            );
-
-            doc.setFont(
-              "helvetica",
-              "bold"
-            );
-
-            doc.setFontSize(7.5);
-
-            doc.setTextColor(
-              100,
-              100,
-              100
-            );
-
-            doc.text(
-              tarjeta.titulo,
-              x + 6,
-              y + 7
-            );
-
-            doc.setFontSize(9.5);
-
-            doc.setTextColor(
-              ...tarjeta.color
-            );
-
-            const valor =
-              doc.splitTextToSize(
-                tarjeta.valor,
-                anchoTarjeta - 10
-              );
-
-            doc.text(
-              valor,
-              x + 6,
-              y + 14
-            );
-          }
-        );
-      };
-
-      const dibujarPie = (
-        pagina: number,
-        totalPaginas: number
-      ) => {
-        const pageWidth =
-          doc.internal.pageSize.getWidth();
-
-        const pageHeight =
-          doc.internal.pageSize.getHeight();
-
-        doc.setDrawColor(
-          20,
-          50,
-          100
-        );
-
-        doc.setLineWidth(0.45);
-
-        doc.line(
-          12,
-          pageHeight - 14,
-          pageWidth - 12,
-          pageHeight - 14
-        );
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-
-        doc.setFontSize(7.5);
-
-        doc.setTextColor(
-          90,
-          90,
-          90
-        );
-
-        doc.text(
-          `Fecha de emisión: ${fecha}`,
-          12,
-          pageHeight - 7
-        );
-
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-
-        doc.setTextColor(
-          20,
-          50,
-          100
-        );
-
-        doc.text(
-          "Diseño y desarrollo: Emmi De La Cruz",
-          pageWidth / 2,
-          pageHeight - 7,
-          {
-            align: "center",
-          }
-        );
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-
-        doc.setTextColor(
-          90,
-          90,
-          90
-        );
-
-        doc.text(
-          `Página ${pagina} de ${totalPaginas}`,
-          pageWidth - 12,
-          pageHeight - 7,
-          {
-            align: "right",
-          }
-        );
-      };
-
-      const encabezados = [
-        [
-          "POS",
-          "JUGADOR",
-          "EQUIPO",
-          "JJ",
-          "PTS",
-          "PPG",
-          "REB",
-          "RPG",
-          "AST",
-          "APG",
-        ],
-      ];
-
-      const crearFilas = (
-        lista: any[]
-      ) =>
-        lista.map((jugador) => [
-          String(jugador.posicion),
-          String(jugador.nombre ?? ""),
-          String(jugador.equipo ?? ""),
-          String(
-            jugador.partidosJugados ?? 0
-          ),
-          String(
-            jugador.puntosTotales ?? 0
-          ),
-          Number(
-            jugador.ppg ?? 0
-          ).toFixed(1),
-          String(
-            jugador.rebotesTotales ?? 0
-          ),
-          Number(
-            jugador.rpg ?? 0
-          ).toFixed(1),
-          String(
-            jugador.asistenciasTotales ?? 0
-          ),
-          Number(
-            jugador.apg ?? 0
-          ).toFixed(1),
-        ]);
-
-      const estiloTabla = (
-        inicioY: number,
-        lista: any[]
-      ) => ({
-        startY: inicioY,
-        head: encabezados,
-        body: crearFilas(lista),
-        theme: "grid" as const,
-        tableWidth: 273,
-        margin: {
-          top: inicioY,
-          right: 12,
-          bottom: 18,
-          left: 12,
-        },
-        styles: {
-          fontSize: 7.4,
-          cellPadding: {
-            top: 1.35,
-            right: 1.5,
-            bottom: 1.35,
-            left: 1.5,
-          },
-          valign: "middle" as const,
-          lineColor: [
-            215,
-            220,
-            228,
-          ],
-          lineWidth: 0.15,
-          textColor: [
-            70,
-            75,
-            85,
-          ],
-        },
-        headStyles: {
-          fillColor: [
-            20,
-            50,
-            100,
-          ],
-          textColor: [
-            255,
-            255,
-            255,
-          ],
-          fontStyle: "bold" as const,
-          halign: "center" as const,
-          fontSize: 7.5,
-          cellPadding: 1.7,
-        },
-        alternateRowStyles: {
-          fillColor: [
-            247,
-            249,
-            252,
-          ],
-        },
-        columnStyles: {
-          0: {
-            halign: "center" as const,
-            cellWidth: 14,
-          },
-          1: {
-            cellWidth: 68,
-          },
-          2: {
-            cellWidth: 50,
-          },
-          3: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          4: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          5: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          6: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          7: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          8: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-          9: {
-            halign: "center" as const,
-            cellWidth: 20,
-          },
-        },
-        didParseCell: (
-          data: any
-        ) => {
-          if (
-            data.section !== "body"
-          ) {
-            return;
-          }
-
-          const jugador =
-            lista[data.row.index];
-
-          if (!jugador) return;
-
-          if (
-            data.column.index === 4 &&
-            maxPuntos > 0 &&
-            Number(
-              jugador.puntosTotales ?? 0
-            ) === maxPuntos
-          ) {
-            data.cell.styles.fillColor = [
-              255,
-              245,
-              230,
-            ];
-
-            data.cell.styles.textColor = [
-              160,
-              75,
-              25,
-            ];
-
-            data.cell.styles.fontStyle =
-              "bold";
-          }
-
-          if (
-            data.column.index === 6 &&
-            maxRebotes > 0 &&
-            Number(
-              jugador.rebotesTotales ?? 0
-            ) === maxRebotes
-          ) {
-            data.cell.styles.fillColor = [
-              238,
-              243,
-              255,
-            ];
-
-            data.cell.styles.textColor = [
-              55,
-              75,
-              145,
-            ];
-
-            data.cell.styles.fontStyle =
-              "bold";
-          }
-
-          if (
-            data.column.index === 8 &&
-            maxAsistencias > 0 &&
-            Number(
-              jugador.asistenciasTotales ?? 0
-            ) === maxAsistencias
-          ) {
-            data.cell.styles.fillColor = [
-              255,
-              246,
-              228,
-            ];
-
-            data.cell.styles.textColor = [
-              140,
-              90,
-              20,
-            ];
-
-            data.cell.styles.fontStyle =
-              "bold";
-          }
-        },
-      });
-
-      // Dividimos los 44 jugadores en 3 páginas para una lectura
-      // más profesional y uniforme. El orden del ranking se conserva.
-      const primeraPagina =
-        jugadoresExportacion.slice(0, 15);
-
-      const segundaPagina =
-        jugadoresExportacion.slice(15, 30);
-
-      const terceraPagina =
-        jugadoresExportacion.slice(30);
-
-      // =========================
-      // PÁGINA 1
-      // =========================
-      // Incluye encabezado oficial, logo LIBAVIME, resumen y posiciones 1–15.
-      dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · RANKING OFICIAL"
-      );
-
-      dibujarResumen();
-
-      autoTable(
-        doc,
-        estiloTabla(
-          72,
-          primeraPagina
-        ) as any
-      );
-
-      // =========================
-      // PÁGINA 2
-      // =========================
-      // El mismo encabezado se dibuja de nuevo para que el logo de LIBAVIME
-      // aparezca también en esta página, manteniendo el orden 16–30.
-      doc.addPage();
-
-      dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30"
-      );
-
-      autoTable(
-        doc,
-        estiloTabla(
-          45,
-          segundaPagina
-        ) as any
-      );
-
-      // =========================
-      // PÁGINA 3
-      // =========================
-      // Mismo encabezado y logo LIBAVIME. Continúa el ranking 31–44.
-      doc.addPage();
-
-      dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44"
-      );
-
-      autoTable(
-        doc,
-        estiloTabla(
-          45,
-          terceraPagina
-        ) as any
-      );
-
-      // Numeración y pie de página en las tres páginas.
-      const totalPaginas =
-        doc.getNumberOfPages();
-
-      for (
-        let pagina = 1;
-        pagina <= totalPaginas;
-        pagina++
-      ) {
-        doc.setPage(pagina);
-
-        dibujarPie(
-          pagina,
-          totalPaginas
-        );
-      }
-
-      doc.save(
-        `Estadisticas_LIBAVIME_2026_${new Date()
-          .toISOString()
-          .slice(0, 10)}.pdf`
-      );
-    } catch (error) {
-      console.error(
-        "Error al generar el PDF:",
-        error
-      );
-
-      alert(
-        "No se pudo generar el PDF. Inténtalo nuevamente."
-      );
+      return;
     }
+
+    if (jugadoresDelPartido.length === 0) {
+      setMensaje(
+        "No hay jugadores asociados a los equipos de este partido."
+      );
+      return;
+    }
+
+    setGuardando(true);
+    setMensaje("");
+
+    const datos = jugadoresDelPartido.map(
+      (jugador) => ({
+        partido_id: Number(
+          partidoSeleccionado
+        ),
+
+        jugador_id: jugador.id,
+
+        puntos: Number(
+          estadisticas[jugador.id]?.puntos ?? 0
+        ),
+
+        rebotes: Number(
+          estadisticas[jugador.id]?.rebotes ?? 0
+        ),
+
+        asistencias: Number(
+          estadisticas[jugador.id]?.asistencias ?? 0
+        ),
+      })
+    );
+
+    const { error } = await supabase
+      .from("estadisticas_partido")
+      .upsert(datos, {
+        onConflict: "partido_id,jugador_id",
+      });
+
+    if (error) {
+      console.error(error);
+
+      setMensaje(
+        `Error al guardar: ${error.message}`
+      );
+
+      setGuardando(false);
+      return;
+    }
+
+    setMensaje(
+  "¡Estadísticas guardadas correctamente! Los campos fueron reiniciados a 0."
+);
+
+// Reiniciar TODOS los campos visualmente a 0.
+// Esto NO modifica las estadísticas guardadas en Supabase.
+const estadisticasLimpias: Record<number, Estadistica> = {};
+
+jugadoresDelPartido.forEach((jugador) => {
+  estadisticasLimpias[jugador.id] = {
+    jugador_id: jugador.id,
+    puntos: 0,
+    rebotes: 0,
+    asistencias: 0,
+  };
+});
+
+setEstadisticas(estadisticasLimpias);
+
+    setGuardando(false);
   }
 
   if (cargando) {
     return (
-      <>
-        <Navbar />
-
-        <main className="min-h-screen bg-slate-100 pt-24 flex items-center justify-center">
-          <h1 className="text-2xl font-bold text-blue-900">
-            Cargando estadísticas...
-          </h1>
-        </main>
-      </>
+      <div className="min-h-screen bg-slate-100 p-6 md:p-10">
+        <p className="text-center font-bold">
+          Cargando...
+        </p>
+      </div>
     );
   }
 
   return (
-    <>
-      <Navbar />
+    <div className="min-h-screen bg-slate-100 p-4 md:p-10">
+      <div className="max-w-6xl mx-auto">
 
-      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-xl p-6 md:p-10">
 
-          {/* TÍTULO */}
-
-          <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
-            📊 Estadísticas LIBAVIME
+          <h1 className="text-3xl md:text-4xl font-black text-blue-900">
+            📊 Registrar Estadísticas
           </h1>
 
-          {/* MENSAJE DE ERROR */}
+          <p className="text-gray-600 mt-2">
+            Selecciona un partido e introduce las estadísticas de los jugadores.
+          </p>
 
-          {errorCarga && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-center font-medium">
-              {errorCarga}
-            </div>
-          )}
+          <div className="mt-8">
 
-          {/* ESTADÍSTICAS DE LOS JUGADORES */}
+            <label className="block font-bold mb-2">
+              Seleccionar partido
+            </label>
 
-          <section className="mb-10">
+            <select
+              value={partidoSeleccionado}
+              onChange={(e) =>
+                seleccionarPartido(e.target.value)
+              }
+              className="w-full border-2 border-slate-200 rounded-xl p-4 font-bold"
+            >
+              <option value="">
+                Selecciona un partido
+              </option>
 
-            <div className="text-center mb-6">
-              <h2 className="text-2xl md:text-4xl font-black text-blue-900">
-                🏀 Estadísticas de Jugadores
-              </h2>
-              <button
-  type="button"
-  onClick={exportarPDF}
-  disabled={jugadoresOrdenados.length === 0}
-  className="
-    mt-4
-    inline-flex
-    items-center
-    justify-center
-    gap-2
-    rounded-xl
-    bg-blue-900
-    px-6
-    py-3
-    font-bold
-    text-white
-    shadow-lg
-    transition
-    hover:bg-blue-800
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-  "
->
-  📄 Exportar estadísticas en PDF
-</button>
-
-              <p className="text-slate-600 mt-2">
-                Ranking completo de{" "}
-                {jugadoresOrdenados.length} jugadores
-                {" "}de LIBAVIME
-              </p>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Desplázate para ver todos los jugadores
-              </p>
-            </div>
-
-            {jugadoresOrdenados.length > 0 ? (
-
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-
-                <div
-                  className="
-                    max-h-[650px]
-                    md:max-h-[720px]
-                    overflow-auto
-                  "
+              {partidos.map((partido) => (
+                <option
+                  key={partido.id}
+                  value={partido.id}
                 >
+                  {partido.equipo_local} vs{" "}
+                  {partido.equipo_visitante} —{" "}
+                  {partido.fecha}
+                </option>
+              ))}
 
-                  <table className="w-full min-w-[900px] text-left">
+            </select>
 
-                    <thead className="sticky top-0 z-20">
+          </div>
 
-                      <tr className="bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow">
+          {partidoSeleccionado && partidoActual && (
 
-                        <th className="p-4 text-center whitespace-nowrap">
-                          Pos
-                        </th>
+            <div className="mt-8">
 
-                        <th className="p-4 whitespace-nowrap">
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+
+                <h2 className="text-xl font-black text-blue-900">
+                  🏀 {partidoActual.equipo_local}
+                  <span className="mx-3 text-red-600">
+                    VS
+                  </span>
+                  {partidoActual.equipo_visitante}
+                </h2>
+
+                <p className="text-gray-600 mt-2">
+                  📅 {partidoActual.fecha}
+                </p>
+
+              </div>
+
+              <p className="font-bold text-blue-900 mb-4">
+                Jugadores del partido
+              </p>
+
+              {jugadoresDelPartido.length === 0 ? (
+
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+
+                  <p className="font-bold text-red-700">
+                    ⚠️ No se encontraron jugadores para este partido.
+                  </p>
+
+                  <p className="text-red-600 mt-2">
+                    Equipo local:{" "}
+                    {partidoActual.equipo_local}
+                  </p>
+
+                  <p className="text-red-600">
+                    Equipo visitante:{" "}
+                    {partidoActual.equipo_visitante}
+                  </p>
+
+                  <p className="text-gray-600 mt-4">
+                    Revisa que el nombre del equipo asignado a cada jugador
+                    sea exactamente el mismo que el nombre de los equipos
+                    registrados en el partido.
+                  </p>
+
+                </div>
+
+              ) : (
+
+                <div className="overflow-x-auto">
+
+                  <table className="w-full min-w-[700px]">
+
+                    <thead>
+                      <tr className="border-b-2 bg-slate-50">
+
+                        <th className="p-3 text-left">
                           Jugador
                         </th>
 
-                        <th className="p-4 whitespace-nowrap">
+                        <th className="p-3 text-center">
                           Equipo
                         </th>
 
-                        <th className="p-4 text-center whitespace-nowrap">
-                          JJ
+                        <th className="p-3 text-center">
+                          Puntos
                         </th>
 
-                        <th className="p-4 text-center whitespace-nowrap">
-                          PTS
+                        <th className="p-3 text-center">
+                          Rebotes
                         </th>
 
-                        <th className="p-4 text-center whitespace-nowrap">
-                          PPG
-                        </th>
-
-                        <th className="p-4 text-center whitespace-nowrap">
-                          REB
-                        </th>
-
-                        <th className="p-4 text-center whitespace-nowrap">
-                          RPG
-                        </th>
-
-                        <th className="p-4 text-center whitespace-nowrap">
-                          AST
-                        </th>
-
-                        <th className="p-4 text-center whitespace-nowrap">
-                          APG
+                        <th className="p-3 text-center">
+                          Asistencias
                         </th>
 
                       </tr>
-
                     </thead>
 
                     <tbody>
 
-                      {jugadoresOrdenados.map(
-                        (jugador, index) => {
-                          const foto =
-                            jugador.foto &&
-                            (
-                              jugador.foto.startsWith("http") ||
-                              jugador.foto.startsWith("/")
-                            )
-                              ? jugador.foto
-                              : "/logos/LIBAVIME.png";
+                      {jugadoresDelPartido.map(
+                        (jugador) => (
 
-                          const hrefJugador =
-                            jugador.slug
-                              ? `/jugadores/${jugador.slug}`
-                              : "#";
+                          <tr
+                            key={jugador.id}
+                            className="border-b"
+                          >
 
-                          return (
-                            <tr
-                              key={
-                                jugador.id ??
-                                `${jugador.nombre}-${index}`
-                              }
-                              className="
-                                border-b
-                                last:border-b-0
-                                hover:bg-blue-50
-                                transition
-                              "
-                            >
+                            <td className="p-3 font-bold">
+                              {jugador.nombre}
+                            </td>
 
-                              {/* POSICIÓN */}
+                            <td className="p-3 text-center">
+                              {jugador.equipo}
+                            </td>
 
-                              <td className="p-4 text-center font-black text-blue-900 text-lg">
+                            <td className="p-3 text-center">
 
-                                {index === 0
-                                  ? "🥇"
-                                  : index === 1
-                                  ? "🥈"
-                                  : index === 2
-                                  ? "🥉"
-                                  : index + 1}
+                              <input
+                                type="number"
+                                min="0"
+                                value={
+                                  estadisticas[jugador.id]
+                                    ?.puntos ?? 0
+                                }
+                                onChange={(e) =>
+                                  actualizarEstadistica(
+                                    jugador.id,
+                                    "puntos",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-20 border rounded-lg p-2 text-center"
+                              />
 
-                              </td>
+                            </td>
 
-                              {/* JUGADOR */}
+                            <td className="p-3 text-center">
 
-                              <td className="p-4">
+                              <input
+                                type="number"
+                                min="0"
+                                value={
+                                  estadisticas[jugador.id]
+                                    ?.rebotes ?? 0
+                                }
+                                onChange={(e) =>
+                                  actualizarEstadistica(
+                                    jugador.id,
+                                    "rebotes",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-20 border rounded-lg p-2 text-center"
+                              />
 
-                                {jugador.slug ? (
+                            </td>
 
-                                  <Link
-                                    href={hrefJugador}
-                                    className="
-                                      flex
-                                      items-center
-                                      gap-3
-                                      font-bold
-                                      text-slate-900
-                                      hover:text-blue-700
-                                      transition
-                                    "
-                                  >
+                            <td className="p-3 text-center">
 
-                                    {/* FOTO DEL JUGADOR */}
-<div
-  className="
-    relative
-    h-20
-    w-20
-    min-h-20
-    min-w-20
-    shrink-0
-    overflow-hidden
-    rounded-full
-    border-4
-    border-blue-600
-    bg-white
-    shadow-lg
-  "
->
-  <Image
-    src={foto}
-    alt={
-      jugador.nombre ??
-      "Jugador LIBAVIME"
-    }
-    fill
-    sizes="80px"
-    className="object-cover"
-    style={{
-      transform: "scale(1.45)",
-      transformOrigin: "center center",
-      objectPosition: "50% 20%",
-    }}
-  />
-</div>
+                              <input
+                                type="number"
+                                min="0"
+                                value={
+                                  estadisticas[jugador.id]
+                                    ?.asistencias ?? 0
+                                }
+                                onChange={(e) =>
+                                  actualizarEstadistica(
+                                    jugador.id,
+                                    "asistencias",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-20 border rounded-lg p-2 text-center"
+                              />
 
-                                    <span className="whitespace-nowrap">
-                                      {jugador.nombre}
-                                    </span>
+                            </td>
 
-                                  </Link>
+                          </tr>
 
-                                ) : (
-
-                                  <div
-                                    className="
-                                      flex
-                                      items-center
-                                      gap-3
-                                      font-bold
-                                      text-slate-900
-                                    "
-                                  >
-
-  {/* FOTO DEL JUGADOR */}
-<div
-  className="
-    relative
-    h-20
-    w-20
-    min-h-20
-    min-w-20
-    shrink-0
-    overflow-hidden
-    rounded-full
-    border-4
-    border-blue-600
-    bg-white
-    shadow-lg
-  "
->
-  <Image
-    src={foto}
-    alt={
-      jugador.nombre ??
-      "Jugador LIBAVIME"
-    }
-    fill
-    sizes="80px"
-    className="object-cover"
-    style={{
-      transform: "scale(2.2)",
-      transformOrigin: "center center",
-      objectPosition: "50% 32%",
-    }}
-  />
-</div>
-                                    <span className="whitespace-nowrap">
-                                      {jugador.nombre}
-                                    </span>
-
-                                  </div>
-
-                                )}
-
-                              </td>
-
-                              {/* EQUIPO */}
-
-                              <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
-
-                                {jugador.equipo || "—"}
-
-                              </td>
-
-                              {/* JJ */}
-
-                              <td className="p-4 text-center font-bold">
-
-                                {jugador.partidosJugados}
-
-                              </td>
-
-                              {/* PUNTOS TOTALES */}
-
-                              <td className="p-4 text-center font-bold">
-
-                                {jugador.puntosTotales}
-
-                              </td>
-
-                              {/* PPG */}
-
-                              <td className="p-4 text-center font-black text-blue-900">
-
-                                {Number(
-                                  jugador.ppg ?? 0
-                                ).toFixed(1)}
-
-                              </td>
-
-                              {/* REBOTES */}
-
-                              <td className="p-4 text-center font-bold">
-
-                                {jugador.rebotesTotales}
-
-                              </td>
-
-                              {/* RPG */}
-
-                              <td className="p-4 text-center font-black text-green-700">
-
-                                {Number(
-                                  jugador.rpg ?? 0
-                                ).toFixed(1)}
-
-                              </td>
-
-                              {/* ASISTENCIAS */}
-
-                              <td className="p-4 text-center font-bold">
-
-                                {jugador.asistenciasTotales}
-
-                              </td>
-
-                              {/* APG */}
-
-                              <td className="p-4 text-center font-black text-red-700">
-
-                                {Number(
-                                  jugador.apg ?? 0
-                                ).toFixed(1)}
-
-                              </td>
-
-                            </tr>
-                          );
-                        }
+                        )
                       )}
 
                     </tbody>
@@ -1495,164 +511,37 @@ export default function Estadisticas() {
 
                 </div>
 
-              </div>
+              )}
 
-            ) : (
+              {jugadoresDelPartido.length > 0 && (
 
-              <div className="bg-white rounded-2xl shadow p-8 text-center">
+                <button
+                  onClick={guardarEstadisticas}
+                  disabled={guardando}
+                  className="mt-8 w-full bg-blue-900 text-white p-4 rounded-xl font-black hover:bg-blue-800 disabled:opacity-50 transition"
+                >
+                  {guardando
+                    ? "Guardando..."
+                    : "💾 Guardar estadísticas"}
+                </button>
 
-                <p className="text-xl font-bold text-gray-600">
-                  No hay jugadores registrados todavía.
-                </p>
-
-              </div>
-
-            )}
-
-            {/* LEYENDA */}
-
-            <div className="mt-5 flex flex-wrap justify-center gap-3 text-sm font-medium text-slate-600">
-
-              <span>
-                📅 JJ: Partidos jugados
-              </span>
-
-              <span>•</span>
-
-              <span>
-                🏀 PTS: Puntos totales
-              </span>
-
-              <span>•</span>
-
-              <span>
-                💪 REB: Rebotes totales
-              </span>
-
-              <span>•</span>
-
-              <span>
-                🎯 AST: Asistencias totales
-              </span>
-
-              <span>•</span>
-
-              <span>
-                📊 PPG / RPG / APG:
-                {" "}Promedios por partido
-              </span>
+              )}
 
             </div>
 
-          </section>
+          )}
 
-          {/* TABLA DE POSICIONES */}
+          {mensaje && (
 
-          <div className="bg-white p-6 rounded-2xl shadow-xl mt-8">
+            <p className="text-center mt-6 font-bold">
+              {mensaje}
+            </p>
 
-            <h2 className="text-2xl md:text-3xl font-black text-blue-900 mb-5">
-              🏆 Tabla de Posiciones
-            </h2>
-
-            {tabla.length > 0 ? (
-
-              <div className="overflow-x-auto">
-
-                <table className="w-full text-left min-w-[600px]">
-
-                  <thead>
-
-                    <tr className="border-b bg-blue-900 text-white">
-
-                      <th className="p-4 text-center">
-                        Pos
-                      </th>
-
-                      <th className="p-4">
-                        Equipo
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PJ
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PG
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PP
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PTS
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {tabla.map(
-                      (equipo, index) => (
-
-                        <tr
-                          key={equipo.equipo}
-                          className="
-                            border-b
-                            hover:bg-slate-50
-                            transition
-                          "
-                        >
-
-                          <td className="p-4 text-center font-bold">
-                            {index + 1}
-                          </td>
-
-                          <td className="p-4 font-bold">
-                            {equipo.equipo}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pj}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pg}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pp}
-                          </td>
-
-                          <td className="p-4 text-center font-black text-blue-900">
-                            {equipo.pts}
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            ) : (
-
-              <p className="text-gray-500">
-                Todavía no hay partidos finalizados.
-              </p>
-
-            )}
-
-          </div>
+          )}
 
         </div>
-      </main>
-    </>
+
+      </div>
+    </div>
   );
 }
