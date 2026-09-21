@@ -488,8 +488,22 @@ useEffect(() => {
           Number(b.rebotesPartido) - Number(a.rebotesPartido)
       )[0] ?? null;
 
-  const numeroPartidoResumen =
-    indiceResumenSeleccionado >= 0 ? indiceResumenSeleccionado + 1 : 0;
+  const numeroJornadaResumen = (() => {
+  if (!partidoResumen) return 0;
+
+  const fechaPartido = String(partidoResumen.fecha ?? "").trim();
+
+  if (!fechaPartido) return 0;
+
+  const inicio = new Date("2026-09-05T00:00:00");
+  const fecha = new Date(`${fechaPartido}T00:00:00`);
+
+  const diferenciaDias = Math.floor(
+    (fecha.getTime() - inicio.getTime()) / 86400000
+  );
+
+  return Math.floor(diferenciaDias / 7) + 1;
+})();
 
   const obtenerFotoJugador = (jugador: any) =>
     jugador?.foto &&
@@ -885,11 +899,11 @@ const ultimosResultados = [...partidosActuales]
       <h2 className="text-2xl md:text-3xl font-black">
   🏀 LOS PROTAGONISTAS
 </h2>
-      <p className="mt-1 text-sm font-black uppercase tracking-wide text-blue-600">
-        {partidoResumen
-          ? `PARTIDO ${numeroPartidoResumen} · SERIE REGULAR · ÚLTIMO FINALIZADO`
-          : "SERIE REGULAR · PENDIENTE"}
-      </p>
+      <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
+  {partidoResumen
+    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
+    : "Serie Regular · Pendiente"}
+</p>
     </div>
 
     {partidoResumen && (
@@ -1150,10 +1164,10 @@ const ultimosResultados = [...partidosActuales]
       </div>
 
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
-        {partidoResumen
-          ? `Partido ${numeroPartidoResumen} · Último partido finalizado`
-          : "Serie Regular · Pendiente"}
-      </p>
+  {partidoResumen
+    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
+    : "Serie Regular · Pendiente"}
+</p>
 
       <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
 
