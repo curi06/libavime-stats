@@ -798,34 +798,6 @@ const ultimosResultados = [...partidosActuales]
       )}
     
 
-<div className="grid grid-cols-2 md:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-  <div className="bg-white p-4 rounded-xl shadow text-center">
-  <h3 className="text-3xl font-bold text-blue-900">
-    {equipos.length}
-  </h3>
-  <p>Equipos</p>
-</div>
-
-  <div className="bg-white p-4 rounded-xl shadow text-center">
-  <h3 className="text-3xl font-bold text-green-600">
-    {partidosActuales.length}
-  </h3>
-  <p>Partidos</p>
-</div>
-
-  <div className="bg-white p-4 rounded-xl shadow text-center">
-    <h3 className="text-3xl font-bold text-red-600">
-  {totalPuntos}
-</h3>
-    <p>Puntos</p>
-    
-  </div>
-
-  <div className="bg-white p-4 rounded-xl shadow text-center">
-    <h3 className="text-3xl font-bold text-yellow-500">2026</h3>
-    <p>Temporada</p>
-  </div>
-</div>
 
 
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
@@ -844,7 +816,7 @@ const ultimosResultados = [...partidosActuales]
 
 </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mt-10">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mt-35">
   {["Gladiadores", "Vikingos", "Titanes", "Espartanos"].map((nombreEquipo) => {
     const equipo = posicionesOrdenadas.find(
       (item) => item.nombre === nombreEquipo
