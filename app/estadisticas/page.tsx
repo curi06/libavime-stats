@@ -51,14 +51,15 @@ export default function Estadisticas() {
         .order("nombre"),
 
       supabase
-        .from("estadisticas_partido")
-        .select(`
-          jugador_id,
-          partido_id,
-          puntos,
-          rebotes,
-          asistencias
-        `),
+  .from("estadisticas_partido")
+  .select(`
+    jugador_id,
+    partido_id,
+    puntos,
+    rebotes,
+    asistencias,
+    estado
+  `),
 
       supabase
         .from("partidos")
@@ -111,28 +112,52 @@ export default function Estadisticas() {
     >();
 
     (estadisticasData ?? []).forEach((registro: any) => {
-      const jugadorId = Number(registro.jugador_id);
-      const partidoId = Number(registro.partido_id);
+  const jugadorId = Number(registro.jugador_id);
+  const partidoId = Number(registro.partido_id);
 
-      // Solo cuentan partidos oficialmente finalizados.
-      if (!partidosFinalizados.has(partidoId)) return;
+  // Solo cuentan partidos oficialmente finalizados.
+  if (!partidosFinalizados.has(partidoId)) return;
 
-      if (!acumuladosPorJugador.has(jugadorId)) {
-        acumuladosPorJugador.set(jugadorId, {
-          partidos: new Set<number>(),
-          puntos: 0,
-          rebotes: 0,
-          asistencias: 0,
-        });
-      }
+  // ============================================================
+  // ESTADO DEL JUGADOR
+  //
+  // 🟢 jugó       → cuenta como JJ y suma estadísticas
+  // ⚪ no_jugo     → NO cuenta como JJ
+  // 🔴 lesionado   → NO cuenta como JJ
+  //
+  // El valor por defecto "jugó" mantiene compatibles
+  // los registros históricos.
+  // ============================================================
 
-      const acumulado = acumuladosPorJugador.get(jugadorId)!;
+  const estado =
+    registro.estado === "no_jugo" ||
+    registro.estado === "lesionado"
+      ? registro.estado
+      : "jugó";
 
-      acumulado.partidos.add(partidoId);
-      acumulado.puntos += Number(registro.puntos) || 0;
-      acumulado.rebotes += Number(registro.rebotes) || 0;
-      acumulado.asistencias += Number(registro.asistencias) || 0;
+  // Si no jugó o estuvo lesionado, ignoramos completamente
+  // este registro para las estadísticas oficiales.
+  if (estado !== "jugó") return;
+
+  if (!acumuladosPorJugador.has(jugadorId)) {
+    acumuladosPorJugador.set(jugadorId, {
+      partidos: new Set<number>(),
+      puntos: 0,
+      rebotes: 0,
+      asistencias: 0,
     });
+  }
+
+  const acumulado = acumuladosPorJugador.get(jugadorId)!;
+
+  // El jugador SÍ participó en este partido.
+  // Por eso cuenta como 1 JJ, aunque haya terminado con 0.
+  acumulado.partidos.add(partidoId);
+
+  acumulado.puntos += Number(registro.puntos) || 0;
+  acumulado.rebotes += Number(registro.rebotes) || 0;
+  acumulado.asistencias += Number(registro.asistencias) || 0;
+});
 
     const jugadoresConEstadisticas =
       (jugadoresData ?? []).map((jugador: any) => {

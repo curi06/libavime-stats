@@ -21,6 +21,7 @@ type Estadistica = {
   puntos: number;
   rebotes: number;
   asistencias: number;
+  estado: "jugó" | "no_jugo" | "lesionado";
 };
 
 export default function AdminEstadisticasPage() {
@@ -105,8 +106,8 @@ export default function AdminEstadisticasPage() {
     const { data, error } = await supabase
       .from("estadisticas_partido")
       .select(
-        "jugador_id, puntos, rebotes, asistencias"
-      )
+  "jugador_id, puntos, rebotes, asistencias, estado"
+)
       .eq("partido_id", Number(partidoId));
 
     if (error) {
@@ -131,8 +132,13 @@ export default function AdminEstadisticasPage() {
         ),
         puntos: Number(estadistica.puntos) || 0,
         rebotes: Number(estadistica.rebotes) || 0,
-        asistencias:
+                asistencias:
           Number(estadistica.asistencias) || 0,
+        estado:
+          estadistica.estado === "no_jugo" ||
+          estadistica.estado === "lesionado"
+            ? estadistica.estado
+            : "jugó",
       };
     });
 
@@ -171,36 +177,55 @@ export default function AdminEstadisticasPage() {
     : [];
 
   function actualizarEstadistica(
-    jugadorId: number,
-    campo: "puntos" | "rebotes" | "asistencias",
-    valor: string
-  ) {
-    const numero =
-      valor === "" ? 0 : Number(valor);
+  jugadorId: number,
+  campo: "puntos" | "rebotes" | "asistencias",
+  valor: string
+) {
+  const numero =
+    valor === "" ? 0 : Number(valor);
 
-    setEstadisticas((actual) => ({
-      ...actual,
+  setEstadisticas((actual) => ({
+    ...actual,
 
-      [jugadorId]: {
-        jugador_id: jugadorId,
+    [jugadorId]: {
+      jugador_id: jugadorId,
 
-        puntos:
-          campo === "puntos"
-            ? numero
-            : actual[jugadorId]?.puntos ?? 0,
+      puntos:
+        campo === "puntos"
+          ? numero
+          : actual[jugadorId]?.puntos ?? 0,
 
-        rebotes:
-          campo === "rebotes"
-            ? numero
-            : actual[jugadorId]?.rebotes ?? 0,
+      rebotes:
+        campo === "rebotes"
+          ? numero
+          : actual[jugadorId]?.rebotes ?? 0,
 
-        asistencias:
-          campo === "asistencias"
-            ? numero
-            : actual[jugadorId]?.asistencias ?? 0,
-      },
-    }));
-  }
+      asistencias:
+        campo === "asistencias"
+          ? numero
+          : actual[jugadorId]?.asistencias ?? 0,
+
+      estado:
+        actual[jugadorId]?.estado ?? "jugó",
+    },
+  }));
+}
+
+  function actualizarEstado(
+  jugadorId: number,
+  estado: "jugó" | "no_jugo" | "lesionado"
+) {
+  setEstadisticas((actual) => ({
+    ...actual,
+    [jugadorId]: {
+      jugador_id: jugadorId,
+      puntos: actual[jugadorId]?.puntos ?? 0,
+      rebotes: actual[jugadorId]?.rebotes ?? 0,
+      asistencias: actual[jugadorId]?.asistencias ?? 0,
+      estado,
+    },
+  }));
+}
 
   async function guardarEstadisticas() {
     if (!partidoSeleccionado) {
@@ -237,10 +262,11 @@ export default function AdminEstadisticasPage() {
           0,
           Number(estadisticas[jugador.id]?.rebotes ?? 0)
         ),
-        asistencias: Math.max(
+                asistencias: Math.max(
           0,
           Number(estadisticas[jugador.id]?.asistencias ?? 0)
         ),
+        estado: estadisticas[jugador.id]?.estado ?? "jugó",
       }));
 
       console.log("GUARDANDO ESTADISTICAS:", datos);
@@ -260,7 +286,7 @@ export default function AdminEstadisticasPage() {
       const { data: verificadas, error: errorVerificacion } =
         await supabase
           .from("estadisticas_partido")
-          .select("jugador_id, puntos, rebotes, asistencias")
+          .select("jugador_id, puntos, rebotes, asistencias, estado")
           .eq("partido_id", partidoId);
 
       if (errorVerificacion) {
@@ -284,13 +310,18 @@ export default function AdminEstadisticasPage() {
       (verificadas ?? []).forEach((estadistica) => {
         const jugadorId = Number(estadistica.jugador_id);
 
-        estadisticasVerificadas[jugadorId] = {
-          jugador_id: jugadorId,
-          puntos: Number(estadistica.puntos) || 0,
-          rebotes: Number(estadistica.rebotes) || 0,
-          asistencias:
-            Number(estadistica.asistencias) || 0,
-        };
+       estadisticasVerificadas[jugadorId] = {
+  jugador_id: jugadorId,
+  puntos: Number(estadistica.puntos) || 0,
+  rebotes: Number(estadistica.rebotes) || 0,
+  asistencias:
+    Number(estadistica.asistencias) || 0,
+  estado:
+    estadistica.estado === "no_jugo" ||
+    estadistica.estado === "lesionado"
+      ? estadistica.estado
+      : "jugó",
+};
       });
 
       setEstadisticas(estadisticasVerificadas);
@@ -450,6 +481,10 @@ export default function AdminEstadisticasPage() {
                           Asistencias
                         </th>
 
+                        <th className="p-3 text-center">
+                           Estado
+                        </th>
+
                       </tr>
                     </thead>
 
@@ -532,6 +567,28 @@ export default function AdminEstadisticasPage() {
                                 className="w-20 border rounded-lg p-2 text-center"
                               />
 
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <select
+                                value={
+                                  estadisticas[jugador.id]?.estado ?? "jugó"
+                                }
+                                onChange={(e) =>
+                                  actualizarEstado(
+                                    jugador.id,
+                                    e.target.value as
+                                      | "jugó"
+                                      | "no_jugo"
+                                      | "lesionado"
+                                  )
+                                }
+                                className="border rounded-lg p-2 font-bold"
+                              >
+                                <option value="jugó">🟢 Jugó</option>
+                                <option value="no_jugo">⚪ No jugó</option>
+                                <option value="lesionado">🔴 Lesionado</option>
+                              </select>
                             </td>
 
                           </tr>
