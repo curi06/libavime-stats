@@ -546,6 +546,44 @@ export default function PlanillaPage() {
     ].filter(Boolean) as string[];
   }, [partido]);
 
+  // Marcador calculado directamente desde los PTS registrados por jugador.
+  // Esto permite ver el total exacto del equipo en tiempo real, sin depender
+  // de los campos puntos_local / puntos_visitante de la tabla partidos.
+  const marcadorEquipos = useMemo(() => {
+    const resultado: Record<string, number> = {};
+
+    if (!partido) return resultado;
+
+    const local = normalizar(partido.equipo_local);
+    const visitante = normalizar(partido.equipo_visitante);
+
+    jugadoresDelPartido.forEach((jugador) => {
+      const equipo = normalizar(jugador.equipo);
+      const stats = estadisticas[jugador.id];
+
+      if (!stats) return;
+
+      // Jugadores marcados como no jugó / lesionado no suman al marcador.
+      if (
+        stats.estado === "no_jugo" ||
+        stats.estado === "lesionado"
+      ) {
+        return;
+      }
+
+      if (equipo === local || equipo === visitante) {
+        resultado[equipo] =
+          (resultado[equipo] ?? 0) + (Number(stats.puntos) || 0);
+      }
+    });
+
+    return resultado;
+  }, [estadisticas, jugadoresDelPartido, partido]);
+
+  function obtenerMarcadorEquipo(nombreEquipo: string) {
+    return marcadorEquipos[normalizar(nombreEquipo)] ?? 0;
+  }
+
   function jugadoresEquipo(
     nombreEquipo: string
   ) {
@@ -720,7 +758,7 @@ export default function PlanillaPage() {
                   </p>
 
                   <p className="text-2xl font-black leading-none">
-                    {partido.puntos_local ?? 0}
+                    {obtenerMarcadorEquipo(partido.equipo_local ?? "")}
                   </p>
                 </div>
 
@@ -734,7 +772,7 @@ export default function PlanillaPage() {
                   </p>
 
                   <p className="text-2xl font-black leading-none">
-                    {partido.puntos_visitante ?? 0}
+                    {obtenerMarcadorEquipo(partido.equipo_visitante ?? "")}
                   </p>
                 </div>
               </div>
@@ -810,16 +848,7 @@ export default function PlanillaPage() {
                   normalizar(equipo) ===
                   normalizar(equipoMostrado);
 
-                const local =
-                  normalizar(equipo) ===
-                  normalizar(
-                    partido.equipo_local
-                  );
-
-                const marcador = local
-                  ? partido.puntos_local ?? 0
-                  : partido.puntos_visitante ??
-                    0;
+                const marcador = obtenerMarcadorEquipo(equipo);
 
                 return (
                   <button

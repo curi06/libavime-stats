@@ -24,6 +24,7 @@ type EstadisticaPartido = {
   puntos: number | null;
   rebotes: number | null;
   asistencias: number | null;
+  estado?: "jugó" | "no_jugo" | "lesionado" | null;
 };
 
 export default function Home() {
@@ -31,7 +32,11 @@ export default function Home() {
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [herramientasAbierto, setHerramientasAbierto] =
+  useState(false);
   const [ahora, setAhora] = useState(new Date());
+  const [actualizacionEstadisticas, setActualizacionEstadisticas] =
+    useState(0);
 
 useEffect(() => {
   const cargarDatos = async () => {
@@ -43,7 +48,9 @@ useEffect(() => {
       supabase.from("jugadores").select("*"),
       supabase
         .from("estadisticas_partido")
-        .select("jugador_id, partido_id, puntos, rebotes, asistencias"),
+        .select(
+          "jugador_id, partido_id, puntos, rebotes, asistencias, estado"
+        ),
       supabase
         .from("partidos")
         .select(`
@@ -100,6 +107,13 @@ useEffect(() => {
       const partidoId = Number(registro.partido_id);
 
       if (!partidosFinalizados.has(partidoId)) return;
+
+      const estado =
+        registro.estado === "no_jugo" || registro.estado === "lesionado"
+          ? registro.estado
+          : "jugó";
+
+      if (estado !== "jugó") return;
 
       if (!acumuladosPorJugador.has(jugadorId)) {
         acumuladosPorJugador.set(jugadorId, {
@@ -183,12 +197,24 @@ useEffect(() => {
           estadistica.asistencias === null
             ? null
             : Number(estadistica.asistencias),
+        estado:
+          estadistica.estado === "no_jugo" || estadistica.estado === "lesionado"
+            ? estadistica.estado
+            : "jugó",
       }))
     );
   };
 
   cargarDatos();
-}, []);
+}, [actualizacionEstadisticas]);
+
+  useEffect(() => {
+    const intervalo = window.setInterval(() => {
+      setActualizacionEstadisticas((valor) => valor + 1);
+    }, 5000);
+
+    return () => window.clearInterval(intervalo);
+  }, []);
 
   useEffect(() => {
     const intervalo = window.setInterval(() => {
@@ -349,7 +375,10 @@ useEffect(() => {
   const construirResumenDePartido = (partido: Partido) => {
     const estadisticas = estadisticasPartido.filter(
       (estadistica) =>
-        String(estadistica.partido_id) === String(partido.id)
+        String(estadistica.partido_id) === String(partido.id) &&
+        (estadistica.estado === "jugó" ||
+          estadistica.estado === undefined ||
+          estadistica.estado === null)
     );
 
     const porJugador = estadisticas.reduce(
@@ -633,7 +662,7 @@ const ultimosResultados = [...partidosActuales]
     <div className="bg-blue-950/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/10">
 
       {/* PC */}
-<div className="hidden md:flex items-center justify-center gap-8 text-white font-semibold py-4">
+<div className="hidden md:flex items-center justify-center gap-6 text-white font-semibold py-4">
 
   <Image
     src="/logos/LIBAVIME.png"
@@ -643,14 +672,88 @@ const ultimosResultados = [...partidosActuales]
     className="object-contain"
   />
 
-  <a href="/">🏠 Inicio</a>
-  <a href="/equipos">🏀 Equipos</a>
-  <a href="/jugadores">👤 Jugadores</a>
-  <a href="/calendario">📅 Calendario</a>
-  <a href="/resultados">🏆 Resultados</a>
-<a href="/clasificacion">🏆 Posiciones</a>
-<a href="/estadisticas">📊 Estadísticas</a>
-<a href="/mvp">🏆 MVP</a>
+  <a
+    href="/"
+    className="transition hover:text-red-400"
+  >
+    🏠 Inicio
+  </a>
+
+  <a
+    href="/equipos"
+    className="transition hover:text-red-400"
+  >
+    🏀 Equipos
+  </a>
+
+  <a
+    href="/jugadores"
+    className="transition hover:text-red-400"
+  >
+    👤 Jugadores
+  </a>
+
+  <a
+    href="/calendario"
+    className="transition hover:text-red-400"
+  >
+    📅 Calendario
+  </a>
+
+  <a
+    href="/resultados"
+    className="transition hover:text-red-400"
+  >
+    🏆 Resultados
+  </a>
+
+  <a
+    href="/estadisticas"
+    className="transition hover:text-red-400"
+  >
+    📊 Estadísticas
+  </a>
+
+  <a
+    href="/mvp"
+    className="transition hover:text-red-400"
+  >
+    🏆 MVP
+  </a>
+
+  <div className="relative">
+
+    <button
+      type="button"
+      onClick={() =>
+        setHerramientasAbierto(
+          !herramientasAbierto
+        )
+      }
+      className="flex items-center gap-1 transition hover:text-red-400"
+    >
+      🛠️ Herramientas
+      <span className="text-xs">
+        {herramientasAbierto
+          ? "▲"
+          : "▼"}
+      </span>
+    </button>
+
+    {herramientasAbierto && (
+      <div className="absolute right-0 top-full z-50 mt-3 w-48 overflow-hidden rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur">
+
+        <a
+          href="/planilla"
+          className="flex items-center gap-2 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-600"
+        >
+          📝 Planilla
+        </a>
+
+      </div>
+    )}
+
+  </div>
 
 </div>
 
@@ -693,6 +796,40 @@ const ultimosResultados = [...partidosActuales]
 <a href="/clasificacion">🏆 Posiciones</a>
 <a href="/estadisticas">📊 Estadísticas</a>
 <a href="/mvp">🏆 MVP</a>
+          <div className="mx-4 mt-1 overflow-hidden rounded-xl border border-red-500/30 bg-slate-900/70">
+
+            <button
+              type="button"
+              onClick={() =>
+                setHerramientasAbierto(
+                  !herramientasAbierto
+                )
+              }
+              className="flex w-full items-center justify-center gap-2 px-4 py-3 font-black text-white"
+            >
+              🛠️ HERRAMIENTAS
+
+              <span className="text-xs">
+                {herramientasAbierto
+                  ? "▲"
+                  : "▼"}
+              </span>
+            </button>
+
+            {herramientasAbierto && (
+              <div className="border-t border-white/10 py-2">
+
+                <a
+                  href="/planilla"
+                  className="flex items-center justify-center gap-2 px-4 py-3 font-black text-blue-300 transition hover:bg-blue-600 hover:text-white"
+                >
+                  📝 Planilla
+                </a>
+
+              </div>
+            )}
+
+          </div>
           </div>
         )}
 
