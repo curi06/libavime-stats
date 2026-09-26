@@ -100,6 +100,7 @@ export default function Jugadores() {
                     alt={jugador.nombre}
                     width={192}
                     height={192}
+                    unoptimized
                     className="w-full h-full object-cover scale-125"
                     onError={(e) => {
                       console.error(
