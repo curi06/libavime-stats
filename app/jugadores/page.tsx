@@ -80,28 +80,41 @@ export default function Jugadores() {
           </h1>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
             {jugadores.map((jugador) => (
               <Link
                 key={jugador.id}
                 href={`/jugadores/${jugador.slug}`}
                 className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
               >
+
+                {/* FOTO DEL JUGADOR */}
                 <div className="w-48 h-48 mx-auto mb-4 overflow-hidden rounded-full border-4 border-blue-900">
+
                   <Image
                     src={
-                      jugador.foto &&
-                      (jugador.foto.startsWith("http") ||
-                        jugador.foto.startsWith("/"))
+                      jugador.foto
                         ? jugador.foto
                         : "/logos/LIBAVIME.png"
                     }
                     alt={jugador.nombre}
-                    width={160}
-                    height={160}
+                    width={192}
+                    height={192}
                     className="w-full h-full object-cover scale-125"
+                    onError={(e) => {
+                      console.error(
+                        "❌ ERROR FOTO:",
+                        jugador.nombre,
+                        jugador.foto
+                      );
+
+                      e.currentTarget.src = "/logos/LIBAVIME.png";
+                    }}
                   />
+
                 </div>
 
+                {/* LOGO LIBAVIME */}
                 <Image
                   src="/logos/LIBAVIME.png"
                   alt="LIBAVIME"
@@ -110,45 +123,64 @@ export default function Jugadores() {
                   className="mx-auto mb-2"
                 />
 
+                {/* NOMBRE */}
                 <h2 className="text-xl font-bold">
                   {jugador.nombre}
                 </h2>
 
+                {/* NUMERO Y POSICION */}
                 <p className="text-gray-600">
                   #{jugador.numero} • {jugador.posicion}
                 </p>
 
-                <p>Equipo: {jugador.equipo}</p>
+                {/* EQUIPO */}
+                <p>
+                  Equipo: {jugador.equipo}
+                </p>
 
+                {/* PARTIDOS */}
                 <p className="text-sm text-gray-500 mt-2">
                   {jugador.partidos_jugados} PJ
                 </p>
 
+                {/* ESTADISTICAS */}
                 <div className="grid grid-cols-3 gap-2 mt-4">
+
                   <div className="bg-blue-100 rounded-lg p-2">
-                    <p className="text-xs font-semibold">PPG</p>
+                    <p className="text-xs font-semibold">
+                      PPG
+                    </p>
+
                     <p className="text-xl font-bold">
                       {jugador.ppg}
                     </p>
                   </div>
 
                   <div className="bg-green-100 rounded-lg p-2">
-                    <p className="text-xs font-semibold">RPG</p>
+                    <p className="text-xs font-semibold">
+                      RPG
+                    </p>
+
                     <p className="text-xl font-bold">
                       {jugador.rpg}
                     </p>
                   </div>
 
                   <div className="bg-yellow-100 rounded-lg p-2">
-                    <p className="text-xs font-semibold">APG</p>
+                    <p className="text-xs font-semibold">
+                      APG
+                    </p>
+
                     <p className="text-xl font-bold">
                       {jugador.apg}
                     </p>
                   </div>
+
                 </div>
 
               </Link>
             ))}
+
           </div>
 
         </div>
