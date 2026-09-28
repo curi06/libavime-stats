@@ -1214,6 +1214,7 @@ const ultimosResultados = resumenesPartidos
             <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-red-500 bg-white shadow-lg">
               <Image
                 src={obtenerFotoJugador(maximoAnotador)}
+                unoptimized
                 alt={maximoAnotador?.nombre || "Máximo anotador"}
                 fill
                 sizes="112px"
@@ -1249,6 +1250,7 @@ const ultimosResultados = resumenesPartidos
             <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-purple-500 bg-white shadow-lg">
               <Image
                 src={obtenerFotoJugador(maximoReboteador)}
+                unoptimized
                 alt={maximoReboteador?.nombre || "Máximo reboteador"}
                 fill
                 sizes="112px"
@@ -1284,6 +1286,7 @@ const ultimosResultados = resumenesPartidos
             <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-green-500 bg-white shadow-lg">
               <Image
                 src={obtenerFotoJugador(maximoAsistidor)}
+                unoptimized
                 alt={maximoAsistidor?.nombre || "Máximo asistidor"}
                 fill
                 sizes="112px"
@@ -1744,6 +1747,7 @@ const ultimosResultados = resumenesPartidos
 
                             <Image
   src={fotoJugador}
+  unoptimized
   alt={
     jugador.nombre ||
     "Jugador LIBAVIME"
@@ -2124,6 +2128,7 @@ const ultimosResultados = resumenesPartidos
               <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-red-500 bg-white shadow-lg">
   <Image
     src={obtenerFotoJugador(jugador)}
+    unoptimized
     alt={jugador.nombre}
     fill
     sizes="72px"
@@ -2170,6 +2175,7 @@ const ultimosResultados = resumenesPartidos
              <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-purple-500 bg-white shadow-lg">
   <Image
     src={obtenerFotoJugador(jugador)}
+    unoptimized
     alt={jugador.nombre}
     fill
     sizes="72px"
@@ -2216,6 +2222,7 @@ const ultimosResultados = resumenesPartidos
               <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-yellow-500 bg-white shadow-lg">
   <Image
     src={obtenerFotoJugador(jugador)}
+    unoptimized
     alt={jugador.nombre}
     fill
     sizes="72px"
