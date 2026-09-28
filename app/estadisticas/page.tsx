@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Estadisticas() {
-  const [tabla, setTabla] = useState<any[]>([]);
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
@@ -21,10 +20,7 @@ export default function Estadisticas() {
     setErrorCarga("");
 
     try {
-      await Promise.all([
-        cargarTabla(),
-        cargarJugadores(),
-      ]);
+      await cargarJugadores();
     } catch (error) {
       console.error(
         "Error general cargando estadísticas:",
@@ -195,126 +191,6 @@ export default function Estadisticas() {
       });
 
     setJugadores(jugadoresConEstadisticas);
-  }
-
-  async function cargarTabla() {
-    const { data, error } = await supabase
-      .from("partidos")
-      .select("*")
-      .eq("estado", "Finalizado");
-
-    if (error) {
-      console.error(
-        "Error cargando tabla:",
-        error
-      );
-
-      throw error;
-    }
-
-    if (!data) {
-      setTabla([]);
-      return;
-    }
-
-    const posiciones: any = {};
-
-    data.forEach((partido: any) => {
-      const local =
-        partido.equipo_local ??
-        partido.local ??
-        "";
-
-      const visitante =
-        partido.equipo_visitante ??
-        partido.visitante ??
-        "";
-
-      const puntosLocal =
-        partido.puntos_local ??
-        partido.puntosLocal;
-
-      const puntosVisitante =
-        partido.puntos_visitante ??
-        partido.puntosVisitante;
-
-      if (
-        !local ||
-        !visitante ||
-        puntosLocal === null ||
-        puntosLocal === undefined ||
-        puntosVisitante === null ||
-        puntosVisitante === undefined
-      ) {
-        return;
-      }
-
-      if (!posiciones[local]) {
-        posiciones[local] = {
-          equipo: local,
-          pj: 0,
-          pg: 0,
-          pp: 0,
-          pts: 0,
-        };
-      }
-
-      if (!posiciones[visitante]) {
-        posiciones[visitante] = {
-          equipo: visitante,
-          pj: 0,
-          pg: 0,
-          pp: 0,
-          pts: 0,
-        };
-      }
-
-      posiciones[local].pj++;
-      posiciones[visitante].pj++;
-
-      if (
-        Number(puntosLocal) >
-        Number(puntosVisitante)
-      ) {
-        posiciones[local].pg++;
-        posiciones[local].pts += 2;
-
-        posiciones[visitante].pp++;
-        posiciones[visitante].pts += 1;
-      } else if (
-        Number(puntosVisitante) >
-        Number(puntosLocal)
-      ) {
-        posiciones[visitante].pg++;
-        posiciones[visitante].pts += 2;
-
-        posiciones[local].pp++;
-        posiciones[local].pts += 1;
-      } else {
-        posiciones[local].pts += 1;
-        posiciones[visitante].pts += 1;
-      }
-    });
-
-    const tablaFinal = Object.values(
-      posiciones
-    ).sort(
-      (a: any, b: any) => {
-        if (b.pts !== a.pts) {
-          return b.pts - a.pts;
-        }
-
-        if (b.pg !== a.pg) {
-          return b.pg - a.pg;
-        }
-
-        return a.equipo.localeCompare(
-          b.equipo
-        );
-      }
-    );
-
-    setTabla(tablaFinal);
   }
 
   // ============================================================
@@ -2306,110 +2182,7 @@ export default function Estadisticas() {
             </div>
           </section>
 
-          {/* TABLA DE POSICIONES */}
 
-          <div className="bg-white p-6 rounded-2xl shadow-xl mt-8">
-
-            <h2 className="text-2xl md:text-3xl font-black text-blue-900 mb-5">
-              🏆 Tabla de Posiciones
-            </h2>
-
-            {tabla.length > 0 ? (
-
-              <div className="overflow-x-auto">
-
-                <table className="w-full text-left min-w-[600px]">
-
-                  <thead>
-
-                    <tr className="border-b bg-blue-900 text-white">
-
-                      <th className="p-4 text-center">
-                        Pos
-                      </th>
-
-                      <th className="p-4">
-                        Equipo
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PJ
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PG
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PP
-                      </th>
-
-                      <th className="p-4 text-center">
-                        PTS
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {tabla.map(
-                      (equipo, index) => (
-
-                        <tr
-                          key={equipo.equipo}
-                          className="
-                            border-b
-                            hover:bg-slate-50
-                            transition
-                          "
-                        >
-
-                          <td className="p-4 text-center font-bold">
-                            {index + 1}
-                          </td>
-
-                          <td className="p-4 font-bold">
-                            {equipo.equipo}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pj}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pg}
-                          </td>
-
-                          <td className="p-4 text-center">
-                            {equipo.pp}
-                          </td>
-
-                          <td className="p-4 text-center font-black text-blue-900">
-                            {equipo.pts}
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            ) : (
-
-              <p className="text-gray-500">
-                Todavía no hay partidos finalizados.
-              </p>
-
-            )}
-
-          </div>
 
         </div>
       </main>
