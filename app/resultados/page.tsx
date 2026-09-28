@@ -1,258 +1,177 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../../data/equipos";
-import Image from "next/image";
-import Link from "next/link";
 
 type Partido = {
   id: number;
-  local: string;
-  visitante: string;
-  fecha: string;
+  equipo_local: string | null;
+  equipo_visitante: string | null;
+  fecha: string | null;
   hora: string | null;
   cancha: string | null;
-  puntosLocal: number | null;
-  puntosVisitante: number | null;
+  puntos_local: number | null;
+  puntos_visitante: number | null;
   estado: string | null;
 };
 
-export default function Resultados() {
-  const [partidos, setPartidos] = useState<Partido[]>([]);
-  const [cargando, setCargando] = useState(true);
+function normalizar(valor: string | null | undefined) {
+  return String(valor ?? "").trim().toLowerCase();
+}
 
-  useEffect(() => {
-    async function cargarResultados() {
-      setCargando(true);
-
-      const { data, error } = await supabase
-        .from("partidos")
-        .select(`
-          id,
-          equipo_local,
-          equipo_visitante,
-          fecha,
-          hora,
-          cancha,
-          puntos_local,
-          puntos_visitante,
-          estado
-        `)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false });
-
-      if (error) {
-        console.error("Error al cargar resultados:", error);
-        setCargando(false);
-        return;
-      }
-
-      const partidosFormateados: Partido[] = (data ?? []).map(
-        (partido: any) => ({
-          id: partido.id,
-          local: partido.equipo_local,
-          visitante: partido.equipo_visitante,
-          fecha: partido.fecha,
-          hora: partido.hora,
-          cancha: partido.cancha,
-          puntosLocal:
-            partido.puntos_local === null ||
-            partido.puntos_local === undefined
-              ? null
-              : Number(partido.puntos_local),
-          puntosVisitante:
-            partido.puntos_visitante === null ||
-            partido.puntos_visitante === undefined
-              ? null
-              : Number(partido.puntos_visitante),
-          estado: partido.estado,
-        })
-      );
-
-      setPartidos(partidosFormateados);
-      setCargando(false);
-    }
-
-    cargarResultados();
-  }, []);
-
-  const resultados = partidos.filter(
-    (partido) =>
-      partido.puntosLocal !== null &&
-      partido.puntosVisitante !== null
+function obtenerEquipo(nombre: string | null | undefined) {
+  return equipos.find(
+    (equipo) => normalizar(equipo.nombre) === normalizar(nombre)
   );
+}
+
+export default async function ResultadosPage() {
+  const { data, error } = await supabase
+    .from("partidos")
+    .select(
+      "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
+    )
+    .eq("estado", "Finalizado")
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false });
+
+  if (error) {
+    console.error("Error cargando resultados:", error);
+  }
+
+  const partidos = (data ?? []) as Partido[];
 
   return (
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-slate-100 pt-24 p-4 md:p-10">
-        <div className="max-w-5xl mx-auto">
+      <main className="min-h-screen bg-slate-100 px-4 pb-16 pt-28 md:px-8">
+        <div className="mx-auto max-w-6xl">
+          <header className="mb-8 text-center">
+            <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-700">
+              LIBAVIME 2026
+            </p>
+            <h1 className="mt-2 text-4xl font-black text-blue-950 md:text-5xl">
+              🏆 RESULTADOS
+            </h1>
+            <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+              Resultados oficiales de los partidos finalizados.
+            </p>
+          </header>
 
-          <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
-            🏆 Resultados LIBAVIME
-          </h1>
-
-          {cargando ? (
-            <div className="bg-white rounded-2xl shadow p-10 text-center">
-              <p className="text-xl font-bold text-gray-600">
-                Cargando resultados...
+          {partidos.length === 0 ? (
+            <section className="rounded-3xl bg-white p-10 text-center shadow-xl">
+              <p className="text-xl font-black text-blue-950">
+                Todavía no hay partidos finalizados.
               </p>
-            </div>
-          ) : resultados.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow p-10 text-center">
-              <p className="text-xl font-bold text-gray-600">
-                Aún no hay resultados registrados.
-              </p>
-            </div>
+            </section>
           ) : (
-            <div className="space-y-4">
+            <section className="space-y-5">
+              {partidos.map((partido) => {
+                const equipoLocal = obtenerEquipo(partido.equipo_local);
+                const equipoVisitante = obtenerEquipo(partido.equipo_visitante);
 
-              {resultados.map((partido) => {
-                const equipoLocal = equipos.find(
-                  (equipo) =>
-                    equipo.nombre.trim().toLowerCase() ===
-                    partido.local.trim().toLowerCase()
-                );
+                const local =
+                  partido.puntos_local === null
+                    ? 0
+                    : Number(partido.puntos_local);
 
-                const equipoVisitante = equipos.find(
-                  (equipo) =>
-                    equipo.nombre.trim().toLowerCase() ===
-                    partido.visitante.trim().toLowerCase()
-                );
-
-                const puntosLocal = partido.puntosLocal ?? 0;
-                const puntosVisitante =
-                  partido.puntosVisitante ?? 0;
-
-                const ganoLocal =
-                  puntosLocal > puntosVisitante;
-
-                const ganoVisitante =
-                  puntosVisitante > puntosLocal;
+                const visitante =
+                  partido.puntos_visitante === null
+                    ? 0
+                    : Number(partido.puntos_visitante);
 
                 return (
-                  <div
+                  <Link
                     key={partido.id}
-                    className="bg-white rounded-xl shadow p-4 md:p-6"
+                    href={`/resultados/${partido.id}`}
+                    className="block rounded-3xl bg-white p-5 shadow-xl transition hover:-translate-y-1 hover:shadow-2xl md:p-7"
                   >
-                    <div className="flex items-center justify-between gap-2 md:gap-6">
+                    <div className="flex flex-col items-center gap-5 md:flex-row md:justify-between">
+                      <div className="flex w-full items-center justify-center gap-4 md:w-5/12 md:justify-end">
+                        <div className="text-center md:text-right">
+                          <p className="text-lg font-black text-blue-950 md:text-xl">
+                            {partido.equipo_local}
+                          </p>
+                          <p className="mt-1 text-5xl font-black text-blue-900">
+                            {local}
+                          </p>
+                        </div>
 
-                      {/* LOCAL */}
-                      <div className="text-center flex-1 min-w-0">
-
-                        {equipoLocal?.logo && (
-                          <Image
-                            src={equipoLocal.logo}
-                            alt={partido.local}
-                            width={80}
-                            height={80}
-                            className="mx-auto mb-2 w-16 h-16 md:w-20 md:h-20 object-contain"
-                          />
-                        )}
-
-                        <p
-                          className={`font-bold text-base md:text-xl break-words ${
-                            ganoLocal
-                              ? "text-green-600"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          {partido.local}
-                        </p>
-
-                        <p
-                          className={`text-4xl md:text-5xl font-black mt-2 ${
-                            ganoLocal
-                              ? "text-green-600"
-                              : "text-blue-900"
-                          }`}
-                        >
-                          {puntosLocal}
-                        </p>
-
+                        <Image
+                          src={equipoLocal?.logo || "/logos/LIBAVIME.png"}
+                          alt={partido.equipo_local || "Equipo local"}
+                          width={90}
+                          height={90}
+                          className="h-20 w-20 object-contain md:h-24 md:w-24"
+                        />
                       </div>
 
-                      {/* FINAL */}
-                      <div className="text-center px-1 md:px-6 shrink-0">
-
-                        <p className="font-black text-base md:text-2xl text-green-600">
+                      <div className="flex flex-col items-center">
+                        <span className="rounded-full bg-green-100 px-4 py-2 text-xs font-black text-green-700">
                           FINAL
-                        </p>
+                        </span>
 
-                        <p className="text-gray-400 text-xs md:text-sm mt-1">
-                          VS
-                        </p>
-
+                        <span className="mt-2 text-xs font-bold text-gray-500">
+                          {partido.fecha}
+                          {partido.hora ? ` · ${partido.hora}` : ""}
+                        </span>
                       </div>
 
-                      {/* VISITANTE */}
-                      <div className="text-center flex-1 min-w-0">
+                      <div className="flex w-full items-center justify-center gap-4 md:w-5/12 md:justify-start">
+                        <Image
+                          src={
+                            equipoVisitante?.logo ||
+                            "/logos/LIBAVIME.png"
+                          }
+                          alt={
+                            partido.equipo_visitante ||
+                            "Equipo visitante"
+                          }
+                          width={90}
+                          height={90}
+                          className="h-20 w-20 object-contain md:h-24 md:w-24"
+                        />
 
-                        {equipoVisitante?.logo && (
-                          <Image
-                            src={equipoVisitante.logo}
-                            alt={partido.visitante}
-                            width={80}
-                            height={80}
-                            className="mx-auto mb-2 w-16 h-16 md:w-20 md:h-20 object-contain"
-                          />
-                        )}
-
-                        <p
-                          className={`font-bold text-base md:text-xl break-words ${
-                            ganoVisitante
-                              ? "text-green-600"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          {partido.visitante}
-                        </p>
-
-                        <p
-                          className={`text-4xl md:text-5xl font-black mt-2 ${
-                            ganoVisitante
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {puntosVisitante}
-                        </p>
-
+                        <div className="text-center md:text-left">
+                          <p className="text-lg font-black text-blue-950 md:text-xl">
+                            {partido.equipo_visitante}
+                          </p>
+                          <p className="mt-1 text-5xl font-black text-red-900">
+                            {visitante}
+                          </p>
+                        </div>
                       </div>
-
                     </div>
 
-                    <div className="text-center mt-6 pt-4 border-t">
-
-                      <p className="font-semibold text-gray-600">
-                        📅 {partido.fecha}
-                        {partido.hora && ` — 🕒 ${partido.hora}`}
-                      </p>
-
-                      {partido.cancha && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          📍 {partido.cancha}
-                        </p>
-                      )}
-                      <Link
-  href={`/partidos/${partido.id}`}
-  className="inline-flex items-center justify-center mt-4 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-800 hover:-translate-y-0.5"
->
-  🏀 VER BOXSCORE
-</Link>
-
+                    <div className="mt-5 border-t border-slate-100 pt-4 text-center text-sm font-bold text-gray-500">
+                      {partido.cancha
+                        ? `📍 ${partido.cancha}`
+                        : "🏀 LIBAVIME 2026"}{" "}
+                      · Ver boxscore →
                     </div>
-
-                  </div>
+                  </Link>
                 );
               })}
-
-            </div>
+            </section>
           )}
 
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/clasificacion"
+              className="rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800"
+            >
+              🏆 Ver clasificación
+            </Link>
+
+            <Link
+              href="/"
+              className="rounded-xl bg-white px-6 py-3 font-black text-blue-950 shadow hover:bg-slate-50"
+            >
+              ← Inicio
+            </Link>
+          </div>
         </div>
       </main>
     </>

@@ -295,6 +295,13 @@ useEffect(() => {
       .trim()
       .toLowerCase();
 
+  const normalizarEquipo = (valor: unknown) =>
+    String(valor ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+
   const obtenerFechaHoraPartido = (partido: Partido) => {
     const fecha = String(partido.fecha ?? "").trim();
     const hora = String(partido.hora ?? "00:00").trim();
@@ -331,9 +338,7 @@ useEffect(() => {
 
       return (
         fecha >= FECHA_INICIO_SERIE_REGULAR &&
-        normalizarEstado(partido.estado) === "finalizado" &&
-        partido.puntosLocal !== null &&
-        partido.puntosVisitante !== null
+        normalizarEstado(partido.estado) === "finalizado"
       );
     })
     .sort((a, b) => {
@@ -380,6 +385,9 @@ useEffect(() => {
           estadistica.estado === undefined ||
           estadistica.estado === null)
     );
+
+    const equipoLocalNormalizado = normalizarEquipo(partido.local);
+    const equipoVisitanteNormalizado = normalizarEquipo(partido.visitante);
 
     const porJugador = estadisticas.reduce(
       (acumulado: Record<string, any>, estadistica) => {
@@ -451,8 +459,36 @@ useEffect(() => {
             Number(b.rebotesPartido) - Number(a.rebotesPartido)
         )[0] ?? null;
 
+    // Marcador oficial del partido: suma directa de los PTS registrados
+    // en la Planilla en Vivo para cada equipo.
+    const puntosLocalCalculados = jugadoresPartido
+      .filter(
+        (jugador) =>
+          normalizarEquipo(jugador.equipo) === equipoLocalNormalizado
+      )
+      .reduce(
+        (total, jugador) => total + Number(jugador.puntosPartido || 0),
+        0
+      );
+
+    const puntosVisitanteCalculados = jugadoresPartido
+      .filter(
+        (jugador) =>
+          normalizarEquipo(jugador.equipo) === equipoVisitanteNormalizado
+      )
+      .reduce(
+        (total, jugador) => total + Number(jugador.puntosPartido || 0),
+        0
+      );
+
+    const partidoOficial: Partido = {
+      ...partido,
+      puntosLocal: puntosLocalCalculados,
+      puntosVisitante: puntosVisitanteCalculados,
+    };
+
     return {
-      partido,
+      partido: partidoOficial,
       jugadoresPartido,
       maximoAnotador,
       maximoReboteador,
@@ -474,7 +510,13 @@ useEffect(() => {
    */
   const resumenesPartidos = partidosFinalizadosSerieRegular
     .map(construirResumenDePartido)
-    .filter((resumen) => resumen.jugadoresPartido.length > 0);
+    .filter(
+      (resumen) =>
+        resumen.jugadoresPartido.length > 0 &&
+        Number(resumen.partido.puntosLocal ?? 0) +
+          Number(resumen.partido.puntosVisitante ?? 0) >
+          0
+    );
 
   const indiceResumenSeleccionado = resumenesPartidos.length - 1;
   const resumenSeleccionado =
@@ -549,12 +591,14 @@ useEffect(() => {
   // Así se muestran siempre los 4 equipos, aunque el último partido
   // general solo haya enfrentado a 2 de ellos.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
+    const equipoNormalizado = normalizarEquipo(equipo.nombre);
+
     const resumenDelEquipo = [...resumenesPartidos]
       .reverse()
       .find((resumen) =>
         resumen.jugadoresPartido.some(
           (jugador) =>
-            jugador.equipo === equipo.nombre &&
+            normalizarEquipo(jugador.equipo) === equipoNormalizado &&
             (Number(jugador.puntosPartido || 0) > 0 ||
               Number(jugador.rebotesPartido || 0) > 0 ||
               Number(jugador.asistenciasPartido || 0) > 0)
@@ -564,7 +608,7 @@ useEffect(() => {
     const jugadoresDelEquipo = [...(resumenDelEquipo?.jugadoresPartido ?? [])]
       .filter(
         (jugador) =>
-          jugador.equipo === equipo.nombre &&
+          normalizarEquipo(jugador.equipo) === equipoNormalizado &&
           Number(jugador.puntosPartido || 0) > 0
       )
       .sort(
@@ -590,66 +634,159 @@ useEffect(() => {
       </main>
     );
   }
+  // =========================================================
+  // TABLA DE POSICIONES OFICIAL
+  // =========================================================
+  // 1) Más victorias.
+  // 2) Si hay empate en victorias: enfrentamientos directos.
+  // 3) Si siguen empatados: diferencia de puntos en esos
+  //    enfrentamientos directos.
+  // 4) Puntos a favor en enfrentamientos directos.
+  // 5) Diferencia de puntos general.
+  // 6) Puntos a favor general.
+  // 7) Nombre del equipo como criterio estable.
   const posiciones = equipos.map((equipo) => {
-  let ganados = 0;
-  let perdidos = 0;
+    let ganados = 0;
+    let perdidos = 0;
+    let puntosFavor = 0;
+    let puntosContra = 0;
+    const equipoNormalizado = normalizarEquipo(equipo.nombre);
 
-  
+    resumenesPartidos.forEach((resumen) => {
+      const partido = resumen.partido;
+      const localNormalizado = normalizarEquipo(partido.local);
+      const visitanteNormalizado = normalizarEquipo(partido.visitante);
+      const puntosLocal = Number(partido.puntosLocal ?? 0);
+      const puntosVisitante = Number(partido.puntosVisitante ?? 0);
 
-  partidosActuales.forEach((partido) => {
-    if (
-      partido.estado !== "Finalizado" ||
-      partido.puntosLocal === null ||
-      partido.puntosVisitante === null
-    ) {
-      return;
-    }
+      if (localNormalizado === equipoNormalizado) {
+        puntosFavor += puntosLocal;
+        puntosContra += puntosVisitante;
 
-    if (partido.local === equipo.nombre) {
-      if (partido.puntosLocal > partido.puntosVisitante) {
-        ganados++;
-      } else {
-        perdidos++;
+        if (puntosLocal > puntosVisitante) ganados++;
+        else if (puntosLocal < puntosVisitante) perdidos++;
       }
-    }
 
-    if (partido.visitante === equipo.nombre) {
-      if (partido.puntosVisitante > partido.puntosLocal) {
-        ganados++;
-      } else {
-        perdidos++;
+      if (visitanteNormalizado === equipoNormalizado) {
+        puntosFavor += puntosVisitante;
+        puntosContra += puntosLocal;
+
+        if (puntosVisitante > puntosLocal) ganados++;
+        else if (puntosVisitante < puntosLocal) perdidos++;
       }
-    }
+    });
+
+    const jj = ganados + perdidos;
+
+    return {
+      ...equipo,
+      ganados,
+      perdidos,
+      jj,
+      puntosFavor,
+      puntosContra,
+      dif: puntosFavor - puntosContra,
+      pct: jj === 0 ? 0 : ganados / jj,
+    };
   });
 
-  const jj = ganados + perdidos;
+  const obtenerDesempateDirecto = (
+    equipoA: (typeof posiciones)[number],
+    equipoB: (typeof posiciones)[number]
+  ) => {
+    const nombreA = normalizarEquipo(equipoA.nombre);
+    const nombreB = normalizarEquipo(equipoB.nombre);
 
-  return {
-    ...equipo,
-    ganados,
-    perdidos,
-    jj,
-    pct:
-      jj === 0
-        ? ".000"
-        : (ganados / jj).toFixed(3),
+    let victoriasA = 0;
+    let victoriasB = 0;
+    let diferenciaA = 0;
+    let diferenciaB = 0;
+    let puntosFavorA = 0;
+    let puntosFavorB = 0;
+
+    resumenesPartidos.forEach((resumen) => {
+      const partido = resumen.partido;
+      const local = normalizarEquipo(partido.local);
+      const visitante = normalizarEquipo(partido.visitante);
+
+      if (
+        !(
+          (local === nombreA && visitante === nombreB) ||
+          (local === nombreB && visitante === nombreA)
+        )
+      ) {
+        return;
+      }
+
+      const puntosLocal = Number(partido.puntosLocal ?? 0);
+      const puntosVisitante = Number(partido.puntosVisitante ?? 0);
+
+      if (local === nombreA) {
+        puntosFavorA += puntosLocal;
+        puntosFavorB += puntosVisitante;
+        diferenciaA += puntosLocal - puntosVisitante;
+        diferenciaB += puntosVisitante - puntosLocal;
+
+        if (puntosLocal > puntosVisitante) victoriasA++;
+        else if (puntosVisitante > puntosLocal) victoriasB++;
+      } else {
+        puntosFavorA += puntosVisitante;
+        puntosFavorB += puntosLocal;
+        diferenciaA += puntosVisitante - puntosLocal;
+        diferenciaB += puntosLocal - puntosVisitante;
+
+        if (puntosVisitante > puntosLocal) victoriasA++;
+        else if (puntosLocal > puntosVisitante) victoriasB++;
+      }
+    });
+
+    return {
+      victoriasA,
+      victoriasB,
+      diferenciaA,
+      diferenciaB,
+      puntosFavorA,
+      puntosFavorB,
+    };
   };
-});  
-    
-const totalPuntos = jugadores.reduce(
-  (total, jugador) => total + jugador.ppg,
-  0
-);
-const posicionesOrdenadas = [...posiciones].sort(
-  (a, b) => parseFloat(b.pct) - parseFloat(a.pct)
-);
-const ultimosResultados = [...partidosActuales]
-  .filter(
-    (partido) =>
-      partido.estado === "Finalizado" &&
-      partido.puntosLocal !== null &&
-      partido.puntosVisitante !== null
-  )
+
+  const posicionesOrdenadas = [...posiciones].sort((a, b) => {
+    if (b.ganados !== a.ganados) {
+      return b.ganados - a.ganados;
+    }
+
+    const directo = obtenerDesempateDirecto(a, b);
+
+    if (directo.victoriasA !== directo.victoriasB) {
+      return directo.victoriasB - directo.victoriasA;
+    }
+
+    if (directo.diferenciaA !== directo.diferenciaB) {
+      return directo.diferenciaB - directo.diferenciaA;
+    }
+
+    if (directo.puntosFavorA !== directo.puntosFavorB) {
+      return directo.puntosFavorB - directo.puntosFavorA;
+    }
+
+    if (b.dif !== a.dif) {
+      return b.dif - a.dif;
+    }
+
+    if (b.puntosFavor !== a.puntosFavor) {
+      return b.puntosFavor - a.puntosFavor;
+    }
+
+    return String(a.nombre).localeCompare(String(b.nombre));
+  });
+
+  const totalPuntos = jugadores.reduce(
+    (total, jugador) => total + jugador.ppg,
+    0
+  );
+
+const ultimosResultados = resumenesPartidos
+  .map((resumen) => resumen.partido)
   .slice(-3)
   .reverse();
 
@@ -1213,7 +1350,8 @@ const ultimosResultados = [...partidosActuales]
   <Image
   src={
     equipos.find(
-      (e) => e.nombre === partido.local
+      (e) =>
+        normalizarEquipo(e.nombre) === normalizarEquipo(partido.local)
     )?.logo || "/logo.png"
   }
   alt={partido.local}
@@ -1255,7 +1393,8 @@ const ultimosResultados = [...partidosActuales]
   <Image
   src={
     equipos.find(
-      (e) => e.nombre === partido.visitante
+      (e) =>
+        normalizarEquipo(e.nombre) === normalizarEquipo(partido.visitante)
     )?.logo || "/logo.png"
   }
   alt={partido.visitante}
@@ -1984,7 +2123,7 @@ const ultimosResultados = [...partidosActuales]
 
               <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-red-500 bg-white shadow-lg">
   <Image
-    src={jugador.foto}
+    src={obtenerFotoJugador(jugador)}
     alt={jugador.nombre}
     fill
     sizes="72px"
@@ -2030,7 +2169,7 @@ const ultimosResultados = [...partidosActuales]
 
              <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-purple-500 bg-white shadow-lg">
   <Image
-    src={jugador.foto}
+    src={obtenerFotoJugador(jugador)}
     alt={jugador.nombre}
     fill
     sizes="72px"
@@ -2076,7 +2215,7 @@ const ultimosResultados = [...partidosActuales]
 
               <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border-4 border-yellow-500 bg-white shadow-lg">
   <Image
-    src={jugador.foto}
+    src={obtenerFotoJugador(jugador)}
     alt={jugador.nombre}
     fill
     sizes="72px"

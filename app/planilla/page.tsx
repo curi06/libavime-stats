@@ -88,6 +88,7 @@ export default function PlanillaPage() {
   const [historial, setHistorial] = useState<Accion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState<number | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
   const [mensaje, setMensaje] = useState("Listo para comenzar.");
   const [error, setError] = useState("");
   const colasGuardado = useRef<Record<number, Promise<void>>>({});
@@ -349,6 +350,112 @@ export default function PlanillaPage() {
     setMensaje("Estadísticas cargadas.");
   }
 
+  // =========================================================
+  // SINCRONIZACIÓN PLANILLA → PARTIDO
+  // =========================================================
+  // La página principal (/app/page.tsx) obtiene los resultados y la
+  // clasificación a partir de estadisticas_partido. También mantenemos
+  // puntos_local / puntos_visitante de partidos sincronizados para que
+  // resultados, calendario y cualquier otra sección que use esos campos
+  // permanezcan consistentes.
+  async function sincronizarMarcadorPartido(id: number) {
+    const { data, error: statsError } = await supabase
+      .from("estadisticas_partido")
+      .select("jugador_id, puntos, estado")
+      .eq("partido_id", id);
+
+    if (statsError) throw statsError;
+
+    const idsJugadores = new Set(
+      (jugadoresDelPartido ?? []).map((jugador) => Number(jugador.id))
+    );
+
+    let puntosLocal = 0;
+    let puntosVisitante = 0;
+    const local = normalizar(partido?.equipo_local);
+    const visitante = normalizar(partido?.equipo_visitante);
+
+    (data ?? []).forEach((fila: any) => {
+      const jugador = jugadoresDelPartido.find(
+        (item) => Number(item.id) === Number(fila.jugador_id)
+      );
+
+      if (!jugador || !idsJugadores.has(Number(jugador.id))) return;
+      if (fila.estado === "no_jugo" || fila.estado === "lesionado") return;
+
+      const puntos = Number(fila.puntos) || 0;
+      const equipo = normalizar(jugador.equipo);
+
+      if (equipo === local) puntosLocal += puntos;
+      if (equipo === visitante) puntosVisitante += puntos;
+    });
+
+    const { error: partidoError } = await supabase
+      .from("partidos")
+      .update({
+        puntos_local: puntosLocal,
+        puntos_visitante: puntosVisitante,
+      })
+      .eq("id", id);
+
+    if (partidoError) throw partidoError;
+
+    setPartidos((actual) =>
+      actual.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              puntos_local: puntosLocal,
+              puntos_visitante: puntosVisitante,
+            }
+          : item
+      )
+    );
+  }
+
+  // Marca el partido como finalizado. Esto es lo que permite que
+  // /app/page.tsx lo incluya en clasificación, resultados y destacados.
+  async function finalizarPartido() {
+    if (!partido) return;
+
+    const confirmar = window.confirm(
+      "¿Seguro que deseas FINALIZAR este partido?\\n\\nDespués de finalizarlo, /app/page.tsx lo tomará como partido oficial para la clasificación y los jugadores destacados."
+    );
+
+    if (!confirmar) return;
+
+    setFinalizando(true);
+    setError("");
+    setMensaje("⏳ Cerrando partido...");
+
+    try {
+      await sincronizarMarcadorPartido(partido.id);
+
+      const { error: updateError } = await supabase
+        .from("partidos")
+        .update({ estado: "Finalizado" })
+        .eq("id", partido.id);
+
+      if (updateError) throw updateError;
+
+      setPartidos((actual) =>
+        actual.map((item) =>
+          item.id === partido.id
+            ? { ...item, estado: "Finalizado" }
+            : item
+        )
+      );
+
+      setMensaje("🏁 Partido finalizado y sincronizado con LIBAVIME Stats.");
+    } catch (err: any) {
+      console.error("Error finalizando partido:", err);
+      setError(err?.message ?? "No se pudo finalizar el partido.");
+      setMensaje("No se pudo finalizar el partido.");
+    } finally {
+      setFinalizando(false);
+    }
+  }
+
   function guardarFila(
     jugadorId: number,
     nueva: Estadistica
@@ -409,8 +516,18 @@ export default function PlanillaPage() {
           throw saveError;
         }
 
+        try {
+          await sincronizarMarcadorPartido(Number(partidoId));
+        } catch (syncError: any) {
+          console.error("Error sincronizando marcador:", syncError);
+          setError(
+            syncError?.message ??
+              "La estadística se guardó, pero no se pudo sincronizar el marcador."
+          );
+        }
+
         setMensaje(
-          "🟢 Guardado en tiempo real"
+          "🟢 Guardado en tiempo real · marcador sincronizado"
         );
       })
       .finally(() => {
@@ -456,6 +573,11 @@ export default function PlanillaPage() {
     campo: Accion["campo"],
     cantidad: number
   ) {
+    if (partido?.estado?.toLowerCase() === "finalizado") {
+      setMensaje("🏁 El partido ya está finalizado. No se pueden modificar estadísticas.");
+      return;
+    }
+
     const anterior =
       obtenerEstadistica(jugadorId);
 
@@ -1166,32 +1288,59 @@ export default function PlanillaPage() {
               </div>
             </section>
 
-            <footer className="sticky bottom-1 z-50 mt-2 rounded-xl border border-slate-700 bg-slate-900/95 px-2 py-1.5 shadow-2xl backdrop-blur">
-              <div className="flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => void deshacer()}
-                  disabled={historial.length === 0}
-                  className="rounded-lg bg-rose-600 px-3 py-2 text-[10px] font-black text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  ↩️ DESHACER
-                </button>
+            <footer className="sticky bottom-1 z-50 mt-2 rounded-xl border border-slate-700 bg-slate-900/95 px-2 py-2 shadow-2xl backdrop-blur">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void deshacer()}
+                    disabled={
+                      historial.length === 0 ||
+                      finalizando ||
+                      partido.estado?.toLowerCase() === "finalizado"
+                    }
+                    className="rounded-lg bg-rose-600 px-3 py-2 text-[10px] font-black text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    ↩️ DESHACER
+                  </button>
 
-                <p className="truncate text-center text-[9px] font-black text-emerald-400">
-                  🟢{" "}
-                  {mensaje ||
-                    "Guardado en tiempo real"}
-                </p>
-
-                <div className="shrink-0 rounded-lg border border-slate-700 px-2 py-1 text-center">
-                  <p className="text-[7px] uppercase text-slate-500">
-                    Acciones
+                  <p className="min-w-0 flex-1 truncate text-center text-[9px] font-black text-emerald-400">
+                    🟢{" "}
+                    {mensaje ||
+                      "Guardado en tiempo real"}
                   </p>
 
-                  <p className="text-sm font-black">
-                    {historial.length}
-                  </p>
+                  <div className="shrink-0 rounded-lg border border-slate-700 px-2 py-1 text-center">
+                    <p className="text-[7px] uppercase text-slate-500">
+                      Acciones
+                    </p>
+
+                    <p className="text-sm font-black">
+                      {historial.length}
+                    </p>
+                  </div>
                 </div>
+
+                {partido.estado?.toLowerCase() === "finalizado" ? (
+                  <div className="rounded-lg border border-emerald-700 bg-emerald-950/60 px-3 py-2 text-center text-[10px] font-black text-emerald-300">
+                    🏁 PARTIDO FINALIZADO · DATOS DISPONIBLES EN CLASIFICACIÓN Y ESTADÍSTICAS
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void finalizarPartido()}
+                    disabled={
+                      finalizando ||
+                      !partido ||
+                      guardando !== null
+                    }
+                    className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-[11px] font-black text-white shadow-lg transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {finalizando
+                      ? "⏳ FINALIZANDO PARTIDO..."
+                      : "🏁 FINALIZAR PARTIDO Y ACTUALIZAR CLASIFICACIÓN"}
+                  </button>
+                )}
               </div>
             </footer>
           </div>

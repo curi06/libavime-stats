@@ -31,7 +31,7 @@ export default async function ClasificacionPage() {
     console.error("Error cargando clasificación:", error);
   }
 
-  const tabla = equipos.map((equipo) => {
+  const tablaBase = equipos.map((equipo) => {
     let pj = 0;
     let pg = 0;
     let pp = 0;
@@ -53,35 +53,133 @@ export default async function ClasificacionPage() {
       if (local === nombre) {
         const favor = Number(partido.puntos_local);
         const contra = Number(partido.puntos_visitante);
+
         pj++;
         pf += favor;
         pc += contra;
+
         if (favor > contra) pg++;
-        else pp++;
+        else if (favor < contra) pp++;
       }
 
       if (visitante === nombre) {
         const favor = Number(partido.puntos_visitante);
         const contra = Number(partido.puntos_local);
+
         pj++;
         pf += favor;
         pc += contra;
+
         if (favor > contra) pg++;
-        else pp++;
+        else if (favor < contra) pp++;
       }
     });
 
-    const dif = pf - pc;
-    const pct = pj > 0 ? pg / pj : 0;
+    return {
+      ...equipo,
+      pj,
+      pg,
+      pp,
+      pf,
+      pc,
+      dif: pf - pc,
+      pct: pj > 0 ? pg / pj : 0,
+    };
+  });
 
-    return { ...equipo, pj, pg, pp, pf, pc, dif, pct };
-  }).sort((a, b) =>
-    b.pg - a.pg ||
-    b.pct - a.pct ||
-    b.dif - a.dif ||
-    b.pf - a.pf ||
-    a.nombre.localeCompare(b.nombre)
-  );
+  const obtenerDesempateDirecto = (
+    equipoA: (typeof tablaBase)[number],
+    equipoB: (typeof tablaBase)[number]
+  ) => {
+    const nombreA = normalizar(equipoA.nombre);
+    const nombreB = normalizar(equipoB.nombre);
+
+    let victoriasA = 0;
+    let victoriasB = 0;
+    let diferenciaA = 0;
+    let diferenciaB = 0;
+    let puntosFavorA = 0;
+    let puntosFavorB = 0;
+
+    partidos.forEach((partido) => {
+      if (
+        partido.puntos_local === null ||
+        partido.puntos_visitante === null
+      ) {
+        return;
+      }
+
+      const local = normalizar(partido.equipo_local);
+      const visitante = normalizar(partido.equipo_visitante);
+
+      const directo =
+        (local === nombreA && visitante === nombreB) ||
+        (local === nombreB && visitante === nombreA);
+
+      if (!directo) return;
+
+      const puntosLocal = Number(partido.puntos_local);
+      const puntosVisitante = Number(partido.puntos_visitante);
+
+      if (local === nombreA) {
+        puntosFavorA += puntosLocal;
+        puntosFavorB += puntosVisitante;
+        diferenciaA += puntosLocal - puntosVisitante;
+        diferenciaB += puntosVisitante - puntosLocal;
+
+        if (puntosLocal > puntosVisitante) victoriasA++;
+        else if (puntosVisitante > puntosLocal) victoriasB++;
+      } else {
+        puntosFavorA += puntosVisitante;
+        puntosFavorB += puntosLocal;
+        diferenciaA += puntosVisitante - puntosLocal;
+        diferenciaB += puntosLocal - puntosVisitante;
+
+        if (puntosVisitante > puntosLocal) victoriasA++;
+        else if (puntosLocal > puntosVisitante) victoriasB++;
+      }
+    });
+
+    return {
+      victoriasA,
+      victoriasB,
+      diferenciaA,
+      diferenciaB,
+      puntosFavorA,
+      puntosFavorB,
+    };
+  };
+
+  const tabla = [...tablaBase].sort((a, b) => {
+    // 1. Récord: más victorias.
+    if (b.pg !== a.pg) return b.pg - a.pg;
+
+    // 2. Enfrentamiento directo.
+    const directo = obtenerDesempateDirecto(a, b);
+
+    if (directo.victoriasA !== directo.victoriasB) {
+      return directo.victoriasB - directo.victoriasA;
+    }
+
+    // 3. Diferencia de puntos en enfrentamientos directos.
+    if (directo.diferenciaA !== directo.diferenciaB) {
+      return directo.diferenciaB - directo.diferenciaA;
+    }
+
+    // 4. Puntos a favor en enfrentamientos directos.
+    if (directo.puntosFavorA !== directo.puntosFavorB) {
+      return directo.puntosFavorB - directo.puntosFavorA;
+    }
+
+    // 5. Diferencia general.
+    if (b.dif !== a.dif) return b.dif - a.dif;
+
+    // 6. Puntos a favor general.
+    if (b.pf !== a.pf) return b.pf - a.pf;
+
+    // 7. Criterio estable.
+    return a.nombre.localeCompare(b.nombre);
+  });
 
   return (
     <>
@@ -93,9 +191,11 @@ export default async function ClasificacionPage() {
             <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-700">
               LIBAVIME 2026
             </p>
+
             <h1 className="mt-2 text-4xl font-black text-blue-950 md:text-5xl">
               🏆 TABLA DE POSICIONES
             </h1>
+
             <p className="mx-auto mt-3 max-w-2xl text-gray-600">
               Clasificación oficial actualizada automáticamente con los partidos finalizados.
             </p>
@@ -117,6 +217,7 @@ export default async function ClasificacionPage() {
                     <th className="px-3 py-4 text-center text-sm font-black">% G</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {tabla.map((equipo, index) => (
                     <tr
@@ -126,21 +227,45 @@ export default async function ClasificacionPage() {
                       <td className="px-4 py-4 text-center text-lg font-black text-blue-950">
                         {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
                       </td>
+
                       <td className="px-4 py-4">
-                        <Link href={`/equipos/${equipo.slug}`} className="flex items-center gap-3 font-black text-blue-950 hover:text-blue-700">
-                          <Image src={equipo.logo} alt={equipo.nombre} width={52} height={52} className="h-12 w-12 object-contain" />
+                        <Link
+                          href={`/equipos/${equipo.slug}`}
+                          className="flex items-center gap-3 font-black text-blue-950 hover:text-blue-700"
+                        >
+                          <Image
+                            src={equipo.logo}
+                            alt={equipo.nombre}
+                            width={52}
+                            height={52}
+                            className="h-12 w-12 object-contain"
+                          />
                           <span>{equipo.nombre}</span>
                         </Link>
                       </td>
+
                       <td className="px-3 py-4 text-center font-bold">{equipo.pj}</td>
                       <td className="px-3 py-4 text-center font-black text-green-700">{equipo.pg}</td>
                       <td className="px-3 py-4 text-center font-bold text-red-700">{equipo.pp}</td>
                       <td className="px-3 py-4 text-center font-bold">{equipo.pf}</td>
                       <td className="px-3 py-4 text-center font-bold">{equipo.pc}</td>
-                      <td className={`px-3 py-4 text-center font-black ${equipo.dif > 0 ? "text-green-700" : equipo.dif < 0 ? "text-red-700" : "text-gray-600"}`}>
-                        {equipo.dif > 0 ? "+" : ""}{equipo.dif}
+
+                      <td
+                        className={`px-3 py-4 text-center font-black ${
+                          equipo.dif > 0
+                            ? "text-green-700"
+                            : equipo.dif < 0
+                              ? "text-red-700"
+                              : "text-gray-600"
+                        }`}
+                      >
+                        {equipo.dif > 0 ? "+" : ""}
+                        {equipo.dif}
                       </td>
-                      <td className="px-3 py-4 text-center font-black">{equipo.pct.toFixed(3)}</td>
+
+                      <td className="px-3 py-4 text-center font-black">
+                        {equipo.pct.toFixed(3)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -153,10 +278,17 @@ export default async function ClasificacionPage() {
               <span>PP = Partidos perdidos</span>
               <span>DIF = Puntos a favor − puntos en contra</span>
             </div>
+
+            <div className="border-t border-slate-100 bg-blue-50 px-5 py-4 text-center text-xs font-bold text-blue-900">
+              Desempate: enfrentamiento directo → diferencia de puntos directos → puntos a favor directos → diferencia general → puntos a favor general.
+            </div>
           </section>
 
           <div className="mt-6 text-center">
-            <Link href="/equipos" className="inline-flex rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800">
+            <Link
+              href="/equipos"
+              className="inline-flex rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800"
+            >
               ← Ver equipos
             </Link>
           </div>
