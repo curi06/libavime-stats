@@ -269,6 +269,7 @@ export default async function PartidoPage({
                 src={obtenerFoto(
                   jugador.foto
                 )}
+                unoptimized
                 alt={jugador.nombre}
                 fill
                 sizes="44px"
@@ -314,6 +315,7 @@ export default async function PartidoPage({
         {equipo?.logo ? (
           <Image
             src={equipo.logo}
+            unoptimized
             alt={nombre ?? "Equipo"}
             width={72}
             height={72}
@@ -441,6 +443,7 @@ export default async function PartidoPage({
                 {localEquipo?.logo ? (
                   <Image
                     src={localEquipo.logo}
+                    unoptimized
                     alt={
                       partido.equipo_local ??
                       "Local"
@@ -477,6 +480,7 @@ export default async function PartidoPage({
                 {visitanteEquipo?.logo ? (
                   <Image
                     src={visitanteEquipo.logo}
+                    unoptimized
                     alt={
                       partido.equipo_visitante ??
                       "Visitante"

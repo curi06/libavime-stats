@@ -1666,6 +1666,7 @@ export default function Estadisticas() {
 >
   <Image
     src={foto}
+    unoptimized
     alt={
       jugador.nombre ??
       "Jugador LIBAVIME"
@@ -1718,6 +1719,7 @@ export default function Estadisticas() {
 >
   <Image
     src={foto}
+    unoptimized
     alt={
       jugador.nombre ??
       "Jugador LIBAVIME"
@@ -1953,6 +1955,7 @@ export default function Estadisticas() {
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-red-500 bg-white shadow">
                           <Image
                             src={foto}
+                            unoptimized
                             alt={jugador.nombre ?? "Jugador LIBAVIME"}
                             fill
                             sizes="48px"
@@ -2040,6 +2043,7 @@ export default function Estadisticas() {
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-purple-500 bg-white shadow">
                           <Image
                             src={foto}
+                            unoptimized
                             alt={jugador.nombre ?? "Jugador LIBAVIME"}
                             fill
                             sizes="48px"
@@ -2127,6 +2131,7 @@ export default function Estadisticas() {
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-yellow-500 bg-white shadow">
                           <Image
                             src={foto}
+                            unoptimized
                             alt={jugador.nombre ?? "Jugador LIBAVIME"}
                             fill
                             sizes="48px"

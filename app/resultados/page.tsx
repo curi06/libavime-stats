@@ -101,6 +101,7 @@ export default async function ResultadosPage() {
 
                         <Image
                           src={equipoLocal?.logo || "/logos/LIBAVIME.png"}
+                          unoptimized
                           alt={partido.equipo_local || "Equipo local"}
                           width={90}
                           height={90}
@@ -125,6 +126,7 @@ export default async function ResultadosPage() {
                             equipoVisitante?.logo ||
                             "/logos/LIBAVIME.png"
                           }
+                          unoptimized
                           alt={
                             partido.equipo_visitante ||
                             "Equipo visitante"

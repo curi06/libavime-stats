@@ -235,6 +235,7 @@ export default async function ClasificacionPage() {
                         >
                           <Image
                             src={equipo.logo}
+                            unoptimized
                             alt={equipo.nombre}
                             width={52}
                             height={52}
