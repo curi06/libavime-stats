@@ -5,388 +5,322 @@ import Navbar from "../components/Navbar";
 import { supabase } from "@/lib/supabase";
 
 type Partido = {
-id: number;
-local: string;
-visitante: string;
-fecha: string;
-hora: string | null;
-cancha: string | null;
-puntosLocal: number | null;
-puntosVisitante: number | null;
-estado: string | null;
+  id: number;
+  local: string;
+  visitante: string;
+  fecha: string;
+  hora: string | null;
+  cancha: string | null;
+  puntosLocal: number | null;
+  puntosVisitante: number | null;
+  estado: string | null;
 };
 
 function formatearFecha(fecha: string) {
-if (!fecha) return "";
+  if (!fecha) return "";
 
-const partes = fecha.split("-");
+  const partes = fecha.split("-");
 
-if (partes.length !== 3) {
-return fecha;
-}
+  if (partes.length !== 3) return fecha;
 
-return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
 function obtenerLogoEquipo(nombre: string) {
   const equipo = nombre.toLowerCase().trim();
 
-  if (equipo.includes("gladiadores")) {
-    return "/logos/gladiadores.png";
-  }
-
-  if (equipo.includes("espartanos")) {
-    return "/logos/espartanos.png";
-  }
-
-  if (equipo.includes("titanes")) {
-    return "/logos/titanes.jpg";
-  }
-
-  if (equipo.includes("vikingos")) {
-    return "/logos/vikingos.jpg";
-  }
+  if (equipo.includes("gladiadores")) return "/logos/gladiadores.png";
+  if (equipo.includes("espartanos")) return "/logos/espartanos.png";
+  if (equipo.includes("titanes")) return "/logos/titanes.jpg";
+  if (equipo.includes("vikingos")) return "/logos/vikingos.jpg";
 
   return null;
 }
 
-export default function Calendario() {
-const [partidos, setPartidos] = useState<Partido[]>([]);
-const [cargando, setCargando] = useState(true);
+function obtenerDia(fecha: string) {
+  if (!fecha) return "";
 
-useEffect(() => {
-async function cargarPartidos() {
-setCargando(true);
+  const [year, month, day] = fecha.split("-").map(Number);
+  if (!year || !month || !day) return "";
 
-  const { data, error } = await supabase
-    .from("partidos")
-    .select(
-      `
-      id,
-      equipo_local,
-      equipo_visitante,
-      fecha,
-      hora,
-      cancha,
-      puntos_local,
-      puntos_visitante,
-      estado
-    `
-    )
-    .order("fecha", { ascending: true })
-    .order("hora", { ascending: true });
+  const date = new Date(year, month - 1, day);
 
-  if (error) {
-    console.error("Error al cargar calendario:", error);
-    setCargando(false);
-    return;
-  }
-
-  const partidosFormateados: Partido[] = (data ?? []).map(
-    (partido: any) => ({
-      id: partido.id,
-      local: partido.equipo_local,
-      visitante: partido.equipo_visitante,
-      fecha: partido.fecha,
-      hora: partido.hora,
-      cancha: partido.cancha,
-      puntosLocal:
-        partido.puntos_local === null ||
-        partido.puntos_local === undefined
-          ? null
-          : Number(partido.puntos_local),
-      puntosVisitante:
-        partido.puntos_visitante === null ||
-        partido.puntos_visitante === undefined
-          ? null
-          : Number(partido.puntos_visitante),
-      estado: partido.estado,
-    })
-  );
-
-  setPartidos(partidosFormateados);
-  setCargando(false);
+  return new Intl.DateTimeFormat("es-DO", {
+    weekday: "long",
+  }).format(date);
 }
 
-cargarPartidos();
+export default function Calendario() {
+  const [partidos, setPartidos] = useState<Partido[]>([]);
+  const [cargando, setCargando] = useState(true);
 
-}, []);
+  useEffect(() => {
+    async function cargarPartidos() {
+      setCargando(true);
 
-const proximosPartidos = partidos.filter((partido) => {
-const estado = partido.estado?.toLowerCase().trim();
+      const { data, error } = await supabase
+        .from("partidos")
+        .select(
+          `
+          id,
+          equipo_local,
+          equipo_visitante,
+          fecha,
+          hora,
+          cancha,
+          puntos_local,
+          puntos_visitante,
+          estado
+        `
+        )
+        .order("fecha", { ascending: true })
+        .order("hora", { ascending: true });
 
-return (
-  estado !== "finalizado" &&
-  estado !== "finalizada"
-);
+      if (error) {
+        console.error("Error al cargar calendario:", error);
+        setCargando(false);
+        return;
+      }
 
-});
+      const partidosFormateados: Partido[] = (data ?? []).map(
+        (partido: any) => ({
+          id: partido.id,
+          local: partido.equipo_local,
+          visitante: partido.equipo_visitante,
+          fecha: partido.fecha,
+          hora: partido.hora,
+          cancha: partido.cancha,
+          puntosLocal:
+            partido.puntos_local === null ||
+            partido.puntos_local === undefined
+              ? null
+              : Number(partido.puntos_local),
+          puntosVisitante:
+            partido.puntos_visitante === null ||
+            partido.puntos_visitante === undefined
+              ? null
+              : Number(partido.puntos_visitante),
+          estado: partido.estado,
+        })
+      );
 
-return (
-<> <Navbar />
+      setPartidos(partidosFormateados);
+      setCargando(false);
+    }
 
-  <main className="min-h-screen bg-slate-100 pt-32 pb-10 px-3 sm:px-5 md:pt-28 md:px-8">
-    <div className="max-w-5xl mx-auto">
+    cargarPartidos();
+  }, []);
 
-      {/* ENCABEZADO */}
-      <div className="text-center mb-7 md:mb-10">
+  const proximosPartidos = partidos.filter((partido) => {
+    const estado = partido.estado?.toLowerCase().trim();
 
-        <div className="inline-flex items-center gap-2 bg-blue-950 text-white px-4 py-2 rounded-full text-xs sm:text-sm font-black shadow-md mb-3">
-          🏀 LIBAVIME 2026
+    return estado !== "finalizado" && estado !== "finalizada";
+  });
+
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-[#050b18] pt-28 pb-12 px-3 sm:px-5 md:pt-32">
+        {/* FONDO DEPORTIVO */}
+        <div className="pointer-events-none fixed inset-0 -z-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(220,38,38,0.18),transparent_30%),radial-gradient(circle_at_80%_30%,rgba(37,99,235,0.20),transparent_32%),linear-gradient(135deg,#050b18_0%,#0b1224_50%,#050814_100%)]" />
+          <div className="absolute -left-32 top-80 h-96 w-96 rounded-full bg-red-600/10 blur-3xl" />
+          <div className="absolute -right-32 top-96 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
         </div>
 
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-blue-950">
-          Calendario
-        </h1>
+        <div className="relative z-10 mx-auto max-w-6xl">
+          {/* ENCABEZADO */}
+          <div className="mb-7 text-center sm:mb-10">
+            <div className="mx-auto mb-5 flex max-w-fit items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 shadow-2xl backdrop-blur">
+              <span className="text-xl">🏀</span>
+              <span className="text-xs font-black tracking-[0.18em] text-white sm:text-sm">
+                LIBAVIME 2026
+              </span>
+            </div>
 
-        <p className="text-gray-500 mt-2 text-sm sm:text-base">
-          Próximos partidos
-        </p>
+            <h1 className="text-4xl font-black uppercase italic tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
+              Calendario
+            </h1>
 
-      </div>
+            <div className="mx-auto mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-blue-600" />
 
-      {/* CARGANDO */}
-      {cargando ? (
-
-        <div className="bg-white rounded-2xl shadow-lg p-10 text-center">
-
-          <div className="text-4xl mb-3">
-            🏀
+            <p className="mt-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-400 sm:text-sm">
+              Próximos partidos
+            </p>
           </div>
 
-          <p className="font-bold text-gray-600">
-            Cargando calendario...
-          </p>
+          {/* CARGANDO */}
+          {cargando ? (
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center shadow-2xl backdrop-blur">
+              <div className="mb-4 text-5xl animate-bounce">🏀</div>
+              <p className="font-black uppercase tracking-wider text-white">
+                Cargando calendario...
+              </p>
+            </div>
+          ) : proximosPartidos.length === 0 ? (
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center shadow-2xl backdrop-blur">
+              <div className="mb-4 text-5xl">📅</div>
+              <p className="text-lg font-black text-white">
+                No hay próximos partidos programados.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-7 lg:grid-cols-2">
+              {proximosPartidos.map((partido) => {
+                const logoLocal = obtenerLogoEquipo(partido.local);
+                const logoVisitante = obtenerLogoEquipo(partido.visitante);
 
-        </div>
+                return (
+                  <article
+                    key={partido.id}
+                    className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-[#080f20]/95 shadow-[0_25px_80px_rgba(0,0,0,0.45)]"
+                  >
+                    {/* BRILLOS */}
+                    <div className="pointer-events-none absolute -left-24 top-20 h-64 w-64 rounded-full bg-red-600/15 blur-3xl" />
+                    <div className="pointer-events-none absolute -right-24 top-20 h-64 w-64 rounded-full bg-blue-600/15 blur-3xl" />
 
-      ) : proximosPartidos.length === 0 ? (
-
-        /* SIN PARTIDOS */
-        <div className="bg-white rounded-2xl shadow-lg p-10 text-center">
-
-          <div className="text-5xl mb-4">
-            📅
-          </div>
-
-          <p className="font-bold text-gray-600 text-lg">
-            No hay próximos partidos programados.
-          </p>
-
-        </div>
-
-      ) : (
-
-        <div className="space-y-5 md:space-y-7">
-
-          {proximosPartidos.map((partido) => {
-
-            const logoLocal = obtenerLogoEquipo(partido.local);
-            const logoVisitante = obtenerLogoEquipo(partido.visitante);
-
-            return (
-              <div
-                key={partido.id}
-                className="bg-white rounded-2xl md:rounded-3xl shadow-lg overflow-hidden border border-slate-200"
-              >
-
-                {/* CABECERA */}
-                <div className="bg-gradient-to-r from-blue-950 to-blue-800 px-4 sm:px-5 py-3 flex items-center justify-between">
-
-                  <span className="text-white font-black text-xs sm:text-sm">
-                    🏀 PRÓXIMO PARTIDO
-                  </span>
-
-                  <span className="text-white/80 text-[10px] sm:text-xs font-bold">
-                    LIBAVIME
-                  </span>
-
-                </div>
-
-                <div className="p-4 sm:p-6 md:p-8">
-
-                  {/* EQUIPOS */}
-<div className="w-full">
-
-  <div className="flex items-center justify-center gap-1 sm:gap-4 md:gap-8">
-
-    {/* GLADIADORES */}
-    <div className="flex-1 min-w-0 text-center">
-
-      <div className="h-24 w-full sm:h-32 md:h-40 flex items-center justify-center">
-        {logoLocal ? (
-          <img
-            src={logoLocal}
-            alt={`Logo ${partido.local}`}
-            className="h-full w-full object-contain drop-shadow-xl"
-          />
-        ) : (
-          <span className="text-5xl">🏀</span>
-        )}
-      </div>
-
-      <h2 className="mt-2 text-sm sm:text-xl md:text-2xl font-black text-blue-950 uppercase leading-tight">
-        {partido.local}
-      </h2>
-
-      <p className="mt-1 text-[9px] sm:text-xs font-black text-gray-400">
-        LOCAL
-      </p>
-
-    </div>
-
-
-{/* VS CENTRAL */}
-
-<div className="flex-none w-24 sm:w-32 md:w-40 flex items-center justify-center">
-
-  <div className="relative flex items-center justify-center -translate-y-3 sm:-translate-y-4 md:-translate-y-5">
-
-```
-{/* Resplandor rojo */}
-<div className="absolute w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-red-600/30 blur-2xl rounded-full"></div>
-
-{/* Sombra */}
-<span
-  className="absolute translate-x-2 translate-y-3 text-[70px] sm:text-[95px] md:text-[125px] font-black italic tracking-tighter text-black/25 leading-none"
->
-  VS
-</span>
-
-{/* VS ROJO */}
-<span
-  className="relative z-10 text-[68px] sm:text-[92px] md:text-[120px] font-black italic tracking-tighter leading-none text-red-600"
-  style={{
-    textShadow:
-      "0 5px 0 #991b1b, 0 9px 18px rgba(0,0,0,0.4)",
-  }}
->
-  VS
-</span>
-```
-
-  </div>
-
-</div>
-
-
-
-    {/* TITANES */}
-    <div className="flex-1 min-w-0 text-center">
-
-      <div className="h-24 w-full sm:h-32 md:h-40 flex items-center justify-center">
-        {logoVisitante ? (
-          <img
-            src={logoVisitante}
-            alt={`Logo ${partido.visitante}`}
-            className="h-full w-full object-contain drop-shadow-xl"
-          />
-        ) : (
-          <span className="text-5xl">🏀</span>
-        )}
-      </div>
-
-      <h2 className="mt-2 text-sm sm:text-xl md:text-2xl font-black text-blue-950 uppercase leading-tight">
-        {partido.visitante}
-      </h2>
-
-      <p className="mt-1 text-[9px] sm:text-xs font-black text-gray-400">
-        VISITANTE
-      </p>
-
-    </div>
-
-  </div>
-
-</div>
-
-                  {/* SEPARADOR */}
-                  <div className="border-t border-slate-100 mt-5 sm:mt-7 pt-5 sm:pt-6">
-
-                    {/* INFORMACIÓN */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
-
-                      {/* FECHA */}
-                      <div className="bg-slate-50 rounded-xl p-3 sm:p-4 text-center border border-slate-200">
-
-                        <div className="text-xl sm:text-2xl">
-                          📅
-                        </div>
-
-                        <p className="text-[9px] sm:text-xs text-gray-400 font-black uppercase mt-1">
-                          Fecha
-                        </p>
-
-                        <p className="text-sm sm:text-lg font-black text-blue-950 mt-1">
-                          {formatearFecha(partido.fecha)}
-                        </p>
-
+                    {/* CABECERA */}
+                    <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#121d45] via-[#16285b] to-[#101a3b] px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🏀</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-white sm:text-xs">
+                          Próximo partido
+                        </span>
                       </div>
 
-                      {/* HORA */}
-                      <div className="bg-slate-50 rounded-xl p-3 sm:p-4 text-center border border-slate-200">
-
-                        <div className="text-xl sm:text-2xl">
-                          🕒
-                        </div>
-
-                        <p className="text-[9px] sm:text-xs text-gray-400 font-black uppercase mt-1">
-                          Hora
-                        </p>
-
-                        <p className="text-sm sm:text-lg font-black text-blue-950 mt-1">
-                          {partido.hora || "Por confirmar"}
-                        </p>
-
-                      </div>
-
-                      {/* LUGAR */}
-                      <div className="col-span-2 md:col-span-1 bg-slate-50 rounded-xl p-3 sm:p-4 text-center border border-slate-200">
-
-                        <div className="text-xl sm:text-2xl">
-                          📍
-                        </div>
-
-                        <p className="text-[9px] sm:text-xs text-gray-400 font-black uppercase mt-1">
-                          Lugar
-                        </p>
-
-                        <p className="text-sm sm:text-lg font-black text-blue-950 mt-1 leading-tight">
-                          {partido.cancha || "Por confirmar"}
-                        </p>
-
-                      </div>
-
+                      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-300">
+                        LIBAVIME
+                      </span>
                     </div>
 
-                  </div>
+                    {/* ENFRENTAMIENTO */}
+                    <div className="relative px-4 pb-5 pt-7 sm:px-7 sm:pt-8">
+                      <div className="flex items-center justify-between gap-2 sm:gap-4">
+                        {/* LOCAL */}
+                        <div className="min-w-0 flex-1 text-center">
+                          <div className="mx-auto flex h-32 w-full max-w-[190px] items-center justify-center rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-950/80 to-red-900/20 p-3 shadow-[inset_0_0_40px_rgba(220,38,38,0.12)] sm:h-40 sm:max-w-[210px]">
+                            {logoLocal ? (
+                              <img
+                                src={logoLocal}
+                                alt={`Logo ${partido.local}`}
+                                className="h-full w-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]"
+                              />
+                            ) : (
+                              <span className="text-5xl">🏀</span>
+                            )}
+                          </div>
 
-                  {/* ESTADO */}
-                  <div className="text-center mt-5">
+                          <h2 className="mt-4 truncate text-base font-black uppercase italic tracking-tight text-white sm:text-xl">
+                            {partido.local}
+                          </h2>
 
-                    <span className="inline-flex items-center gap-2 bg-yellow-50 text-yellow-700 border border-yellow-200 px-4 sm:px-5 py-2 rounded-full font-black text-xs sm:text-sm">
+                          <span className="mt-1 inline-block rounded-full bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-red-400">
+                            Local
+                          </span>
+                        </div>
 
-                      <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        {/* VS */}
+                        <div className="relative flex w-20 shrink-0 items-center justify-center sm:w-24">
+                          <div className="absolute h-20 w-20 rounded-full bg-red-600/20 blur-2xl sm:h-28 sm:w-28" />
 
-                      PRÓXIMAMENTE
+                          <span className="absolute translate-x-2 translate-y-2 text-[54px] font-black italic leading-none tracking-tighter text-black/70 sm:text-[72px]">
+                            VS
+                          </span>
 
-                    </span>
+                          <span
+                            className="relative z-10 text-[52px] font-black italic leading-none tracking-tighter text-red-500 sm:text-[70px]"
+                            style={{
+                              textShadow:
+                                "0 4px 0 #7f1d1d, 0 8px 18px rgba(0,0,0,0.65)",
+                            }}
+                          >
+                            VS
+                          </span>
+                        </div>
 
-                  </div>
+                        {/* VISITANTE */}
+                        <div className="min-w-0 flex-1 text-center">
+                          <div className="mx-auto flex h-32 w-full max-w-[190px] items-center justify-center rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-950/80 to-blue-900/20 p-3 shadow-[inset_0_0_40px_rgba(37,99,235,0.12)] sm:h-40 sm:max-w-[210px]">
+                            {logoVisitante ? (
+                              <img
+                                src={logoVisitante}
+                                alt={`Logo ${partido.visitante}`}
+                                className="h-full w-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]"
+                              />
+                            ) : (
+                              <span className="text-5xl">🏀</span>
+                            )}
+                          </div>
 
-                </div>
+                          <h2 className="mt-4 truncate text-base font-black uppercase italic tracking-tight text-white sm:text-xl">
+                            {partido.visitante}
+                          </h2>
 
-              </div>
-            );
-          })}
+                          <span className="mt-1 inline-block rounded-full bg-blue-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-blue-400">
+                            Visitante
+                          </span>
+                        </div>
+                      </div>
 
+                      {/* INFORMACIÓN */}
+                      <div className="mt-7 grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-center">
+                          <div className="text-2xl">📅</div>
+                          <p className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                            Fecha
+                          </p>
+                          <p className="mt-1 text-lg font-black text-white">
+                            {formatearFecha(partido.fecha)}
+                          </p>
+                          <p className="text-[10px] font-bold uppercase text-red-400">
+                            {obtenerDia(partido.fecha)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-center">
+                          <div className="text-2xl">🕒</div>
+                          <p className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                            Hora
+                          </p>
+                          <p className="mt-1 text-lg font-black text-white">
+                            {partido.hora || "Por confirmar"}
+                          </p>
+                        </div>
+
+                        <div className="col-span-2 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.035] via-white/[0.055] to-white/[0.035] p-4 text-center">
+                          <div className="text-2xl">📍</div>
+                          <p className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                            Lugar
+                          </p>
+                          <p className="mt-1 text-base font-black uppercase text-white sm:text-lg">
+                            {partido.cancha || "Por confirmar"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* ESTADO */}
+                      <div className="mt-5 flex justify-center">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-yellow-300">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
+                          Próximamente
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* PIE */}
+                    <div className="border-t border-white/10 bg-black/20 px-5 py-3 text-center">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        Liga de Baloncesto de Visitadores a Médicos
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
-
-      )}
-
-    </div>
-  </main>
-</>
-
-);
+      </main>
+    </>
+  );
 }
