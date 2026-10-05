@@ -376,59 +376,149 @@ export default function PlanillaPage() {
   // resultados, calendario y cualquier otra sección que use esos campos
   // permanezcan consistentes.
   async function sincronizarMarcadorPartido(id: number) {
-    const { data, error: statsError } = await supabase
-      .from("estadisticas_partido")
-      .select("jugador_id, puntos, estado")
-      .eq("partido_id", id);
+  if (!id) {
+    throw new Error("No se recibió el ID del partido.");
+  }
 
-    if (statsError) throw statsError;
+  // 1. Obtener el partido directamente desde Supabase.
+  //    No dependemos del estado local de React.
+  const {
+    data: partidoData,
+    error: partidoSelectError,
+  } = await supabase
+    .from("partidos")
+    .select(
+      "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
+    )
+    .eq("id", id)
+    .single();
 
-    const idsJugadores = new Set(
-      (jugadoresDelPartido ?? []).map((jugador) => Number(jugador.id))
+  if (partidoSelectError) {
+    throw partidoSelectError;
+  }
+
+  if (!partidoData) {
+    throw new Error("No se encontró el partido.");
+  }
+
+  // 2. Obtener los jugadores que pertenecen a cualquiera
+  //    de los dos equipos del partido.
+  const local = normalizar(partidoData.equipo_local);
+  const visitante = normalizar(partidoData.equipo_visitante);
+
+  const {
+    data: jugadoresData,
+    error: jugadoresError,
+  } = await supabase
+    .from("jugadores")
+    .select("id, equipo")
+    .in("equipo", [
+      partidoData.equipo_local,
+      partidoData.equipo_visitante,
+    ]);
+
+  if (jugadoresError) {
+    throw jugadoresError;
+  }
+
+  // 3. Crear un mapa jugador → equipo.
+  const equiposPorJugador = new Map<number, string>();
+
+  (jugadoresData ?? []).forEach((jugador: any) => {
+    equiposPorJugador.set(
+      Number(jugador.id),
+      normalizar(jugador.equipo)
     );
+  });
 
-    let puntosLocal = 0;
-    let puntosVisitante = 0;
-    const local = normalizar(partido?.equipo_local);
-    const visitante = normalizar(partido?.equipo_visitante);
+  // 4. Obtener TODAS las estadísticas del partido.
+  const {
+    data: estadisticasData,
+    error: estadisticasError,
+  } = await supabase
+    .from("estadisticas_partido")
+    .select("jugador_id, puntos, estado")
+    .eq("partido_id", id);
 
-    (data ?? []).forEach((fila: any) => {
-      const jugador = jugadoresDelPartido.find(
-        (item) => Number(item.id) === Number(fila.jugador_id)
-      );
+  if (estadisticasError) {
+    throw estadisticasError;
+  }
 
-      if (!jugador || !idsJugadores.has(Number(jugador.id))) return;
-      if (fila.estado === "no_jugo" || fila.estado === "lesionado") return;
+  // 5. Calcular el marcador directamente desde Supabase.
+  let puntosLocal = 0;
+  let puntosVisitante = 0;
 
-      const puntos = Number(fila.puntos) || 0;
-      const equipo = normalizar(jugador.equipo);
+  (estadisticasData ?? []).forEach((fila: any) => {
+    // Jugadores que no jugaron o estaban lesionados no suman.
+    if (
+      fila.estado === "no_jugo" ||
+      fila.estado === "lesionado"
+    ) {
+      return;
+    }
 
-      if (equipo === local) puntosLocal += puntos;
-      if (equipo === visitante) puntosVisitante += puntos;
-    });
+    const jugadorId = Number(fila.jugador_id);
+    const equipo = equiposPorJugador.get(jugadorId);
 
-    const { error: partidoError } = await supabase
-      .from("partidos")
-      .update({
-        puntos_local: puntosLocal,
-        puntos_visitante: puntosVisitante,
-      })
-      .eq("id", id);
+    if (!equipo) {
+      return;
+    }
 
-    if (partidoError) throw partidoError;
+    const puntos = Number(fila.puntos) || 0;
 
-    setPartidos((actual) =>
-      actual.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              puntos_local: puntosLocal,
-              puntos_visitante: puntosVisitante,
-            }
-          : item
-      )
+    if (equipo === local) {
+      puntosLocal += puntos;
+    }
+
+    if (equipo === visitante) {
+      puntosVisitante += puntos;
+    }
+  });
+
+  // 6. Guardar el marcador calculado en el partido.
+  const {
+    data: partidoActualizado,
+    error: partidoUpdateError,
+  } = await supabase
+    .from("partidos")
+    .update({
+      puntos_local: puntosLocal,
+      puntos_visitante: puntosVisitante,
+    })
+    .eq("id", id)
+    .select(
+      "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
+    )
+    .single();
+
+  if (partidoUpdateError) {
+    throw partidoUpdateError;
+  }
+
+  if (!partidoActualizado) {
+    throw new Error(
+      "No se pudo actualizar el marcador del partido."
     );
   }
+
+  // 7. Actualizar también el estado local de React.
+  setPartidos((actual) =>
+    actual.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            puntos_local: puntosLocal,
+            puntos_visitante: puntosVisitante,
+          }
+        : item
+    )
+  );
+
+  return {
+    puntosLocal,
+    puntosVisitante,
+  };
+}
 
   // Marca el partido como finalizado. Esto es lo que permite que
   // /app/page.tsx lo incluya en clasificación, resultados y destacados.
