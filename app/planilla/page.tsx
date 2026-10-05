@@ -259,13 +259,30 @@ export default function PlanillaPage() {
     [partidos, partidoId]
   );
 
-  useEffect(() => {
-    if (!partido) return;
+ useEffect(() => {
+  if (!partido) return;
 
-    setEquipoActivo(
-      partido.equipo_local ?? partido.equipo_visitante ?? ""
-    );
-  }, [partido]);
+  setEquipoActivo((actual) => {
+    const local = partido.equipo_local ?? "";
+    const visitante = partido.equipo_visitante ?? "";
+
+    // Si ya hay un equipo seleccionado y sigue siendo válido,
+    // lo conservamos aunque se actualicen las estadísticas.
+    if (
+      actual &&
+      (
+        normalizar(actual) === normalizar(local) ||
+        normalizar(actual) === normalizar(visitante)
+      )
+    ) {
+      return actual;
+    }
+
+    // Solo seleccionamos automáticamente un equipo
+    // cuando todavía no existe una selección válida.
+    return local || visitante;
+  });
+}, [partido?.id]);
 
   const jugadoresDelPartido = useMemo(() => {
     if (!partido) return [];
@@ -438,14 +455,7 @@ export default function PlanillaPage() {
 
       if (updateError) throw updateError;
 
-      setPartidos((actual) =>
-        actual.map((item) =>
-          item.id === partido.id
-            ? { ...item, estado: "Finalizado" }
-            : item
-        )
-      );
-
+      
       setMensaje("🏁 Partido finalizado y sincronizado con LIBAVIME Stats.");
     } catch (err: any) {
       console.error("Error finalizando partido:", err);
