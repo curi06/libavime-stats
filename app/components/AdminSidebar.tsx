@@ -7,10 +7,17 @@ import { supabase } from "@/lib/supabase";
 export default function AdminSidebar() {
   const router = useRouter();
 
+
   async function cerrarSesion() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+
     await supabase.auth.signOut();
     router.push("/login");
+    router.refresh();
   }
+
 
   return (
     <aside className="hidden md:block w-64 shrink-0 min-h-screen bg-blue-900 text-white pt-28 px-6 pb-6">

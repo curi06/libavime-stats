@@ -14,23 +14,31 @@ export default function LoginPage() {
 
   async function iniciarSesion(e: React.FormEvent) {
     e.preventDefault();
-
     setMensaje("");
     setCargando(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const respuesta = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    setCargando(false);
+      const resultado = await respuesta.json();
 
-    if (error) {
-      setMensaje("Correo o contraseña incorrectos.");
-      return;
+      if (!respuesta.ok) {
+        setMensaje(resultado.error ?? "Correo o contraseña incorrectos.");
+        return;
+      }
+
+      await supabase.auth.signInWithPassword({ email, password });
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      setMensaje("No se pudo iniciar sesión. Inténtalo nuevamente.");
+    } finally {
+      setCargando(false);
     }
-
-    router.push("/admin");
   }
 
   async function recuperarContrasena() {
