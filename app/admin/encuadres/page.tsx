@@ -34,24 +34,69 @@ const ENCUADRE_INICIAL: Encuadre = {
   zoom: 1,
 };
 
+const FOTOS_LOCALES: Record<string, string> = {
+  "albert heredia": "Albert heredia_noBackground.png",
+  "alvaro ruiz": "Alvaro ruiz_noBackground.png",
+  "aris mendez": "Aris mendez_noBackground.png",
+  "carlos dotel": "Carlos dotel_noBackground.png",
+  "cesar jimenez": "Cesar jimenez_noBackground.png",
+  "cristian lorenzo": "Cristian lorenzo_noBackground.png",
+  "cristina lorenzo": "Cristina lorenzo_noBackground.png",
+  "eddy minaya": "Eddy minaya_noBackground.png",
+  "edric rosario": "Edric rosario_noBackground.png",
+  "edrick rosario": "Edrick rosario_noBackground.png",
+  "edward sanchez": "Edward sanchez_noBackground.png",
+  "elias de jesus": "Elias de jesus_noBackground.png",
+  "elias martinez": "Elias martinez_noBackground.png",
+  "eliceo de jesus": "Eliceo de jesus_noBackground.png",
+  "eliceo martinez": "Eliceo martinez_noBackground.png",
+  "emmi de la cruz": "Emmi de la cruz_noBackground.png",
+  "engel ramirez": "Engel ramirez_noBackground.png",
+  "engels ramirez": "Engels ramirez_noBackground.png",
+  "enmanuel hernandez": "Enmanuel hernandez_noBackground.png",
+  "fabio baez": "Fabio baez_noBackground.png",
+  "felix santiago": "Felix santiago_noBackground.png",
+  "fernando valenzuela": "Fernando valenzuela_noBackground.png",
+  "francisco damian": "Francisco damian_noBackground.png",
+  "frank albert": "Frank albert_noBackground.png",
+  "gabriel matos": "Gabriel matos_noBackground.png",
+  "gregory valdez": "Gregory Valdez_noBackground.png",
+  "hender martinez": "Hender martinez_noBackground.png",
+  "jacob santana": "Jacob santana_noBackground.png",
+  "jhomar perez": "Jhomar perez_noBackground.png",
+  "jhonny sepulveda": "Jhonny sepulveda_noBackground.png",
+  "johnny sepulveda": "Johnny sepulveda_noBackground.png",
+  "jose luis": "Jose luis_noBackground.png",
+  "juan mendez": "Juan mendez_noBackground.png",
+  "julio rincon": "Julio rincon_noBackground.png",
+  "manuel severino": "Manuel Severino_noBackground.png",
+  "misael medrano": "Misael Medrano_noBackground.png",
+  "moises nunez": "moises nunez_noBackground.png",
+  "omar minaya": "Omar minaya_noBackground.png",
+  "pedro martinez": "Pedro martinez_noBackground.png",
+  "rey fernandez": "Rey fernandez_noBackground.png",
+  "ricardo rodriguez": "Ricardo rodriguez_noBackground.png",
+  "ricki mendez": "Ricki mendez_noBackground.png",
+  "ricky guzman": "Ricky guzman_noBackground.png",
+  "ricky mendez": "Ricky mendez_noBackground.png",
+  "vicente valenzuela": "Vicente valenzuela_noBackground.png",
+  "victor leonardo": "Victor leonardo_noBackground.png",
+  "victor manuel": "Victor manuel_noBackground.png",
+  "welmert de los santos": "Welmert de los santos_noBackground.png",
+  "wilmer pacheco": "Wilmer pacheco_noBackground.png",
+  "diomedes del villar": "diomedes del villar_noBackground.png",
+  "diraeli de los santos": "diraeli de los santos_noBackground.png",
+  "disraeli de los santos": "disraeli de los santos_noBackground.png",
+  "manuel heredia": "manuel heredia_noBackground.png"
+};
+
 function obtenerRutaFoto(jugador: Jugador) {
-  const nombre = jugador.nombre.trim().toLowerCase();
-
-  if (nombre === "álvaro ruiz" || nombre === "alvaro ruiz") {
-    return "/backgrounds/jugadores/Alvaro ruiz_noBackground.png";
-  }
-
-  if (nombre === "wilmer pacheco") {
-    return "/backgrounds/jugadores/Wilmer pacheco_noBackground.png";
-  }
-
-  const nombreArchivo = jugador.nombre
-    .normalize("NFD")
+  const nombre = jugador.nombre.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-
-  return `/backgrounds/jugadores/${nombreArchivo}_noBackground.png`;
+    .toLowerCase().trim().replace(/\s+/g, " ");
+  const archivo = FOTOS_LOCALES[nombre];
+  if (archivo) return `/backgrounds/jugadores/${encodeURIComponent(archivo)}`;
+  return "/backgrounds/alvaro-recortado.png";
 }
 
 export default function EncuadresPage() {
