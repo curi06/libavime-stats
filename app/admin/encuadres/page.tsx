@@ -35,20 +35,14 @@ const ENCUADRE_INICIAL: Encuadre = {
 };
 
 function obtenerRutaFoto(jugador: Jugador) {
-  const foto = jugador.foto?.trim();
-
-  if (foto && (foto.startsWith("https://") || foto.startsWith("http://") || foto.startsWith("/"))) {
-    return foto;
-  }
-
   const nombre = jugador.nombre.trim().toLowerCase();
 
   if (nombre === "álvaro ruiz" || nombre === "alvaro ruiz") {
-    return "/backgrounds/alvaro-recortado.png";
+    return "/backgrounds/jugadores/Alvaro ruiz_noBackground.png";
   }
 
   if (nombre === "wilmer pacheco") {
-    return "/backgrounds/jugadores/wilmer-pacheco.png";
+    return "/backgrounds/jugadores/Wilmer pacheco_noBackground.png";
   }
 
   const nombreArchivo = jugador.nombre
