@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Diseno = {
   id: string;
@@ -11,9 +13,45 @@ type Diseno = {
 };
 
 export default function GaleriaDisenos() {
+const [esAdministrador, setEsAdministrador] = useState(false);
   const [disenos, setDisenos] = useState<Diseno[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [eliminando, setEliminando] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    let activo = true;
+
+    async function verificarAdministrador() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      const correoAdministrador =
+        process.env.NEXT_PUBLIC_LIBAVIME_ADMIN_EMAIL
+          ?.trim()
+          .toLowerCase();
+
+      if (activo) {
+        setEsAdministrador(
+          !error &&
+            !!user?.email &&
+            !!correoAdministrador &&
+            user.email.trim().toLowerCase() === correoAdministrador
+        );
+      }
+    }
+
+    verificarAdministrador();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+
 
   useEffect(() => {
     let activo = true;
@@ -52,6 +90,46 @@ export default function GaleriaDisenos() {
     };
   }, []);
 
+  async function eliminarDiseno(diseno: Diseno) {
+    const confirmado = window.confirm(
+      `¿Seguro que deseas eliminar "${diseno.titulo}"? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmado) return;
+
+    setEliminando(diseno.id);
+    setMensaje("");
+    setError("");
+
+    try {
+      const respuesta = await fetch(
+        `/api/disenos?id=${encodeURIComponent(diseno.id)}`,
+        { method: "DELETE" }
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.error || "No se pudo eliminar la publicación."
+        );
+      }
+
+      setDisenos((actuales) =>
+        actuales.filter((item) => item.id !== diseno.id)
+      );
+      setMensaje("La publicación se eliminó correctamente.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo eliminar la publicación."
+      );
+    } finally {
+      setEliminando(null);
+    }
+  }
+
   return (
     <section
       id="galeria-disenos"
@@ -79,8 +157,20 @@ export default function GaleriaDisenos() {
       )}
 
       {error && (
-        <p role="alert" className="rounded-xl bg-red-50 p-4 text-center text-red-700">
+        <p
+          role="alert"
+          className="mb-4 rounded-xl bg-red-50 p-4 text-center text-red-700"
+        >
           {error}
+        </p>
+      )}
+
+      {mensaje && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl bg-green-50 p-4 text-center text-green-800"
+        >
+          {mensaje}
         </p>
       )}
 
@@ -128,11 +218,29 @@ export default function GaleriaDisenos() {
 
                 <a
                   href={diseno.url}
-                  download={diseno.titulo.replace(/[^a-zA-Z0-9-_ ]/g, "").trim() + ".png"}
+                  download={
+                    diseno.titulo.replace(/[^a-zA-Z0-9-_ ]/g, "").trim() +
+                    ".png"
+                  }
                   className="mt-4 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 text-center font-black text-white transition hover:bg-red-700"
                 >
                   ↓ Descargar PNG
                 </a>
+
+
+{esAdministrador && (
+  <button
+    type="button"
+    onClick={() => eliminarDiseno(diseno)}
+    disabled={eliminando !== null}
+    className="mt-3 w-full rounded-xl border border-red-200 bg-white px-4 py-3 font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {eliminando === diseno.id
+      ? "Eliminando..."
+      : "Eliminar publicación"}
+  </button>
+)}
+
               </div>
             </article>
           ))}

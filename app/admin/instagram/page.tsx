@@ -715,12 +715,29 @@ const png = await toPng(arteRef.current, {
         }),
       });
 
-      const resultado = await respuesta.json();
+      const contenido = await respuesta.text();
 
-      if (!respuesta.ok) {
-        throw new Error(resultado.error || "No se pudo publicar el diseño.");
-      }
+let resultado: { error?: string } = {};
 
+try {
+  resultado = contenido ? JSON.parse(contenido) : {};
+} catch {
+  console.error(
+    "Respuesta no válida de /api/disenos:",
+    respuesta.status,
+    contenido.slice(0, 500)
+  );
+
+  throw new Error(
+    `El servidor devolvió una respuesta no válida (HTTP ${respuesta.status}). Revisa los registros de Vercel.`
+  );
+}
+
+if (!respuesta.ok) {
+  throw new Error(
+    resultado.error || `No se pudo publicar el diseño (HTTP ${respuesta.status}).`
+  );
+}
       setMensajeGaleria("¡Diseño publicado correctamente en la galería de LIBAVIME!");
     } catch (err) {
       console.error(err);

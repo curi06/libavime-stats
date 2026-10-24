@@ -164,3 +164,117 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const supabaseAuth = await crearSupabaseServidor();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+
+if (authError || !user) {
+  return NextResponse.json(
+    { error: "Debes iniciar sesión para eliminar diseños." },
+    { status: 401 }
+  );
+}
+
+const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
+  ?.trim()
+  .toLowerCase();
+
+const correoUsuario = user.email?.trim().toLowerCase();
+
+if (
+  !correoAdministrador ||
+  !correoUsuario ||
+  correoUsuario !== correoAdministrador
+) {
+  return NextResponse.json(
+    { error: "No tienes permisos para eliminar publicaciones." },
+    { status: 403 }
+  );
+}
+
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json(
+        { error: "El identificador del diseño no es válido." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = obtenerSupabaseAdmin();
+
+    const { data: diseno, error: consultaError } = await supabase
+      .from("libavime_disenos")
+      .select("id, archivo")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (consultaError) {
+      console.error("Error buscando diseño para eliminar:", consultaError);
+      return NextResponse.json(
+        { error: "No se pudo localizar el diseño." },
+        { status: 500 }
+      );
+    }
+
+    if (!diseno) {
+      return NextResponse.json(
+        { error: "La publicación no existe o ya fue eliminada." },
+        { status: 404 }
+      );
+    }
+
+
+
+    const { error: eliminarRegistroError } = await supabase
+      .from("libavime_disenos")
+      .delete()
+      .eq("id", id);
+
+    if (eliminarRegistroError) {
+      console.error("Error eliminando registro:", eliminarRegistroError);
+
+      return NextResponse.json(
+        { error: "No se pudo eliminar el registro de la publicación." },
+        { status: 500 }
+      );
+    }
+
+    const { error: eliminarArchivoError } = await supabase.storage
+      .from(BUCKET)
+      .remove([diseno.archivo]);
+
+    if (eliminarArchivoError) {
+      console.error(
+        "No se pudo eliminar el archivo del almacenamiento:",
+        eliminarArchivoError
+      );
+
+      return NextResponse.json(
+        {
+          eliminado: true,
+          advertencia:
+            "La publicación se eliminó de la galería, pero el archivo podría permanecer almacenado.",
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json({ eliminado: true, id });
+  } catch (error) {
+    console.error("Error en DELETE de diseños:", error);
+
+    return NextResponse.json(
+      { error: "Ocurrió un error al eliminar la publicación." },
+      { status: 500 }
+    );
+  }
+}
