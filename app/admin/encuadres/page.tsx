@@ -35,6 +35,12 @@ const ENCUADRE_INICIAL: Encuadre = {
 };
 
 function obtenerRutaFoto(jugador: Jugador) {
+  const foto = jugador.foto?.trim();
+
+  if (foto && (foto.startsWith("https://") || foto.startsWith("http://") || foto.startsWith("/"))) {
+    return foto;
+  }
+
   const nombre = jugador.nombre.trim().toLowerCase();
 
   if (nombre === "álvaro ruiz" || nombre === "alvaro ruiz") {
