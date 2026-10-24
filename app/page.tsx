@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../data/equipos";
+import GaleriaDisenos from "./components/GaleriaDisenos";
 
 type Partido = {
   id: number;
@@ -2250,6 +2251,8 @@ const ultimosResultados = resumenesPartidos
   </div>
 </div> 
 </div>
+
+<GaleriaDisenos />
 
 <footer className="mt-12 border-t border-slate-300 pt-6 pb-8 text-center">
   <div className="mx-auto flex max-w-3xl flex-col items-center px-4">

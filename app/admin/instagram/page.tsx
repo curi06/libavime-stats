@@ -55,6 +55,82 @@ const NOMBRES_EQUIPOS = [
   "Titanes",
 ];
 
+const FOTOS_LOCALES: Record<string, string> = {
+  "albert heredia": "Albert heredia_noBackground.png",
+  "alvaro ruiz": "Alvaro ruiz_noBackground.png",
+  "aris mendez": "Aris mendez_noBackground.png",
+  "carlos dotel": "Carlos dotel_noBackground.png",
+  "cesar jimenez": "Cesar jimenez_noBackground.png",
+  "cristian lorenzo": "Cristian lorenzo_noBackground.png",
+  "cristina lorenzo": "Cristina lorenzo_noBackground.png",
+  "eddy minaya": "Eddy minaya_noBackground.png",
+  "edric rosario": "Edric rosario_noBackground.png",
+  "edrick rosario": "Edrick rosario_noBackground.png",
+  "edward sanchez": "Edward sanchez_noBackground.png",
+  "elias de jesus": "Elias de jesus_noBackground.png",
+  "elias martinez": "Elias martinez_noBackground.png",
+  "eliceo de jesus": "Eliceo de jesus_noBackground.png",
+  "eliceo martinez": "Eliceo martinez_noBackground.png",
+  "emmi de la cruz": "Emmi de la cruz_noBackground.png",
+  "engel ramirez": "Engel ramirez_noBackground.png",
+  "engels ramirez": "Engels ramirez_noBackground.png",
+  "enmanuel hernandez": "Enmanuel hernandez_noBackground.png",
+  "fabio baez": "Fabio baez_noBackground.png",
+  "felix santiago": "Felix santiago_noBackground.png",
+  "fernando valenzuela": "Fernando valenzuela_noBackground.png",
+  "francisco damian": "Francisco damian_noBackground.png",
+  "frank albert": "Frank albert_noBackground.png",
+  "gabriel matos": "Gabriel matos_noBackground.png",
+  "gregory valdez": "Gregory Valdez_noBackground.png",
+  "hender martinez": "Hender martinez_noBackground.png",
+  "jacob santana": "Jacob santana_noBackground.png",
+  "jhomar perez": "Jhomar perez_noBackground.png",
+  "jhonny sepulveda": "Jhonny sepulveda_noBackground.png",
+  "johnny sepulveda": "Johnny sepulveda_noBackground.png",
+  "jose luis": "Jose luis_noBackground.png",
+  "juan mendez": "Juan mendez_noBackground.png",
+  "julio rincon": "Julio rincon_noBackground.png",
+  "manuel severino": "Manuel Severino_noBackground.png",
+  "misael medrano": "Misael Medrano_noBackground.png",
+  "moises nunez": "moises nunez_noBackground.png",
+  "omar minaya": "Omar minaya_noBackground.png",
+  "pedro martinez": "Pedro martinez_noBackground.png",
+  "rey fernandez": "Rey fernandez_noBackground.png",
+  "ricardo rodriguez": "Ricardo rodriguez_noBackground.png",
+  "ricki mendez": "Ricki mendez_noBackground.png",
+  "ricky guzman": "Ricky guzman_noBackground.png",
+  "ricky mendez": "Ricky mendez_noBackground.png",
+  "vicente valenzuela": "Vicente valenzuela_noBackground.png",
+  "victor leonardo": "Victor leonardo_noBackground.png",
+  "victor manuel": "Victor manuel_noBackground.png",
+  "welmert de los santos": "Welmert de los santos_noBackground.png",
+  "wilmer pacheco": "Wilmer pacheco_noBackground.png",
+  "diomedes del villar": "diomedes del villar_noBackground.png",
+  "diraeli de los santos": "diraeli de los santos_noBackground.png",
+  "disraeli de los santos": "disraeli de los santos_noBackground.png",
+  "manuel heredia": "manuel heredia_noBackground.png"
+};
+
+function obtenerRutaFotoInstagram(nombreJugador: string) {
+  const nombre = nombreJugador
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+  const archivo = FOTOS_LOCALES[nombre];
+  if (archivo) {
+    return `/backgrounds/jugadores/${encodeURIComponent(archivo)}`;
+  }
+
+  if (nombre === "alvaro ruiz") {
+    return "/backgrounds/alvaro-recortado.png";
+  }
+
+  return "";
+}
+
 function normalizar(valor: unknown) {
   return String(valor ?? "").trim().toLocaleLowerCase();
 }
@@ -123,6 +199,7 @@ useEffect(() => {
   const [equipoDestacadoIndex, setEquipoDestacadoIndex] = useState(0);
   const [jugadorVistaPreviaId, setJugadorVistaPreviaId] = useState("");
   const [jugadorEncuadreId, setJugadorEncuadreId] = useState("");
+  const [liderEncuadreId, setLiderEncuadreId] = useState("");
 const [guardandoEncuadre, setGuardandoEncuadre] = useState(false);
   const [fechasJornada, setFechasJornada] = useState<string[]>([]);
   const [estadisticasJornada, setEstadisticasJornada] = useState<any[]>([]);
@@ -577,6 +654,86 @@ const png = await toPng(arteRef.current, {
     }
   }
 
+
+  const [publicando, setPublicando] = useState(false);
+  const [mensajeGaleria, setMensajeGaleria] = useState("");
+
+  async function publicarEnGaleria() {
+    if (!arteRef.current || descargando || publicando) return;
+
+    setPublicando(true);
+    setMensajeGaleria("");
+    setError("");
+
+    try {
+      await document.fonts.ready;
+
+      const elemento = arteRef.current;
+      const imagenes = Array.from(elemento.querySelectorAll("img"));
+
+      await Promise.all(
+        imagenes.map((img) => {
+          if (img.complete) return Promise.resolve();
+
+          return new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        })
+      );
+
+      const esHistoria = formato === "historia";
+      const png = await toPng(elemento, {
+        cacheBust: true,
+        pixelRatio: 3,
+        width: ancho,
+        height: alto,
+        canvasWidth: 1080,
+        canvasHeight: esHistoria ? 1920 : 1350,
+        backgroundColor: "#07152e",
+        style: {
+          width: `${ancho}px`,
+          height: `${alto}px`,
+          minWidth: `${ancho}px`,
+          minHeight: `${alto}px`,
+          maxWidth: `${ancho}px`,
+          maxHeight: `${alto}px`,
+        },
+      });
+
+      const titulo = `LIBAVIME ${tipo} - ${esHistoria ? "Historia" : "Post"}${
+        tipo === "jugador" && jugador ? ` - ${jugador.nombre}` : ""
+      }`;
+
+      const respuesta = await fetch("/api/disenos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: titulo.slice(0, 120),
+          tipo: formato,
+          imagen: png,
+        }),
+      });
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(resultado.error || "No se pudo publicar el diseño.");
+      }
+
+      setMensajeGaleria("¡Diseño publicado correctamente en la galería de LIBAVIME!");
+    } catch (err) {
+      console.error(err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo publicar el diseño en la galería."
+      );
+    } finally {
+      setPublicando(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 md:px-8">
       <div className="mx-auto max-w-6xl">
@@ -654,6 +811,95 @@ const png = await toPng(arteRef.current, {
                 </button>
               </div>
             </div>
+
+{tipo === "lideres" && (
+  <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <h3 className="font-black text-blue-950">Editor de fotos de líderes</h3>
+    <p className="text-sm text-slate-600">
+      Los ajustes se guardan por separado para post e historia.
+    </p>
+
+    <label className="block text-sm font-bold">Seleccionar líder</label>
+    <select
+      value={liderEncuadreId}
+      onChange={(e) => setLiderEncuadreId(e.target.value)}
+      className="w-full rounded-xl border border-slate-300 bg-white p-3"
+    >
+      <option value="">Selecciona un líder</option>
+      {lideres.map((j) => (
+        <option key={j.id} value={`lider-${j.id}`}>
+          {j.nombre} — {j.equipo || "LIBAVIME"}
+        </option>
+      ))}
+    </select>
+
+    {liderEncuadreId && (() => {
+      const guardado = encuadres[liderEncuadreId];
+      const ajuste = formato === "post"
+        ? guardado?.post ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 }
+        : guardado?.historia ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 };
+
+      const actualizar = (campo: "x" | "y" | "zoom", valor: number) => {
+        setEncuadres((actual) => {
+          const anterior = actual[liderEncuadreId] ?? { x: 0, y: 0, zoom: 1 };
+          const anteriorFormato = formato === "post"
+            ? anterior.post ?? { x: anterior.x ?? 0, y: anterior.y ?? 0, zoom: anterior.zoom ?? 1 }
+            : anterior.historia ?? { x: anterior.x ?? 0, y: anterior.y ?? 0, zoom: anterior.zoom ?? 1 };
+
+          return {
+            ...actual,
+            [liderEncuadreId]: {
+              ...anterior,
+              [formato]: { ...anteriorFormato, [campo]: valor },
+            },
+          };
+        });
+      };
+
+      return (
+        <div className="space-y-3">
+          <label className="block text-sm font-bold">Horizontal: {ajuste.x}</label>
+          <input type="range" min="-80" max="80" value={ajuste.x}
+            onChange={(e) => actualizar("x", Number(e.target.value))}
+            className="w-full" />
+
+          <label className="block text-sm font-bold">Vertical: {ajuste.y}</label>
+          <input type="range" min="-100" max="100" value={ajuste.y}
+            onChange={(e) => actualizar("y", Number(e.target.value))}
+            className="w-full" />
+
+          <label className="block text-sm font-bold">Zoom: {ajuste.zoom.toFixed(2)}×</label>
+          <input type="range" min="0.5" max="4" step="0.05" value={ajuste.zoom}
+            onChange={(e) => actualizar("zoom", Number(e.target.value))}
+            className="w-full" />
+
+          <button type="button" disabled={guardandoEncuadre}
+            onClick={async () => {
+              setGuardandoEncuadre(true);
+              try {
+                const respuesta = await fetch("/api/encuadres", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ jugadores: encuadres }),
+                });
+                if (!respuesta.ok) throw new Error("No se pudo guardar");
+                alert("Encuadre del líder guardado correctamente.");
+              } catch (error) {
+                console.error(error);
+                alert("No se pudo guardar el encuadre.");
+              } finally {
+                setGuardandoEncuadre(false);
+              }
+            }}
+            className="w-full rounded-xl bg-blue-950 px-4 py-3 font-bold text-white disabled:opacity-50">
+            {guardandoEncuadre ? "Guardando..." : "Guardar encuadre del líder"}
+          </button>
+        </div>
+      );
+    })()}
+  </div>
+)}
+
 {tipo === "destacados" && (
   <div>
     <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -1091,6 +1337,21 @@ const png = await toPng(arteRef.current, {
                 ? "Generando imagen…"
                 : `Descargar ${formato === "historia" ? "Historia" : "Post"} PNG`}
             </button>
+
+            <button
+              type="button"
+              onClick={publicarEnGaleria}
+              disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
+              className="mt-3 w-full rounded-xl bg-blue-950 px-5 py-4 font-black text-white shadow-lg hover:bg-blue-900 disabled:opacity-50"
+            >
+              {publicando ? "Publicando diseño…" : "Publicar en la galería"}
+            </button>
+
+            {mensajeGaleria && (
+              <p role="status" className="mt-3 rounded-xl bg-green-50 p-3 text-sm font-bold text-green-800">
+                {mensajeGaleria}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col items-center rounded-3xl bg-slate-200 p-4">
@@ -1208,23 +1469,10 @@ const png = await toPng(arteRef.current, {
 
 
       
-{fotoValida(jugador.foto) ? (
+{obtenerRutaFotoInstagram(jugador.nombre) ? (
   
 <img
-  src={
-    jugador.nombre.trim().toLowerCase() === "álvaro ruiz"
-      ? "/backgrounds/alvaro-recortado.png"
-      : jugador.nombre.trim().toLowerCase() === "wilmer pacheco"
-        ? "/backgrounds/jugadores/wilmer-pacheco.png"
-        : `/backgrounds/jugadores/${jugador.nombre
-            
-.normalize("NFD")
-.replace(/[\u0300-\u036f]/g, "")
-.trim()
-.toLowerCase()
-.replace(/\s+/g, " ")}
-_noBackground.png`
-  }
+  src={obtenerRutaFotoInstagram(jugador.nombre)}
   alt={jugador.nombre}
   onError={(e) => {
     console.error(
@@ -1350,14 +1598,28 @@ _noBackground.png`
                             {i + 1}
                           </span>
 
-                          {fotoValida(j.foto) ? (
-                            <img
-                              src={fotoValida(j.foto)}
-                              alt={j.nombre}
-                              className="h-16 w-14 rounded-lg object-cover object-top"
-                            />
-                          ) : (
-                            <div className="h-16 w-14 rounded-lg bg-white/10" />
+                          {obtenerRutaFotoInstagram(j.nombre) ? (() => {
+                            const claveEncuadre = `lider-${j.id}`;
+                            const guardado = encuadres[claveEncuadre];
+                            const ajusteFoto = formato === "post"
+                              ? guardado?.post ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 }
+                              : guardado?.historia ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 };
+
+                            return (
+                              <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg">
+                                <img
+                                  src={obtenerRutaFotoInstagram(j.nombre)}
+                                  alt={j.nombre}
+                                  className="absolute inset-0 h-full w-full rounded-lg object-cover object-top"
+                                  style={{
+                                    transform: `translate(${ajusteFoto.x}%, ${ajusteFoto.y}%) scale(${ajusteFoto.zoom})`,
+                                    transformOrigin: "top center",
+                                  }}
+                                />
+                              </div>
+                            );
+                          })() : (
+                            <div className="h-16 w-14 shrink-0 rounded-lg bg-white/10" />
                           )}
 
                           <div className="min-w-0 flex-1">
@@ -1521,20 +1783,7 @@ const ajusteFoto =
         zoom: encuadreGuardado?.zoom ?? 1,
       };
 
-          const nombreFoto = j.nombre
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .trim()
-            .replace(/\s+/g, " ");
-
-          const nombreNormalizado = nombreFoto.toLowerCase();
-
-          const fotoRecortada =
-            nombreNormalizado === "alvaro ruiz"
-              ? "/backgrounds/alvaro-recortado.png"
-              : nombreNormalizado === "wilmer pacheco"
-                ? "/backgrounds/jugadores/wilmer-pacheco.png"
-                : `/backgrounds/jugadores/${nombreFoto}_noBackground.png`;
+          const fotoRecortada = obtenerRutaFotoInstagram(j.nombre);
 
           return (
             <div
@@ -1546,7 +1795,7 @@ const ajusteFoto =
     formato === "historia" ? "h-[125px]" : "h-[140px]"
   }`}
 >
-  {fotoValida(j.foto) ? (
+  {obtenerRutaFotoInstagram(j.nombre) ? (
     <img
       src={fotoRecortada}
       alt={j.nombre}
