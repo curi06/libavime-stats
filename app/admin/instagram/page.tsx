@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toPng } from "html-to-image";
+import { toJpeg, toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 
 type Tipo =
@@ -200,6 +200,7 @@ useEffect(() => {
   const [jugadorVistaPreviaId, setJugadorVistaPreviaId] = useState("");
   const [jugadorEncuadreId, setJugadorEncuadreId] = useState("");
   const [liderEncuadreId, setLiderEncuadreId] = useState("");
+  const [jugadorIndividualEncuadreId, setJugadorIndividualEncuadreId] = useState("");
 const [guardandoEncuadre, setGuardandoEncuadre] = useState(false);
   const [fechasJornada, setFechasJornada] = useState<string[]>([]);
   const [estadisticasJornada, setEstadisticasJornada] = useState<any[]>([]);
@@ -575,13 +576,20 @@ const destacadosPorEquipo = useMemo(() => {
         backgroundColor: "#07152e",
       });
 
-      const enlace = document.createElement("a");
-      enlace.download =
-        `libavime-destacados-${destacadosPorEquipo[i].equipo
-          .toLowerCase()
-          .replace(/\s+/g, "-")}-${fechaJornada}.png`;
-      enlace.href = png;
-      enlace.click();
+      const respuestaImagen = await fetch(png);
+const archivoImagen = await respuestaImagen.blob();
+const urlImagen = URL.createObjectURL(archivoImagen);
+
+const enlace = document.createElement("a");
+enlace.href = urlImagen;
+enlace.download = `libavime-${tipo}-${formato}.png`;
+enlace.style.display = "none";
+
+document.body.appendChild(enlace);
+enlace.click();
+enlace.remove();
+
+setTimeout(() => URL.revokeObjectURL(urlImagen), 1000);
 
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -641,9 +649,13 @@ const png = await toPng(arteRef.current, {
 });
 
       const enlace = document.createElement("a");
-      enlace.download = `libavime-${tipo}-${formato}.png`;
-      enlace.href = png;
-      enlace.click();
+enlace.href = png;
+enlace.download = `libavime-${tipo}-${formato}.png`;
+enlace.style.display = "none";
+
+document.body.appendChild(enlace);
+enlace.click();
+enlace.remove();
     } catch (err) {
       console.error(err);
       setError(
@@ -658,7 +670,7 @@ const png = await toPng(arteRef.current, {
   const [publicando, setPublicando] = useState(false);
   const [mensajeGaleria, setMensajeGaleria] = useState("");
 
-  async function publicarEnGaleria() {
+  async function guardarEnGaleria(publicar: boolean) {
     if (!arteRef.current || descargando || publicando) return;
 
     setPublicando(true);
@@ -683,23 +695,24 @@ const png = await toPng(arteRef.current, {
       );
 
       const esHistoria = formato === "historia";
-      const png = await toPng(elemento, {
-        cacheBust: true,
-        pixelRatio: 3,
-        width: ancho,
-        height: alto,
-        canvasWidth: 1080,
-        canvasHeight: esHistoria ? 1920 : 1350,
-        backgroundColor: "#07152e",
-        style: {
-          width: `${ancho}px`,
-          height: `${alto}px`,
-          minWidth: `${ancho}px`,
-          minHeight: `${alto}px`,
-          maxWidth: `${ancho}px`,
-          maxHeight: `${alto}px`,
-        },
-      });
+      const imagen = await toJpeg(elemento, {
+  cacheBust: true,
+  pixelRatio: 3,
+  width: ancho,
+  height: alto,
+  canvasWidth: 1080,
+  canvasHeight: esHistoria ? 1920 : 1350,
+  backgroundColor: "#07152e",
+  quality: 0.85,
+  style: {
+    width: `${ancho}px`,
+    height: `${alto}px`,
+    minWidth: `${ancho}px`,
+    minHeight: `${alto}px`,
+    maxWidth: `${ancho}px`,
+    maxHeight: `${alto}px`,
+  },
+});
 
       const titulo = `LIBAVIME ${tipo} - ${esHistoria ? "Historia" : "Post"}${
         tipo === "jugador" && jugador ? ` - ${jugador.nombre}` : ""
@@ -709,10 +722,14 @@ const png = await toPng(arteRef.current, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          titulo: titulo.slice(0, 120),
-          tipo: formato,
-          imagen: png,
-        }),
+  titulo: titulo.slice(0, 120),
+  tipo: formato,
+  imagen: imagen,
+  jugador: tipo === "jugador" && jugador ? jugador.nombre : null,
+  categoria: tipo,
+  jornada: fechaJornada || null,
+  publicado: publicar,
+}),
       });
 
       const contenido = await respuesta.text();
@@ -828,6 +845,170 @@ if (!respuesta.ok) {
                 </button>
               </div>
             </div>
+
+{tipo === "jugador" && (
+  <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <h3 className="font-black text-blue-950">
+      Editor de fotos del jugador
+    </h3>
+
+    <p className="text-sm text-slate-600">
+      Ajusta la posición y el zoom de la foto. Los valores se guardan
+      por separado para Post e Historia.
+    </p>
+
+    <label className="block text-sm font-bold">
+      Seleccionar jugador
+    </label>
+
+    <select
+      value={jugadorIndividualEncuadreId}
+      onChange={(e) =>
+        setJugadorIndividualEncuadreId(e.target.value)
+      }
+      className="w-full rounded-xl border border-slate-300 bg-white p-3"
+    >
+      <option value="">Selecciona un jugador</option>
+      {jugadores.map((j) => (
+        <option key={j.id} value={String(j.id)}>
+          {j.nombre} — {j.equipo || "LIBAVIME"}
+        </option>
+      ))}
+    </select>
+
+    {jugadorIndividualEncuadreId && (() => {
+      const guardado =
+        encuadres[jugadorIndividualEncuadreId];
+
+      const ajuste =
+        guardado?.[formato] ?? {
+          x: guardado?.x ?? 0,
+          y: guardado?.y ?? 0,
+          zoom: guardado?.zoom ?? 1,
+        };
+
+      function actualizarAjuste(
+        campo: "x" | "y" | "zoom",
+        valor: number
+      ) {
+        setEncuadres((actual) => {
+          const anterior =
+            actual[jugadorIndividualEncuadreId] ?? {
+              x: 0,
+              y: 0,
+              zoom: 1,
+            };
+
+          const anteriorFormato =
+            anterior[formato] ?? {
+              x: anterior.x ?? 0,
+              y: anterior.y ?? 0,
+              zoom: anterior.zoom ?? 1,
+            };
+
+          return {
+            ...actual,
+            [jugadorIndividualEncuadreId]: {
+              ...anterior,
+              [formato]: {
+                ...anteriorFormato,
+                [campo]: valor,
+              },
+            },
+          };
+        });
+      }
+
+      return (
+        <>
+          <label className="block text-sm font-bold">
+            Horizontal: {ajuste.x}
+          </label>
+          <input
+            type="range"
+            min="-80"
+            max="80"
+            value={ajuste.x}
+            onChange={(e) =>
+              actualizarAjuste("x", Number(e.target.value))
+            }
+            className="w-full"
+          />
+
+          <label className="block text-sm font-bold">
+            Vertical: {ajuste.y}
+          </label>
+          <input
+            type="range"
+            min="-400"
+            max="400"
+            value={ajuste.y}
+            onChange={(e) =>
+              actualizarAjuste("y", Number(e.target.value))
+            }
+            className="w-full"
+          />
+
+          <label className="block text-sm font-bold">
+            Zoom: {ajuste.zoom.toFixed(2)}×
+          </label>
+          <input
+            type="range"
+            min="0.5"
+            max="4"
+            step="0.05"
+            value={ajuste.zoom}
+            onChange={(e) =>
+              actualizarAjuste("zoom", Number(e.target.value))
+            }
+            className="w-full"
+          />
+
+          <button
+            type="button"
+            disabled={guardandoEncuadre}
+            onClick={async () => {
+              setGuardandoEncuadre(true);
+
+              try {
+                const respuesta = await fetch("/api/encuadres", {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    jugadores: encuadres,
+                  }),
+                });
+
+                if (!respuesta.ok) {
+                  throw new Error("No se pudo guardar");
+                }
+
+                alert("Encuadre del jugador guardado correctamente.");
+              } catch (error) {
+                console.error(error);
+                alert("No se pudo guardar el encuadre.");
+              } finally {
+                setGuardandoEncuadre(false);
+              }
+            }}
+            className="w-full rounded-xl bg-blue-950 px-4 py-3 font-bold text-white disabled:opacity-50"
+          >
+            {guardandoEncuadre
+              ? "Guardando..."
+              : "Guardar encuadre del jugador"}
+          </button>
+
+          <p className="text-xs text-slate-500">
+            Formato actual: {formato === "post" ? "Post" : "Historia"}.
+          </p>
+        </>
+      );
+    })()}
+  </div>
+)}
+
 
 {tipo === "lideres" && (
   <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -1355,14 +1536,25 @@ if (!respuesta.ok) {
                 : `Descargar ${formato === "historia" ? "Historia" : "Post"} PNG`}
             </button>
 
-            <button
-              type="button"
-              onClick={publicarEnGaleria}
-              disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
-              className="mt-3 w-full rounded-xl bg-blue-950 px-5 py-4 font-black text-white shadow-lg hover:bg-blue-900 disabled:opacity-50"
-            >
-              {publicando ? "Publicando diseño…" : "Publicar en la galería"}
-            </button>
+           
+<button
+  type="button"
+  onClick={() => guardarEnGaleria(false)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
+  className="mt-3 w-full rounded-xl bg-emerald-700 px-5 py-4 font-black text-white shadow-lg hover:bg-emerald-800 disabled:opacity-50"
+>
+  {publicando ? "Guardando diseño…" : "Guardar diseño"}
+</button>
+
+<button
+  type="button"
+  onClick={() => guardarEnGaleria(true)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
+  className="mt-3 w-full rounded-xl bg-blue-950 px-5 py-4 font-black text-white shadow-lg hover:bg-blue-900 disabled:opacity-50"
+>
+  {publicando ? "Publicando diseño…" : "Publicar en la galería"}
+</button>
+
 
             {mensajeGaleria && (
               <p role="status" className="mt-3 rounded-xl bg-green-50 p-3 text-sm font-bold text-green-800">

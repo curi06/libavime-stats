@@ -138,7 +138,7 @@ const encuadre = {
     async function cargar() {
       try {
         const [respuestaJugadores, respuestaEncuadres] = await Promise.all([
-          fetch("/api/encuadres-jugadores", { cache: "no-store" }),
+          fetch("/api/jugadores", { cache: "no-store" }),
           fetch("/api/encuadres", { cache: "no-store" }),
         ]);
 

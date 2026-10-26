@@ -27,7 +27,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("libavime_disenos")
-      .select("id, titulo, tipo, archivo, url, creado_en")
+      .select("id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada")
       .eq("publicado", true)
       .order("creado_en", { ascending: false });
 
@@ -65,12 +65,35 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+const body = await request.json();
 
-    const body = await request.json();
-    const titulo =
-      typeof body.titulo === "string" ? body.titulo.trim() : "";
-    const tipo = body.tipo;
-    const imagen = body.imagen;
+const titulo =
+  typeof body.titulo === "string" ? body.titulo.trim() : "";
+const tipo = body.tipo;
+const imagen = body.imagen;
+const publicado = body.publicado !== false;
+
+
+const jugador =
+  typeof body.jugador === "string" ? body.jugador.trim() : null;
+
+const categoriasPermitidas = [
+  "jugador",
+  "lideres",
+  "posiciones",
+  "destacados",
+];
+
+const categoria =
+  typeof body.categoria === "string" &&
+  categoriasPermitidas.includes(body.categoria)
+    ? body.categoria
+    : null;
+
+const jornada =
+  typeof body.jornada === "string" && body.jornada.trim()
+    ? body.jornada.trim()
+    : null;
 
     if (
       !titulo ||
@@ -84,16 +107,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const coincidencia = imagen.match(
-      /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/
-    );
+    
+const coincidencia = imagen.match(
+  /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/
+);
 
-    if (!coincidencia) {
-      return NextResponse.json(
-        { error: "La imagen debe ser un PNG válido." },
-        { status: 400 }
-      );
-    }
+
+    
+if (!coincidencia) {
+  return NextResponse.json(
+    { error: "La imagen debe ser un JPEG válido." },
+    { status: 400 }
+  );
+}
+
 
     const bytes = Buffer.from(coincidencia[1], "base64");
 
@@ -107,17 +134,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const id = crypto.randomUUID();
-    archivoSubido = `${id}.png`;
+    
+const id = crypto.randomUUID();
+archivoSubido = `${id}.jpg`;
 
-    const supabase = obtenerSupabaseAdmin();
+const supabase = obtenerSupabaseAdmin();
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(archivoSubido, bytes, {
-        contentType: "image/png",
-        upsert: false,
-      });
+const { error: uploadError } = await supabase.storage
+  .from(BUCKET)
+  .upload(archivoSubido, bytes, {
+    contentType: "image/jpeg",
+    upsert: false,
+  });
+
 
     if (uploadError) {
       console.error("Error subiendo diseño:", uploadError);
@@ -134,14 +163,21 @@ export async function POST(request: Request) {
     const { data, error: insertError } = await supabase
       .from("libavime_disenos")
       .insert({
-        titulo,
-        tipo,
-        archivo: archivoSubido,
-        url: urlData.publicUrl,
-        publicado: true,
-      })
-      .select("id, titulo, tipo, archivo, url, creado_en")
-      .single();
+  titulo,
+  tipo,
+  jugador,
+  categoria,
+  jornada,
+  archivo: archivoSubido,
+  url: urlData.publicUrl,
+  publicado,
+})
+      
+.select(
+  "id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada"
+)
+.single();
+
 
     if (insertError) {
       console.error("Error registrando diseño:", insertError);
@@ -274,6 +310,90 @@ if (
 
     return NextResponse.json(
       { error: "Ocurrió un error al eliminar la publicación." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const supabaseAuth = await crearSupabaseServidor();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Debes iniciar sesión para publicar borradores." },
+        { status: 401 }
+      );
+    }
+
+    const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
+      ?.trim()
+      .toLowerCase();
+
+    const correoUsuario = user.email?.trim().toLowerCase();
+
+    if (
+      !correoAdministrador ||
+      !correoUsuario ||
+      correoUsuario !== correoAdministrador
+    ) {
+      return NextResponse.json(
+        { error: "No tienes permisos para publicar borradores." },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const id = typeof body.id === "string" ? body.id : "";
+
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+      return NextResponse.json(
+        { error: "El identificador del diseño no es válido." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = obtenerSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from("libavime_disenos")
+      .update({ publicado: true })
+      .eq("id", id)
+      .eq("publicado", false)
+      .select(
+        "id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada"
+      )
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error publicando borrador:", error);
+
+      return NextResponse.json(
+        { error: "No se pudo publicar el borrador." },
+        { status: 500 }
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "El borrador no existe o ya fue publicado." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ diseno: data });
+  } catch (error) {
+    console.error("Error en PATCH de diseños:", error);
+
+    return NextResponse.json(
+      { error: "Ocurrió un error al publicar el borrador." },
       { status: 500 }
     );
   }
