@@ -50,6 +50,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const inicio = performance.now();
+
+const medir = (paso: string) => {
+  console.log(
+    `[LIBAVIME API] ${paso}: ${(
+      (performance.now() - inicio) /
+      1000
+    ).toFixed(2)} s`
+  );
+};
   let archivoSubido: string | null = null;
 
   try {
@@ -64,6 +74,7 @@ export async function POST(request: Request) {
         { error: "Debes iniciar sesión para publicar diseños." },
         { status: 401 }
       );
+      medir("Sesión verificada");
     }
 const body = await request.json();
 
@@ -123,6 +134,7 @@ if (!coincidencia) {
 
 
     const bytes = Buffer.from(coincidencia[1], "base64");
+    medir("Imagen convertida a bytes");
 
     if (
       bytes.length === 0 ||
@@ -146,6 +158,7 @@ const { error: uploadError } = await supabase.storage
     contentType: "image/jpeg",
     upsert: false,
   });
+  medir("Subida a Supabase Storage terminada");
 
 
     if (uploadError) {
@@ -177,6 +190,7 @@ const { error: uploadError } = await supabase.storage
   "id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada"
 )
 .single();
+medir("Registro en la base de datos terminado");
 
 
     if (insertError) {
@@ -190,6 +204,7 @@ const { error: uploadError } = await supabase.storage
         { status: 500 }
       );
     }
+    medir("Proceso completo");
 
     return NextResponse.json({ diseno: data }, { status: 201 });
   } catch (error) {

@@ -676,9 +676,19 @@ enlace.remove();
     setPublicando(true);
     setMensajeGaleria("");
     setError("");
+const tiempoInicio = performance.now();
+let marca = tiempoInicio;
 
+const medir = (paso: string) => {
+  const ahora = performance.now();
+  console.log(
+    `[LIBAVIME] ${paso}: ${((ahora - marca) / 1000).toFixed(2)} s`
+  );
+  marca = ahora;
+};
     try {
       await document.fonts.ready;
+      medir("Fuentes listas");
 
       const elemento = arteRef.current;
       const imagenes = Array.from(elemento.querySelectorAll("img"));
@@ -696,8 +706,8 @@ enlace.remove();
 
       const esHistoria = formato === "historia";
       const imagen = await toJpeg(elemento, {
-  cacheBust: true,
-  pixelRatio: 3,
+  cacheBust: false,
+  pixelRatio: 1,
   width: ancho,
   height: alto,
   canvasWidth: 1080,
@@ -713,6 +723,7 @@ enlace.remove();
     maxHeight: `${alto}px`,
   },
 });
+medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`);
 
       const titulo = `LIBAVIME ${tipo} - ${esHistoria ? "Historia" : "Post"}${
         tipo === "jugador" && jugador ? ` - ${jugador.nombre}` : ""
@@ -731,6 +742,12 @@ enlace.remove();
   publicado: publicar,
 }),
       });
+      medir(`Respuesta del servidor: HTTP ${respuesta.status}`);
+console.log(
+  `[LIBAVIME] Tiempo total hasta respuesta: ${(
+    (performance.now() - tiempoInicio) / 1000
+  ).toFixed(2)} s`
+);
 
       const contenido = await respuesta.text();
 
