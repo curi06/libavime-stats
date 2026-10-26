@@ -3,6 +3,7 @@ import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../../data/equipos";
+export const dynamic = "force-dynamic";
 
 type Partido = {
   id: number;
