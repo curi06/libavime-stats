@@ -545,7 +545,7 @@ export default function PlanillaPage() {
 
       if (updateError) throw updateError;
 
-      
+
       setMensaje("🏁 Partido finalizado y sincronizado con LIBAVIME Stats.");
     } catch (err: any) {
       console.error("Error finalizando partido:", err);
@@ -771,40 +771,58 @@ export default function PlanillaPage() {
   // Marcador calculado directamente desde los PTS registrados por jugador.
   // Esto permite ver el total exacto del equipo en tiempo real, sin depender
   // de los campos puntos_local / puntos_visitante de la tabla partidos.
+
+  // Totales de puntos, rebotes y asistencias por equipo.
   const marcadorEquipos = useMemo(() => {
-    const resultado: Record<string, number> = {};
+    const resultado: Record<
+      string,
+      { puntos: number; rebotes: number; asistencias: number }
+    > = {};
 
     if (!partido) return resultado;
 
     const local = normalizar(partido.equipo_local);
     const visitante = normalizar(partido.equipo_visitante);
 
+    [local, visitante].forEach((equipo) => {
+      if (equipo) {
+        resultado[equipo] = { puntos: 0, rebotes: 0, asistencias: 0 };
+      }
+    });
+
     jugadoresDelPartido.forEach((jugador) => {
       const equipo = normalizar(jugador.equipo);
       const stats = estadisticas[jugador.id];
 
       if (!stats) return;
-
-      // Jugadores marcados como no jugó / lesionado no suman al marcador.
-      if (
-        stats.estado === "no_jugo" ||
-        stats.estado === "lesionado"
-      ) {
+      if (stats.estado === "no_jugo" || stats.estado === "lesionado") {
         return;
       }
 
-      if (equipo === local || equipo === visitante) {
-        resultado[equipo] =
-          (resultado[equipo] ?? 0) + (Number(stats.puntos) || 0);
-      }
+      if (!resultado[equipo]) return;
+
+      resultado[equipo].puntos += Number(stats.puntos) || 0;
+      resultado[equipo].rebotes += Number(stats.rebotes) || 0;
+      resultado[equipo].asistencias += Number(stats.asistencias) || 0;
     });
 
     return resultado;
   }, [estadisticas, jugadoresDelPartido, partido]);
 
   function obtenerMarcadorEquipo(nombreEquipo: string) {
-    return marcadorEquipos[normalizar(nombreEquipo)] ?? 0;
+    return marcadorEquipos[normalizar(nombreEquipo)]?.puntos ?? 0;
   }
+
+  function obtenerTotalesEquipo(nombreEquipo: string) {
+    return (
+      marcadorEquipos[normalizar(nombreEquipo)] ?? {
+        puntos: 0,
+        rebotes: 0,
+        asistencias: 0,
+      }
+    );
+  }
+
 
   function jugadoresEquipo(
     nombreEquipo: string
@@ -1072,6 +1090,9 @@ export default function PlanillaPage() {
 
                 const marcador = obtenerMarcadorEquipo(equipo);
 
+                const totales = obtenerTotalesEquipo(equipo);
+
+
                 return (
                   <button
                     key={equipo}
@@ -1085,9 +1106,31 @@ export default function PlanillaPage() {
                         : "bg-slate-800 text-slate-400"
                     }`}
                   >
-                    <span className="truncate">
-                      {equipo}
-                    </span>
+
+
+
+<div className="flex shrink-0 items-center gap-3">
+  <div className="flex flex-col items-center leading-tight">
+    <span className="text-[9px] font-black opacity-80">
+      REB
+    </span>
+    <span className="text-sm font-black leading-tight">
+      {totales.rebotes}
+    </span>
+  </div>
+
+  <div className="flex flex-col items-center leading-tight">
+    <span className="text-[9px] font-black opacity-80">
+      AST
+    </span>
+    <span className="text-sm font-black leading-tight">
+      {totales.asistencias}
+    </span>
+  </div>
+</div>
+
+
+
 
                     <span className="text-base">
                       {marcador}

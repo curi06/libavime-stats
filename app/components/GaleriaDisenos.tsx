@@ -683,7 +683,13 @@ async function publicarBorrador(diseno: Diseno) {
 
 
 
-      {disenos.length > 0 && (
+      {disenos.length > 0 &&
+  (
+    filtroJugador !== "Todos" ||
+    filtroCategoria !== "Todas" ||
+    filtroFormato !== "Todos" ||
+    filtroJornada !== "Todas"
+  ) && (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {disenosFiltrados.map((diseno) => (
             <article
