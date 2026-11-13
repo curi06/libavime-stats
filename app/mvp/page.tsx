@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import Navbar from "../components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
+export const dynamic = "force-dynamic";
 
 type Jugador = {
   id: number;
@@ -11,12 +12,13 @@ type Jugador = {
   foto: string | null;
 };
 
-type EstadisticaJugador = {
+type EstadisticaPartido = {
   jugador_id: number;
-  ppg: number | null;
-  rpg: number | null;
-  apg: number | null;
-  partidos_jugados: number | null;
+  partido_id: number;
+  puntos: number | null;
+  rebotes: number | null;
+  asistencias: number | null;
+  estado: string | null;
 };
 
 type Partido = {
@@ -37,6 +39,13 @@ type CandidatoMVP = Jugador & {
   asistencias_totales: number;
   promedio_estadistico: number;
   posicion_equipo: number;
+
+  // Desglose de la puntuación MVP
+  puntuacion_puntos: number;
+  puntuacion_asistencias: number;
+  puntuacion_rebotes: number;
+  puntuacion_posicion: number;
+
   puntuacion_mvp: number;
 };
 
@@ -54,23 +63,7 @@ const esPartidoFinalizado = (estado: string | null) => {
 };
 
   export default async function MVPPage() {
-  return (
-    <>
-      <Navbar />
 
-      <main className="min-h-screen bg-slate-100 pt-32 p-4 md:p-10">
-        <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-10 text-center">
-          <h1 className="text-3xl font-black text-blue-950">
-            🏀 MVP
-          </h1>
-
-          <p className="text-gray-600 mt-3">
-            Esta sección se encuentra temporalmente inactiva.
-          </p>
-        </div>
-      </main>
-    </>
-  );
   const [
     { data: jugadoresData, error: jugadoresError },
     { data: estadisticasData, error: estadisticasError },
@@ -80,13 +73,20 @@ const esPartidoFinalizado = (estado: string | null) => {
       .from("jugadores")
       .select("id, slug, nombre, equipo, foto"),
     supabase
-      .from("estadisticas_jugadores")
-      .select("jugador_id, ppg, rpg, apg, partidos_jugados"),
+      .from("estadisticas_partido")
+.select(`
+  jugador_id,
+  partido_id,
+  puntos,
+  rebotes,
+  asistencias,
+  estado
+`),
     supabase
       .from("partidos")
-      .select(
-        "equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
-      ),
+.select(
+  "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
+),
   ]);
 
   if (
@@ -113,11 +113,48 @@ const esPartidoFinalizado = (estado: string | null) => {
     );
   }
 
-  const estadisticasPorJugador = new Map<number, EstadisticaJugador>();
+ const partidosFinalizados = new Set(
+  (partidosData ?? [])
+    .filter((partido) => esPartidoFinalizado(partido.estado))
+    .map((partido) => Number(partido.id))
+);
 
-  ((estadisticasData ?? []) as EstadisticaJugador[]).forEach((estadistica) => {
-    estadisticasPorJugador.set(Number(estadistica.jugador_id), estadistica);
-  });
+const acumuladosPorJugador = new Map<
+  number,
+  {
+    partidos: Set<number>;
+    puntos: number;
+    rebotes: number;
+    asistencias: number;
+  }
+>();
+
+((estadisticasData ?? []) as EstadisticaPartido[]).forEach((registro) => {
+  const jugadorId = Number(registro.jugador_id);
+  const partidoId = Number(registro.partido_id);
+
+  if (!partidosFinalizados.has(partidoId)) return;
+
+  const estado = normalizar(registro.estado);
+
+  if (estado === "no_jugo" || estado === "lesionado") return;
+
+  if (!acumuladosPorJugador.has(jugadorId)) {
+    acumuladosPorJugador.set(jugadorId, {
+      partidos: new Set<number>(),
+      puntos: 0,
+      rebotes: 0,
+      asistencias: 0,
+    });
+  }
+
+  const acumulado = acumuladosPorJugador.get(jugadorId)!;
+
+  acumulado.partidos.add(partidoId);
+  acumulado.puntos += Number(registro.puntos) || 0;
+  acumulado.rebotes += Number(registro.rebotes) || 0;
+  acumulado.asistencias += Number(registro.asistencias) || 0;
+});
 
   const equipos = new Map<
     string,
@@ -199,80 +236,164 @@ const esPartidoFinalizado = (estado: string | null) => {
   });
 
   const jugadores = (jugadoresData as Jugador[]).map((jugador) => {
-    const estadistica = estadisticasPorJugador.get(Number(jugador.id));
+  const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
-    const partidosJugados = Number(estadistica?.partidos_jugados) || 0;
-    const ppg = Number(estadistica?.ppg) || 0;
-    const rpg = Number(estadistica?.rpg) || 0;
-    const apg = Number(estadistica?.apg) || 0;
+  const partidosJugados = acumulado?.partidos.size ?? 0;
+  const puntosTotales = acumulado?.puntos ?? 0;
+  const rebotesTotales = acumulado?.rebotes ?? 0;
+  const asistenciasTotales = acumulado?.asistencias ?? 0;
 
-    return {
-      ...jugador,
-      ppg,
-      rpg,
-      apg,
-      partidos_jugados: partidosJugados,
-      puntos_totales: Number((ppg * partidosJugados).toFixed(1)),
-      rebotes_totales: Number((rpg * partidosJugados).toFixed(1)),
-      asistencias_totales: Number((apg * partidosJugados).toFixed(1)),
-      promedio_estadistico: Number(((ppg + rpg + apg) / 3).toFixed(2)),
-    };
-  });
+  const ppg =
+    partidosJugados > 0
+      ? Number((puntosTotales / partidosJugados).toFixed(1))
+      : 0;
 
-  const jugadoresActivos = jugadores.filter(
-    (jugador) =>
-      jugador.partidos_jugados > 0 &&
-      (jugador.ppg > 0 || jugador.rpg > 0 || jugador.apg > 0)
+  const rpg =
+    partidosJugados > 0
+      ? Number((rebotesTotales / partidosJugados).toFixed(1))
+      : 0;
+
+  const apg =
+    partidosJugados > 0
+      ? Number((asistenciasTotales / partidosJugados).toFixed(1))
+      : 0;
+
+  return {
+    ...jugador,
+    ppg,
+    rpg,
+    apg,
+    partidos_jugados: partidosJugados,
+    puntos_totales: puntosTotales,
+    rebotes_totales: rebotesTotales,
+    asistencias_totales: asistenciasTotales,
+    promedio_estadistico: Number(((ppg + rpg + apg) / 3).toFixed(2)),
+  };
+});
+
+  // 1. Identificar los equipos y sus partidos disputados
+const equipoPorNombre = new Map(
+  [...equipos.values()].map((equipo) => [
+    normalizar(equipo.nombre),
+    equipo,
+  ])
+);
+
+// 2. Aplicar el requisito mínimo de participación: 60%
+const cantidadEquipos = clasificacion.length;
+const jugadoresElegibles = jugadores.filter((jugador) => {
+  const equipo = equipoPorNombre.get(normalizar(jugador.equipo));
+
+  const partidosEquipo = equipo
+    ? equipo.victorias + equipo.derrotas
+    : 0;
+
+  if (partidosEquipo === 0) return false;
+
+  const porcentajeParticipacion =
+    jugador.partidos_jugados / partidosEquipo;
+
+  return (
+    jugador.partidos_jugados > 0 &&
+    porcentajeParticipacion >= 0.60 &&
+    (jugador.ppg > 0 || jugador.rpg > 0 || jugador.apg > 0)
   );
+});
 
-  const cantidadEquipos = clasificacion.length;
+// 3. Encontrar el mejor promedio en cada categoría
+const maxPPG = Math.max(
+  ...jugadoresElegibles.map((jugador) => jugador.ppg),
+  0
+);
 
-  const maxPromedio = Math.max(
-    ...jugadoresActivos.map((jugador) => jugador.promedio_estadistico),
-    0
-  );
+const maxAPG = Math.max(
+  ...jugadoresElegibles.map((jugador) => jugador.apg),
+  0
+);
 
-  const candidatos: CandidatoMVP[] = jugadoresActivos
-    .map((jugador) => {
-      const posicionEquipo =
-        posicionPorEquipo.get(normalizar(jugador.equipo)) ?? 0;
+const maxRPG = Math.max(
+  ...jugadoresElegibles.map((jugador) => jugador.rpg),
+  0
+);
 
-      // La clasificación es el factor principal: 60%.
-      // El rendimiento estadístico aporta el 40%.
-      const puntosClasificacion =
-        posicionEquipo > 0 && cantidadEquipos > 1
+// 4. Calcular la puntuación de cada candidato
+const candidatos: CandidatoMVP[] = jugadoresElegibles
+  .map((jugador) => {
+    const posicionEquipo =
+      posicionPorEquipo.get(normalizar(jugador.equipo)) ?? 0;
+
+    const puntosNormalizados =
+      maxPPG > 0 ? (jugador.ppg / maxPPG) * 100 : 0;
+
+    const asistenciasNormalizadas =
+      maxAPG > 0 ? (jugador.apg / maxAPG) * 100 : 0;
+
+    const rebotesNormalizados =
+      maxRPG > 0 ? (jugador.rpg / maxRPG) * 100 : 0;
+
+    // Puntuación según la posición del equipo
+    const puntuacionPosicion =
+      posicionEquipo > 0
+        ? cantidadEquipos > 1
           ? ((cantidadEquipos - posicionEquipo) /
               (cantidadEquipos - 1)) *
             100
-          : posicionEquipo === 1
-            ? 100
-            : 0;
+          : 100
+        : 0;
 
-      const puntosEstadisticos =
-        maxPromedio > 0
-          ? (jugador.promedio_estadistico / maxPromedio) * 100
-          : 0;
+    // Fórmula MVP: 30% puntos, 25% asistencias,
+    // 20% rebotes y 25% posición del equipo
 
-      return {
-        ...jugador,
-        posicion_equipo: posicionEquipo,
-        puntuacion_mvp: Number(
-          (puntosClasificacion * 0.6 + puntosEstadisticos * 0.4).toFixed(2)
-        ),
-      };
-    })
-    .sort((a, b) => {
-      if (b.puntuacion_mvp !== a.puntuacion_mvp) {
-        return b.puntuacion_mvp - a.puntuacion_mvp;
-      }
-      if (b.promedio_estadistico !== a.promedio_estadistico) {
-        return b.promedio_estadistico - a.promedio_estadistico;
-      }
-      if (b.ppg !== a.ppg) return b.ppg - a.ppg;
-      if (b.rpg !== a.rpg) return b.rpg - a.rpg;
-      return b.apg - a.apg;
-    })
-    .slice(0, 3);
+const puntuacionPuntos = puntosNormalizados * 0.30;
+const puntuacionAsistencias = asistenciasNormalizadas * 0.25;
+const puntuacionRebotes = rebotesNormalizados * 0.20;
+const puntuacionEquipo = puntuacionPosicion * 0.25;
+
+const puntuacionMVP =
+  puntuacionPuntos +
+  puntuacionAsistencias +
+  puntuacionRebotes +
+  puntuacionEquipo;
+
+// Redondear la puntuación total
+const totalRedondeado = Number(puntuacionMVP.toFixed(2));
+
+// Redondear los primeros tres componentes
+const puntosRedondeados = Number(puntuacionPuntos.toFixed(2));
+const asistenciasRedondeadas = Number(puntuacionAsistencias.toFixed(2));
+const rebotesRedondeados = Number(puntuacionRebotes.toFixed(2));
+
+// Ajustar el último componente para cuadrar la suma
+const posicionRedondeada = Number(
+  (
+    totalRedondeado -
+    puntosRedondeados -
+    asistenciasRedondeadas -
+    rebotesRedondeados
+  ).toFixed(2)
+);
+
+return {
+  ...jugador,
+  posicion_equipo: posicionEquipo,
+  puntuacion_puntos: puntosRedondeados,
+  puntuacion_asistencias: asistenciasRedondeadas,
+  puntuacion_rebotes: rebotesRedondeados,
+  puntuacion_posicion: posicionRedondeada,
+  puntuacion_mvp: totalRedondeado,
+};
+
+  })
+  .sort((a, b) => {
+    if (b.puntuacion_mvp !== a.puntuacion_mvp) {
+      return b.puntuacion_mvp - a.puntuacion_mvp;
+    }
+
+    if (b.ppg !== a.ppg) return b.ppg - a.ppg;
+    if (b.apg !== a.apg) return b.apg - a.apg;
+    return b.rpg - a.rpg;
+  })
+  .slice(0, 6);
 
   if (candidatos.length === 0) {
     return (
@@ -384,12 +505,59 @@ const esPartidoFinalizado = (estado: string | null) => {
                           PUNTUACIÓN MVP
                         </p>
                         <p className="text-4xl font-black text-yellow-600">
-                          {candidato.puntuacion_mvp}
+                          {candidato.puntuacion_mvp.toFixed(2)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          60% equipo · 40% estadísticas
+                          30% puntos · 25% asistencias · 20% rebotes · 25% posición
                         </p>
                       </div>
+
+<div className="mt-3 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left">
+  <p className="text-sm font-black text-slate-700 mb-3 text-center">
+    DESGLOSE DE PUNTUACIÓN
+  </p>
+
+  <div className="grid grid-cols-2 gap-3">
+
+    <div className="bg-white rounded-xl p-3 border border-blue-100">
+      <p className="text-xs text-gray-500 font-bold">
+        🏀 PUNTOS (30%)
+      </p>
+      <p className="text-xl font-black text-blue-900">
+        {candidato.puntuacion_puntos.toFixed(2)}
+      </p>
+    </div>
+
+    <div className="bg-white rounded-xl p-3 border border-red-100">
+      <p className="text-xs text-gray-500 font-bold">
+        🎯 ASISTENCIAS (25%)
+      </p>
+      <p className="text-xl font-black text-red-700">
+        {candidato.puntuacion_asistencias.toFixed(2)}
+      </p>
+    </div>
+
+    <div className="bg-white rounded-xl p-3 border border-green-100">
+      <p className="text-xs text-gray-500 font-bold">
+        💪 REBOTES (20%)
+      </p>
+      <p className="text-xl font-black text-green-700">
+        {candidato.puntuacion_rebotes.toFixed(2)}
+      </p>
+    </div>
+
+    <div className="bg-white rounded-xl p-3 border border-yellow-100">
+      <p className="text-xs text-gray-500 font-bold">
+        🏆 EQUIPO (25%)
+      </p>
+      <p className="text-xl font-black text-yellow-700">
+        {candidato.puntuacion_posicion.toFixed(2)}
+      </p>
+    </div>
+
+  </div>
+</div>
+
 
                       <div className="mt-5">
                         <p className="text-sm font-bold text-gray-500">
@@ -447,20 +615,25 @@ const esPartidoFinalizado = (estado: string | null) => {
               })}
             </div>
 
-            <div className="mt-10 bg-slate-50 rounded-2xl p-6 text-center">
-              <p className="font-black text-lg">
-                📊 ¿Cómo se determina el MVP?
-              </p>
-              <p className="text-gray-600 mt-2">
-                La posición del equipo representa el <strong>50%</strong> de la
-                puntuación y el promedio de puntos, rebotes y asistencias
-                representa el <strong>50%</strong>.
-              </p>
-              <p className="text-gray-500 text-sm mt-2">
-                El sistema se actualiza automáticamente conforme cambian la
-                clasificación y las estadísticas de la Serie Regular.
-              </p>
-            </div>
+           <div className="mt-10 bg-slate-50 rounded-2xl p-6 text-center">
+  <p className="font-black text-lg">
+    📊 ¿Cómo se determina el MVP?
+  </p>
+
+  <p className="text-gray-600 mt-2">
+  La puntuación del MVP se determina mediante cuatro componentes:
+  puntos por partido (30%), asistencias por partido (25%),
+  rebotes por partido (20%) y posición final del equipo en la
+  Serie Regular (25%). Cada estadística individual se normaliza
+  tomando como referencia el mejor promedio de los candidatos elegibles.
+</p>
+
+  <p className="text-gray-500 text-sm mt-2">
+    El sistema se actualiza automáticamente conforme cambian las
+    estadísticas individuales y el récord de los equipos durante la
+    Serie Regular.
+  </p>
+</div>
           </div>
         </div>
       </main>

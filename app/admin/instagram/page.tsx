@@ -9,7 +9,8 @@ type Tipo =
   | "jugador"
   | "lideres"
   | "posiciones"
-  | "destacados";
+  | "destacados"
+  | "mvp";
 type Formato = "historia" | "post";
 type Categoria = "puntos" | "rebotes" | "asistencias";
 
@@ -32,6 +33,14 @@ type Equipo = {
   pf: number;
   pc: number;
   dif: number;
+};
+type CandidatoMVP = Jugador & {
+  ppg: number;
+  rpg: number;
+  apg: number;
+  partidos_jugados: number;
+  posicion_equipo: number;
+  puntuacion_mvp: number;
 };
 type AjusteFormato = {
   x: number;
@@ -146,7 +155,6 @@ function fotoValida(foto?: string | null) {
 export default function InstagramPage() {
   const [tipo, setTipo] = useState<Tipo>("jugador");
   const [formato, setFormato] = useState<Formato>("post");
-  const [categoria, setCategoria] = useState<Categoria>("puntos");
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [encuadres, setEncuadres] = useState<Record<string, Encuadre>>({});
   const arteRef = useRef<HTMLDivElement>(null);
@@ -197,6 +205,8 @@ useEffect(() => {
   const [jugadorId, setJugadorId] = useState("");
   const [fechaJornada, setFechaJornada] = useState("");
   const [equipoDestacadoIndex, setEquipoDestacadoIndex] = useState(0);
+  const [candidatoMVPIndex, setCandidatoMVPIndex] = useState(0);
+  const [liderCategoriaIndex, setLiderCategoriaIndex] = useState(0);
   const [jugadorVistaPreviaId, setJugadorVistaPreviaId] = useState("");
   const [jugadorEncuadreId, setJugadorEncuadreId] = useState("");
   const [liderEncuadreId, setLiderEncuadreId] = useState("");
@@ -208,7 +218,7 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState("");
-  
+
 
   useEffect(() => {
     let activo = true;
@@ -224,7 +234,7 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
         estadisticasResp,
         partidosResp,
       ] = await Promise.all([
-        
+
         supabase.from("jugadores").select("*").order("nombre"),
         supabase
           .from("estadisticas_partido")
@@ -507,25 +517,337 @@ const destacadosPorEquipo = useMemo(() => {
   }));
 }, [destacadosJornada]);
 
+  // Un ganador oficial por cada categoría estadística.
+  const ganadoresPorCategoria = useMemo(() => {
+    const categorias: Categoria[] = ["puntos", "rebotes", "asistencias"];
+
+    return categorias.map((categoria) => ({
+      categoria,
+      jugador:
+        [...jugadores]
+          .filter((j) => j[categoria] > 0)
+          .sort((a, b) => b[categoria] - a[categoria])[0] ?? null,
+    }));
+  }, [jugadores]);
+
+  // Evita repetir un jugador en el selector de ajuste de fotografías
+  // cuando lidera más de una categoría.
   const lideres = useMemo(() => {
-    return [...jugadores]
-      .sort((a, b) => b[categoria] - a[categoria])
-      .filter((j) => j[categoria] > 0)
-      .slice(0, 3);
-  }, [jugadores, categoria]);
+    const unicos = new Map<string, Jugador>();
+
+    ganadoresPorCategoria.forEach(({ jugador }) => {
+      if (jugador) unicos.set(String(jugador.id), jugador);
+    });
+
+    return Array.from(unicos.values());
+  }, [ganadoresPorCategoria]);
+  const candidatosMVP = useMemo<CandidatoMVP[]>(() => {
+  // 1. Calcular promedios individuales y participación
+  const jugadoresConPromedios = jugadores.map((jugador) => {
+    const equipo = equipos.find(
+      (e) => normalizar(e.nombre) === normalizar(jugador.equipo)
+    );
+
+    const partidosEquipo = equipo?.pj ?? 0;
+
+    const ppg =
+      jugador.pj > 0
+        ? Number((jugador.puntos / jugador.pj).toFixed(1))
+        : 0;
+
+    const rpg =
+      jugador.pj > 0
+        ? Number((jugador.rebotes / jugador.pj).toFixed(1))
+        : 0;
+
+    const apg =
+      jugador.pj > 0
+        ? Number((jugador.asistencias / jugador.pj).toFixed(1))
+        : 0;
+
+    return {
+      ...jugador,
+      ppg,
+      rpg,
+      apg,
+      partidos_jugados: jugador.pj,
+      posicion_equipo: equipo
+        ? equipos.findIndex(
+            (e) => normalizar(e.nombre) === normalizar(jugador.equipo)
+          ) + 1
+        : 0,
+      partidos_equipo: partidosEquipo,
+    };
+  });
+
+  // 2. Elegibilidad: mínimo 60% de participación
+  const jugadoresElegibles = jugadoresConPromedios.filter(
+    (jugador) => {
+      if (jugador.partidos_equipo === 0) return false;
+
+      const participacion =
+        jugador.partidos_jugados / jugador.partidos_equipo;
+
+      return (
+        jugador.partidos_jugados > 0 &&
+        participacion >= 0.60 &&
+        (jugador.ppg > 0 || jugador.apg > 0 || jugador.rpg > 0)
+      );
+    }
+  );
+
+  // 3. Mejores promedios de cada categoría
+  const maxPPG = Math.max(
+    ...jugadoresElegibles.map((j) => j.ppg),
+    0
+  );
+
+  const maxAPG = Math.max(
+    ...jugadoresElegibles.map((j) => j.apg),
+    0
+  );
+
+  const maxRPG = Math.max(
+    ...jugadoresElegibles.map((j) => j.rpg),
+    0
+  );
+
+  // 4. Aplicar la fórmula oficial MVP
+  return jugadoresElegibles
+    .map((jugador) => {
+      const puntosNormalizados =
+        maxPPG > 0 ? (jugador.ppg / maxPPG) * 100 : 0;
+
+      const asistenciasNormalizadas =
+        maxAPG > 0 ? (jugador.apg / maxAPG) * 100 : 0;
+
+      const rebotesNormalizados =
+        maxRPG > 0 ? (jugador.rpg / maxRPG) * 100 : 0;
+
+      const posicion = jugador.posicion_equipo;
+
+      const puntuacionPosicion =
+        posicion > 0
+          ? equipos.length > 1
+            ? ((equipos.length - posicion) /
+                (equipos.length - 1)) * 100
+            : 100
+          : 0;
+
+      const puntuacionMVP =
+        puntosNormalizados * 0.30 +
+        asistenciasNormalizadas * 0.25 +
+        rebotesNormalizados * 0.20 +
+        puntuacionPosicion * 0.25;
+
+      return {
+        ...jugador,
+        puntuacion_mvp: Number(puntuacionMVP.toFixed(2)),
+      };
+    })
+    .sort((a, b) => {
+      if (b.puntuacion_mvp !== a.puntuacion_mvp) {
+        return b.puntuacion_mvp - a.puntuacion_mvp;
+      }
+
+      if (b.ppg !== a.ppg) return b.ppg - a.ppg;
+      if (b.apg !== a.apg) return b.apg - a.apg;
+
+      return b.rpg - a.rpg;
+    })
+    .slice(0, 6);
+}, [jugadores, equipos]);
 
   const ancho = 360;
   const alto = formato === "historia" ? 640 : 450;
 
-  const tituloCategoria =
-    categoria === "puntos"
-      ? "LÍDERES EN PUNTOS"
-      : categoria === "rebotes"
-        ? "LÍDERES EN REBOTES"
-        : "LÍDERES EN ASISTENCIAS";
-
   async function descargar() {
     if (!arteRef.current) return;
+
+    // Descarga tres archivos independientes, uno por categoría, como el flujo MVP.
+    if (tipo === "lideres") {
+      if (!ganadoresPorCategoria.some(({ jugador }) => jugador)) {
+        setError("No hay ganadores disponibles para descargar.");
+        return;
+      }
+
+      setDescargando(true);
+      setError("");
+
+      try {
+        await document.fonts.ready;
+
+        for (let i = 0; i < ganadoresPorCategoria.length; i++) {
+          const ganador = ganadoresPorCategoria[i]?.jugador;
+          if (!ganador) continue;
+
+          setLiderCategoriaIndex(i);
+
+          // Esperar a que React actualice la tarjeta activa antes de capturarla.
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => resolve())
+            )
+          );
+
+          const elemento = arteRef.current;
+          if (!elemento) continue;
+
+          const imagenes = Array.from(elemento.querySelectorAll("img"));
+          await Promise.all(
+            imagenes.map((img) => {
+              if (img.complete) return Promise.resolve();
+              return new Promise<void>((resolve) => {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+              });
+            })
+          );
+
+          const esHistoria = formato === "historia";
+          const png = await toPng(elemento, {
+            cacheBust: true,
+            pixelRatio: 3,
+            width: ancho,
+            height: alto,
+            canvasWidth: 1080,
+            canvasHeight: esHistoria ? 1920 : 1350,
+            backgroundColor: "#07152e",
+            style: {
+              width: `${ancho}px`,
+              height: `${alto}px`,
+              minWidth: `${ancho}px`,
+              minHeight: `${alto}px`,
+              maxWidth: `${ancho}px`,
+              maxHeight: `${alto}px`,
+            },
+          });
+
+          const nombreJugador = ganador.nombre
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
+            .toLowerCase();
+          const nombreCategoria = ganadoresPorCategoria[i].categoria;
+
+          const enlace = document.createElement("a");
+          enlace.href = png;
+          enlace.download = `libavime-lider-${nombreCategoria}-${nombreJugador}-${formato}.png`;
+          enlace.style.display = "none";
+          document.body.appendChild(enlace);
+          enlace.click();
+          enlace.remove();
+
+          await new Promise((resolve) => setTimeout(resolve, 700));
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron generar las tres imágenes de los líderes.");
+      } finally {
+        setLiderCategoriaIndex(0);
+        setDescargando(false);
+      }
+
+      return;
+    }
+
+    if (tipo === "mvp") {
+      if (candidatosMVP.length === 0) {
+        setError("No hay candidatos MVP disponibles para descargar.");
+        return;
+      }
+
+      setDescargando(true);
+      setError("");
+
+      try {
+        await document.fonts.ready;
+
+        for (let i = 0; i < candidatosMVP.length; i++) {
+          setCandidatoMVPIndex(i);
+
+          // Esperar a que React actualice la ficha
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => resolve())
+            )
+          );
+
+          const elemento = arteRef.current;
+          if (!elemento) continue;
+
+          // Esperar a que carguen las fotografías
+          const imagenes = Array.from(
+            elemento.querySelectorAll("img")
+          );
+
+          await Promise.all(
+            imagenes.map((img) => {
+              if (img.complete) return Promise.resolve();
+
+              return new Promise<void>((resolve) => {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+              });
+            })
+          );
+
+          const esHistoria = formato === "historia";
+
+          const png = await toPng(elemento, {
+            cacheBust: true,
+            pixelRatio: 3,
+            width: ancho,
+            height: alto,
+            canvasWidth: 1080,
+            canvasHeight: esHistoria ? 1920 : 1350,
+            backgroundColor: "#07152e",
+            style: {
+              width: `${ancho}px`,
+              height: `${alto}px`,
+              minWidth: `${ancho}px`,
+              minHeight: `${alto}px`,
+              maxWidth: `${ancho}px`,
+              maxHeight: `${alto}px`,
+            },
+          });
+
+          const respuestaImagen = await fetch(png);
+          const archivoImagen = await respuestaImagen.blob();
+          const urlImagen = URL.createObjectURL(archivoImagen);
+
+          const nombreJugador = candidatosMVP[i].nombre
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
+            .toLowerCase();
+
+          const enlace = document.createElement("a");
+          enlace.href = urlImagen;
+          enlace.download = `libavime-mvp-${i + 1}-${nombreJugador}-${formato}.png`;
+          enlace.style.display = "none";
+
+          document.body.appendChild(enlace);
+          enlace.click();
+          enlace.remove();
+
+          setTimeout(() => URL.revokeObjectURL(urlImagen), 2000);
+
+          // Pequeña pausa entre descargas
+          await new Promise((resolve) => setTimeout(resolve, 700));
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron generar todas las imágenes de los candidatos MVP.");
+      } finally {
+        setCandidatoMVPIndex(0);
+        setDescargando(false);
+      }
+
+      return;
+    }
     if (tipo === "destacados") {
   setDescargando(true);
   setError("");
@@ -625,7 +947,7 @@ setTimeout(() => URL.revokeObjectURL(urlImagen), 1000);
         })
       );
 
-      
+
 const esHistoria = formato === "historia";
 const anchoExportacion = 1080;
 const altoExportacion = esHistoria ? 1920 : 1350;
@@ -725,8 +1047,21 @@ const medir = (paso: string) => {
 });
 medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`);
 
+      const liderSeleccionado =
+        tipo === "lideres" ? ganadoresPorCategoria[liderCategoriaIndex] : null;
+      const etiquetaLider = liderSeleccionado?.categoria
+        ? liderSeleccionado.categoria === "puntos"
+          ? "Líder en puntos"
+          : liderSeleccionado.categoria === "rebotes"
+            ? "Líder en rebotes"
+            : "Líder en asistencias"
+        : "";
       const titulo = `LIBAVIME ${tipo} - ${esHistoria ? "Historia" : "Post"}${
-        tipo === "jugador" && jugador ? ` - ${jugador.nombre}` : ""
+        tipo === "jugador" && jugador
+          ? ` - ${jugador.nombre}`
+          : tipo === "lideres" && liderSeleccionado?.jugador
+            ? ` - ${etiquetaLider} - ${liderSeleccionado.jugador.nombre}`
+            : ""
       }`;
 
       const respuesta = await fetch("/api/disenos", {
@@ -736,8 +1071,16 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
   titulo: titulo.slice(0, 120),
   tipo: formato,
   imagen: imagen,
-  jugador: tipo === "jugador" && jugador ? jugador.nombre : null,
-  categoria: tipo,
+  jugador:
+    tipo === "jugador" && jugador
+      ? jugador.nombre
+      : tipo === "lideres"
+        ? liderSeleccionado?.jugador?.nombre ?? null
+        : null,
+  categoria:
+    tipo === "lideres" && liderSeleccionado?.categoria
+      ? `lider-${liderSeleccionado.categoria}`
+      : tipo,
   jornada: fechaJornada || null,
   publicado: publicar,
 }),
@@ -812,6 +1155,7 @@ if (!respuesta.ok) {
   ["lideres", "Líderes"],
   ["posiciones", "Posiciones"],
   ["destacados", "Destacados de la jornada"],
+  ["mvp", "Candidatos MVP"],
 ] as [Tipo, string][]).map(([valor, texto]) => (
                   <button
                     key={valor}
@@ -1029,12 +1373,12 @@ if (!respuesta.ok) {
 
 {tipo === "lideres" && (
   <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-    <h3 className="font-black text-blue-950">Editor de fotos de líderes</h3>
+    <h3 className="font-black text-blue-950">Editor de fotografías de los ganadores</h3>
     <p className="text-sm text-slate-600">
-      Los ajustes se guardan por separado para post e historia.
+      Ajusta el encuadre de cada ganador. Los cambios se guardan por separado para Post e Historia.
     </p>
 
-    <label className="block text-sm font-bold">Seleccionar líder</label>
+    <label className="block text-sm font-bold">Seleccionar jugador</label>
     <select
       value={liderEncuadreId}
       onChange={(e) => setLiderEncuadreId(e.target.value)}
@@ -1507,24 +1851,261 @@ if (!respuesta.ok) {
               </div>
             )}
 
+                        {tipo === "mvp" && candidatosMVP[candidatoMVPIndex] && (() => {
+  const candidato = candidatosMVP[candidatoMVPIndex];
+  const claveEncuadre = `mvp-${candidato.id}`;
+  const guardado = encuadres[claveEncuadre];
+
+  const ajuste = guardado?.[formato] ?? {
+    x: guardado?.x ?? 0,
+    y: guardado?.y ?? 0,
+    zoom: guardado?.zoom ?? 1,
+  };
+
+  const actualizarAjuste = (
+    campo: "x" | "y" | "zoom",
+    valor: number
+  ) => {
+    setEncuadres((actual) => {
+      const anterior = actual[claveEncuadre] ?? {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      };
+
+      const anteriorFormato = anterior[formato] ?? {
+        x: anterior.x ?? 0,
+        y: anterior.y ?? 0,
+        zoom: anterior.zoom ?? 1,
+      };
+
+      return {
+        ...actual,
+        [claveEncuadre]: {
+          ...anterior,
+          [formato]: {
+            ...anteriorFormato,
+            [campo]: valor,
+          },
+        },
+      };
+    });
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+      <h3 className="font-black text-blue-950">
+        Editor de fotografía del candidato MVP
+      </h3>
+
+      <p className="text-sm text-slate-600">
+        Ajusta la fotografía de {candidato.nombre}.
+        Los cambios se guardan por separado para Post e Historia.
+      </p>
+
+      <div>
+        <label className="block text-sm font-bold">
+          Posición horizontal: {ajuste.x}
+        </label>
+        <input
+          type="range"
+          min="-100"
+          max="100"
+          value={ajuste.x}
+          onChange={(e) =>
+            actualizarAjuste("x", Number(e.target.value))
+          }
+          className="w-full"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-bold">
+          Posición vertical: {ajuste.y}
+        </label>
+        <input
+          type="range"
+          min="-400"
+          max="400"
+          value={ajuste.y}
+          onChange={(e) =>
+            actualizarAjuste("y", Number(e.target.value))
+          }
+          className="w-full"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-bold">
+          Zoom: {ajuste.zoom.toFixed(2)}×
+        </label>
+        <input
+          type="range"
+          min="0.5"
+          max="4"
+          step="0.05"
+          value={ajuste.zoom}
+          onChange={(e) =>
+            actualizarAjuste("zoom", Number(e.target.value))
+          }
+          className="w-full"
+        />
+      </div>
+
+      <button
+        type="button"
+        disabled={guardandoEncuadre}
+        onClick={async () => {
+          setGuardandoEncuadre(true);
+
+          try {
+            const respuesta = await fetch("/api/encuadres", {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                jugadores: encuadres,
+              }),
+            });
+
+            if (!respuesta.ok) {
+              throw new Error("No se pudo guardar el encuadre");
+            }
+
+            alert("Encuadre del candidato MVP guardado correctamente.");
+          } catch (error) {
+            console.error(error);
+            alert("No se pudo guardar el encuadre.");
+          } finally {
+            setGuardandoEncuadre(false);
+          }
+        }}
+        className="w-full rounded-xl bg-blue-950 px-4 py-3 font-bold text-white disabled:opacity-50"
+      >
+        {guardandoEncuadre
+          ? "Guardando..."
+          : "Guardar encuadre MVP"}
+      </button>
+
+      <p className="text-xs text-slate-500">
+        Formato actual: {formato === "post" ? "Post" : "Historia"}.
+      </p>
+    </div>
+  );
+})()}
+
             {tipo === "lideres" && (
-              <div>
-                <label className="mb-2 block text-sm font-bold">
-                  Categoría estadística
-                </label>
-                <select
-                  value={categoria}
-                  onChange={(e) =>
-                    setCategoria(e.target.value as Categoria)
-                  }
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3"
-                >
-                  <option value="puntos">Puntos</option>
-                  <option value="rebotes">Rebotes</option>
-                  <option value="asistencias">Asistencias</option>
-                </select>
-              </div>
-            )}
+  <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4">
+    <h3 className="font-black text-blue-950">Seleccionar líder estadístico</h3>
+    <p className="text-sm text-slate-600">
+      Imagen {liderCategoriaIndex + 1} de 3 · Cada categoría se descarga como un PNG independiente.
+    </p>
+
+    <select
+      value={liderCategoriaIndex}
+      onChange={(e) => setLiderCategoriaIndex(Number(e.target.value))}
+      className="w-full rounded-xl border border-slate-300 bg-white p-3"
+    >
+      {ganadoresPorCategoria.map(({ categoria: clave, jugador: ganador }, index) => {
+        const etiqueta = clave === "puntos"
+          ? "Líder en puntos"
+          : clave === "rebotes"
+            ? "Líder en rebotes"
+            : "Líder en asistencias";
+        return (
+          <option key={clave} value={index}>
+            {etiqueta} — {ganador?.nombre ?? "Sin ganador"}
+          </option>
+        );
+      })}
+    </select>
+
+    <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() => setLiderCategoriaIndex((actual) => Math.max(0, actual - 1))}
+        disabled={liderCategoriaIndex === 0}
+        className="rounded-xl bg-blue-950 px-3 py-3 font-bold text-white disabled:opacity-40"
+      >
+        ← Anterior
+      </button>
+      <button
+        type="button"
+        onClick={() => setLiderCategoriaIndex((actual) => Math.min(ganadoresPorCategoria.length - 1, actual + 1))}
+        disabled={liderCategoriaIndex >= ganadoresPorCategoria.length - 1}
+        className="rounded-xl bg-red-600 px-3 py-3 font-bold text-white disabled:opacity-40"
+      >
+        Siguiente →
+      </button>
+    </div>
+  </div>
+)}
+
+{tipo === "mvp" && (
+  <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
+    <h3 className="font-black text-blue-950">
+      Seleccionar candidato MVP
+    </h3>
+
+    <p className="text-sm text-slate-600">
+      Candidato {candidatosMVP.length > 0 ? candidatoMVPIndex + 1 : 0}
+      {" "}de {candidatosMVP.length}
+    </p>
+
+    <select
+      value={candidatoMVPIndex}
+      onChange={(e) =>
+        setCandidatoMVPIndex(Number(e.target.value))
+      }
+      className="w-full rounded-xl border border-slate-300 bg-white p-3"
+      disabled={candidatosMVP.length === 0}
+    >
+      {candidatosMVP.map((candidato, index) => (
+        <option key={candidato.id} value={index}>
+          {index + 1}. {candidato.nombre} — {candidato.equipo}
+        </option>
+      ))}
+    </select>
+
+    <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() =>
+          setCandidatoMVPIndex((actual) =>
+            Math.max(0, actual - 1)
+          )
+        }
+        disabled={candidatoMVPIndex === 0 || candidatosMVP.length === 0}
+        className="rounded-xl bg-blue-950 px-3 py-3 font-bold text-white disabled:opacity-40"
+      >
+        ← Anterior
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          setCandidatoMVPIndex((actual) =>
+            Math.min(candidatosMVP.length - 1, actual + 1)
+          )
+        }
+        disabled={
+          candidatoMVPIndex >= candidatosMVP.length - 1 ||
+          candidatosMVP.length === 0
+        }
+        className="rounded-xl bg-red-600 px-3 py-3 font-bold text-white disabled:opacity-40"
+      >
+        Siguiente →
+      </button>
+    </div>
+
+    {candidatosMVP.length === 0 && (
+      <p className="text-sm font-bold text-red-600">
+        No hay candidatos MVP elegibles con los datos actuales.
+      </p>
+    )}
+  </div>
+)}
 
             <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
               {cargando
@@ -1540,20 +2121,24 @@ if (!respuesta.ok) {
 
             <button
               onClick={descargar}
-              disabled={
+             disabled={
   cargando ||
   descargando ||
-  (tipo === "jugador" && !jugador)
+  (tipo === "jugador" && !jugador) ||
+  (tipo === "mvp" && candidatosMVP.length === 0) ||
+  (tipo === "lideres" && !ganadoresPorCategoria.some(({ jugador }) => jugador))
 }
 
               className="w-full rounded-xl bg-red-600 px-5 py-4 font-black text-white shadow-lg hover:bg-red-700 disabled:opacity-50"
             >
               {descargando
-                ? "Generando imagen…"
-                : `Descargar ${formato === "historia" ? "Historia" : "Post"} PNG`}
+                ? tipo === "lideres" ? "Generando 3 imágenes…" : "Generando imagen…"
+                : tipo === "lideres"
+                  ? `Descargar 3 imágenes ${formato === "historia" ? "Historia" : "Post"} PNG`
+                  : `Descargar ${formato === "historia" ? "Historia" : "Post"} PNG`}
             </button>
 
-           
+
 <button
   type="button"
   onClick={() => guardarEnGaleria(false)}
@@ -1591,11 +2176,18 @@ if (!respuesta.ok) {
             <div className="w-full overflow-x-auto pb-2">
               <div
                 ref={arteRef}
-                style={{
-                  width: ancho,
-                  height: alto,
-                  fontFamily: "Arial, Helvetica, sans-serif",
-                }}
+               style={{
+  width: ancho,
+  height: alto,
+  fontFamily: "Arial, Helvetica, sans-serif",
+  backgroundImage: `
+    linear-gradient(rgba(2,6,23,0.20), rgba(2,6,23,0.30)),
+    url("/backgrounds/arena-mvp.png")
+  `,
+  backgroundSize: "cover",
+  backgroundPosition: "center center",
+  backgroundRepeat: "no-repeat",
+}}
                 className={`relative mx-auto flex shrink-0 flex-col overflow-hidden bg-[#07152e] text-white ${
   formato === "post" ? "p-4" : "p-2"
 }`}
@@ -1614,32 +2206,43 @@ if (!respuesta.ok) {
     filter: "blur(22px)",
     transform: "scale(1.05)",
   }}
-/>          
+/>
 {/* Líneas de luz deportivas */}
 {/* Fondo cinematográfico: arena de playoffs */}
 {/* Haces de luz cinematográficos */}
 {/* Arena realista LIBAVIME */}
 <div
-  className="pointer-events-none absolute inset-0"
+  className={`pointer-events-none absolute inset-0 ${
+  tipo === "mvp" ? "hidden" : ""
+}`}
   style={{
-    backgroundImage: `
-      linear-gradient(
-        180deg,
-        rgba(3,7,18,0.25) 0%,
-        rgba(3,7,18,0.30) 40%,
-        rgba(3,7,18,0.88) 100%
-      ),
-      url("/backgrounds/arena-libavime.png")
-    `,
+    backgroundImage:
+  tipo === "mvp"
+    ? `
+        radial-gradient(ellipse at 50% 8%, rgba(255,215,90,0.30), transparent 38%),
+        radial-gradient(ellipse at 90% 45%, rgba(245,158,11,0.16), transparent 35%),
+        radial-gradient(ellipse at 5% 85%, rgba(220,38,38,0.22), transparent 38%),
+        linear-gradient(115deg, transparent 35%, rgba(255,215,90,0.08) 50%, transparent 65%),
+        linear-gradient(145deg, #030712 0%, #101c35 42%, #172b4d 68%, #030712 100%)
+      `
+    : `
+        linear-gradient(
+          180deg,
+          rgba(3,7,18,0.25) 0%,
+          rgba(3,7,18,0.30) 40%,
+          rgba(3,7,18,0.88) 100%
+        ),
+        url("/backgrounds/arena-libavime.png")
+      `,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
   }}
 />
 
-                
 
-<header className="relative flex shrink-0 items-center justify-center gap-0 border-b-2 border-red-600/70 pb-2">
+
+<header className="relative -mt-5 flex shrink-0 items-center justify-center gap-0 border-b-2 border-red-600/70 pb-2">
   <img
     src={LOGO}
     alt="Logo LIBAVIME"
@@ -1652,15 +2255,15 @@ if (!respuesta.ok) {
     </p>
 
     <h1 className="text-2xl font-black italic leading-none tracking-tight text-white">
-      LIBAVIME <span className="text-red-500">2026</span>
-    </h1>
+  LIBAVIME <span className="text-red-500">2026</span>
+</h1>
 
     <div className="mt-1 h-1 w-full rounded-full bg-red-600" />
   </div>
 </header>
 
 
-                
+
 
 
 {tipo === "jugador" && jugador && (
@@ -1672,6 +2275,7 @@ if (!respuesta.ok) {
     >
       JUGADOR DESTACADO
     </p>
+
 
     <h2
       className={`mt-0 text-center font-black uppercase leading-tight ${
@@ -1685,18 +2289,18 @@ if (!respuesta.ok) {
       {jugador.equipo || "LIBAVIME"}
     </p>
 
-   
+
 
 <div
   className={`relative mx-auto mt-1 w-full shrink-0 overflow-hidden rounded-[20px] bg-transparent ${
-    formato === "post" ? "h-[165px]" : "h-[280px]"
+    formato === "post" ? "h-[100px]" : "h-[220px]"
   }`}
 >
 
 
-      
+
 {obtenerRutaFotoInstagram(jugador.nombre) ? (
-  
+
 <img
   src={obtenerRutaFotoInstagram(jugador.nombre)}
   alt={jugador.nombre}
@@ -1734,7 +2338,7 @@ if (!respuesta.ok) {
         formato === "post" ? "mt-0 px-1 py-1" : "mt-0 px-3 pb-3 pt-4"
       }`}
     >
-      
+
 <p
   className={`mb-1 text-center font-black tracking-widest text-red-400 ${
     formato === "post" ? "text-[9px]" : "text-xs"
@@ -1778,109 +2382,190 @@ if (!respuesta.ok) {
   </div>
 )}
 
-                {tipo === "lideres" && (
-                  <div
-  className={`relative flex flex-1 flex-col ${
-    formato === "post" ? "-translate-y-1" : ""
-  }`}
->
-                    
-<p className={`text-xs font-black tracking-[0.20em] text-red-400 ${
-  formato === "post" ? "mt-1" : "mt-6"
-}`}>
-  TEMPORADA 2026
-</p>
+                {tipo === "lideres" && (() => {
+                  const seleccion = ganadoresPorCategoria[liderCategoriaIndex];
+                  const ganador = seleccion?.jugador;
+                  if (!seleccion || !ganador) {
+                    return (
+                      <div className="relative z-10 flex flex-1 items-center justify-center text-center text-sm font-bold text-slate-300">
+                        No hay estadísticas registradas para esta categoría.
+                      </div>
+                    );
+                  }
 
-                    
+                  const clave = seleccion.categoria;
+                  // Un mismo dorado institucional para los tres reconocimientos.
+                  const colorDorado = "#D4AF37";
+                  const brilloDorado = "rgba(212,175,55,0.28)";
+                  const configuracion =
+                    clave === "puntos"
+                      ? {
+                          titulo: "LÍDER EN PUNTOS",
+                          sigla: "PTS",
+                          icono: "🏀",
+                          color: colorDorado,
+                          brillo: brilloDorado,
+                        }
+                      : clave === "rebotes"
+                        ? {
+                            titulo: "LÍDER EN REBOTES",
+                            sigla: "REB",
+                            icono: "💪",
+                            color: colorDorado,
+                            brillo: brilloDorado,
+                          }
+                        : {
+                            titulo: "LÍDER EN ASISTENCIAS",
+                            sigla: "AST",
+                            icono: "🎯",
+                            color: colorDorado,
+                            brillo: brilloDorado,
+                          };
 
+                  const claveEncuadre = `lider-${ganador.id}`;
+                  const guardado = encuadres[claveEncuadre];
+                  const ajusteFoto = guardado?.[formato] ?? {
+                    x: guardado?.x ?? 0,
+                    y: guardado?.y ?? 0,
+                    zoom: guardado?.zoom ?? 1,
+                  };
+                  const foto = obtenerRutaFotoInstagram(ganador.nombre);
 
-<h2
-  className={`mt-1 w-full text-center font-black leading-tight ${
-    formato === "post" ? "text-1xl" : "text-3xl"
-  }`}
->
-  {tituloCategoria}
-</h2>
+                  return (
+                    <div className="relative z-10 -mt-1 flex min-h-0 flex-1 flex-col items-center gap-0">
+                      <p className={`text-center font-black tracking-[0.22em] text-red-400 ${
+                        formato === "post" ? "mt-1 text-[9px]" : "mt-3 text-xs"
+                      }`}>
+                        RECONOCIMIENTO OFICIAL · TEMPORADA 2026
+                      </p>
 
+                      <h2
+                        className={`mt-1 text-center font-black uppercase leading-tight tracking-[0.12em] ${
+                          formato === "post" ? "text-xl" : "text-3xl"
+                        }`}
+                        style={{ color: configuracion.color, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+                      >
+                        {configuracion.titulo}
+                      </h2>
 
+                      <h3 className={`mt-1 w-full px-1 text-center font-black uppercase leading-tight tracking-wide text-white ${
+                        formato === "post" ? "text-[19px]" : "text-[29px]"
+                      }`}>
+                        {ganador.nombre}
+                      </h3>
 
-                    
+                      <div
+                        className="mx-auto mt-1 mb-2 inline-flex items-center justify-center rounded-full border px-5 py-1 shadow-lg"
+                        style={{ borderColor: `${configuracion.color}99`, background: "linear-gradient(90deg, #172b4d, #263957, #172b4d)" }}
+                      >
+                        <p className="text-center text-[10px] font-black uppercase tracking-[0.22em] text-slate-100">
+                          {ganador.equipo || "LIBAVIME"}
+                        </p>
+                      </div>
 
-<div
-  className={`relative flex flex-col ${
-    formato === "historia"
-      ? "my-auto w-full gap-10"
-      : "-mt-1 gap-"
-  }`}
->
-
-
-                      {lideres.map((j, i) => (
+                      <div
+                        className={`relative mx-auto w-full shrink-0 overflow-hidden rounded-2xl border-2 bg-[#101d38] shadow-[0_0_25px_rgba(0,0,0,0.4)] ${
+                          formato === "post" ? "h-[125px]" : "h-[225px]"
+                        }`}
+                        style={{
+  border: "4px solid transparent",
+  background: `
+    linear-gradient(#101d38, #101d38) padding-box,
+    linear-gradient(
+      135deg,
+      #704900 0%,
+      #B8860B 12%,
+      #FFF2A6 25%,
+      #D4AF37 40%,
+      #FFF8CE 50%,
+      #A87908 65%,
+      #F5D263 80%,
+      #704900 92%,
+      #FFE58A 100%
+    ) border-box
+  `,
+  boxShadow:
+    "0 0 30px rgba(212,175,55,0.75), inset 0 0 12px rgba(255,215,90,0.2)"
+}}
+                      >
                         <div
-                          key={j.id}
-                          className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#00000999] p-3"
-                        >
-                          <span className="w-7 text-2xl font-black text-red-400">
-                            {i + 1}
-                          </span>
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: `linear-gradient(rgba(2,6,23,0.08), rgba(2,6,23,0.22)), url("/backgrounds/arena-mvp.png")`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center center",
+                            backgroundRepeat: "no-repeat",
+                          }}
+                        />
 
-                          {obtenerRutaFotoInstagram(j.nombre) ? (() => {
-                            const claveEncuadre = `lider-${j.id}`;
-                            const guardado = encuadres[claveEncuadre];
-                            const ajusteFoto = formato === "post"
-                              ? guardado?.post ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 }
-                              : guardado?.historia ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 };
-
-                            return (
-                              <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg">
-                                <img
-                                  src={obtenerRutaFotoInstagram(j.nombre)}
-                                  alt={j.nombre}
-                                  className="absolute inset-0 h-full w-full rounded-lg object-cover object-top"
-                                  style={{
-                                    transform: `translate(${ajusteFoto.x}%, ${ajusteFoto.y}%) scale(${ajusteFoto.zoom})`,
-                                    transformOrigin: "top center",
-                                  }}
-                                />
-                              </div>
-                            );
-                          })() : (
-                            <div className="h-16 w-14 shrink-0 rounded-lg bg-white/10" />
-                          )}
-
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-black">
-                              {j.nombre}
-                            </p>
-                            <p className="truncate text-xs text-slate-300">
-                              {j.equipo || "LIBAVIME"}
-                            </p>
+                        {foto ? (
+                          <img
+                            src={foto}
+                            alt={ganador.nombre}
+                            className="absolute max-w-none"
+                            style={{
+                              display: "block",
+                              width: `${100 * ajusteFoto.zoom}%`,
+                              height: "auto",
+                              left: `calc(50% + ${ajusteFoto.x}px)`,
+                              top: `calc(50% + ${ajusteFoto.y}px)`,
+                              transform: "translate(-50%, -50%)",
+                              transformOrigin: "center center",
+                              filter: "contrast(1.15) saturate(1.12) brightness(1.04)",
+                            }}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm font-bold text-white">
+                            No hay foto disponible
                           </div>
+                        )}
 
-                          <p className="text-2xl font-black text-red-400">
-                            {j[categoria]}
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl border-2 border-white/10" />
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${configuracion.color}, transparent)` }} />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${configuracion.color}, transparent)` }} />
+                      </div>
+
+                      <div
+                        className={`mt-2 w-full rounded-xl border bg-gradient-to-r from-[#172b4d] via-[#263957] to-[#172b4d] text-center shadow-[0_0_18px_rgba(0,0,0,0.25)] ${
+                          formato === "post" ? "px-3 py-2" : "px-4 py-3"
+                        }`}
+                        style={{ borderColor: `${configuracion.color}99` }}
+                      >
+                        <p className={`font-black uppercase tracking-[0.25em] text-slate-200 ${
+                          formato === "post" ? "text-[8px]" : "text-[10px]"
+                        }`}>
+                          TOTAL DE LA TEMPORADA
+                        </p>
+                        <div className="mt-0.5 flex items-baseline justify-center gap-2">
+                          <p
+                            className={`font-black leading-none ${
+                              formato === "post" ? "text-4xl" : "text-6xl"
+                            }`}
+                            style={{
+                              color: configuracion.color,
+                              textShadow: "0 2px 8px rgba(0,0,0,0.65)",
+                            }}
+                          >
+                            {ganador[clave]}
+                          </p>
+                          <p className={`font-black tracking-[0.16em] text-white ${
+                            formato === "post" ? "text-sm" : "text-lg"
+                          }`}>
+                            {configuracion.sigla}
                           </p>
                         </div>
-                      ))}
+                      </div>
 
-                      {!lideres.length && (
-                        <p className="text-sm text-slate-300">
-                          No hay estadísticas registradas en esta categoría.
-                        </p>
-                      )}
+                      <p className={`mt-auto pt-2 text-center font-bold tracking-widest text-slate-300 ${
+                        formato === "post" ? "text-[7px]" : "text-[10px]"
+                      }`}>
+                        ESTADÍSTICAS DE PARTIDOS FINALIZADOS · LIBAVIME
+                      </p>
                     </div>
+                  );
+                })()}
 
-                    <div
-                      className={`mt-auto border-t border-white/20 text-center text-[10px] font-bold tracking-widest text-slate-300 ${
-  formato === "post" ? "pt-2" : "pt-4"
-                      }`}
-                    >
-                      DATOS DE PARTIDOS FINALIZADOS
-                    </div>
-                  </div>
-                )}
 
-                
 {tipo === "posiciones" && (
   <div
     className={`relative flex min-h-0 flex-1 flex-col ${
@@ -1893,7 +2578,7 @@ if (!respuesta.ok) {
 }`}>
                       TEMPORADA 2026
                     </p>
-                    
+
 <h2
   className={`mt-1 w-full text-center font-black leading-tight ${
     formato === "historia" ? "text-3xl" : "text-2xl"
@@ -1905,7 +2590,7 @@ if (!respuesta.ok) {
 </h2>
 
 
-                    
+
 
 <div
   className={`overflow-hidden rounded-xl border border-white/10 bg-[#000000] ${
@@ -1926,11 +2611,11 @@ if (!respuesta.ok) {
                       {equipos.map((e, i) => (
                         <div
                           key={e.nombre}
-                          
+
 className={`grid grid-cols-[28px_1fr_30px_30px_30px_40px] items-center gap-1 border-t border-white/10 px-2 ${
   formato === "post" ? "py-2" : "py-4"
 } ${
-  
+
 
 i === 0
   ? "bg-[#050505]"
@@ -1965,7 +2650,7 @@ i === 0
                   </div>
                 )}
 
-                
+
 
 
 {tipo === "destacados" && (
@@ -1982,7 +2667,7 @@ i === 0
       {destacadosPorEquipo[equipoDestacadoIndex]?.equipo}
     </p>
 
-    
+
 <div
   className={`grid items-start ${
     formato === "historia"
@@ -1993,7 +2678,7 @@ i === 0
 
       {(destacadosPorEquipo[equipoDestacadoIndex]?.jugadores ?? []).map(
         (j: any, i: number) => {
-          
+
 const encuadreGuardado = encuadres[String(j.id)];
 
 const ajusteFoto =
@@ -2090,15 +2775,214 @@ const ajusteFoto =
   </div>
 )}
 
+{tipo === "mvp" && (
+  <div className="relative z-10 -mt-1 flex flex-1 flex-col items-center gap-0">
 
+    <h2
+  className={`mt-1 text-center font-black uppercase leading-tight tracking-[0.14em] ${
+    formato === "post" ? "text-2xl" : "text-3xl"
+  }`}
+  style={{
+    fontFamily: "Arial, Helvetica, sans-serif",
+    ...(normalizar(candidatosMVP[candidatoMVPIndex]?.nombre) ===
+    "welmert de los santos"
+      ? {
+          background:
+            "linear-gradient(180deg, #fff8d6 0%, #f5d77a 30%, #d49a25 65%, #fff0a6 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.9))",
+        }
+      : {
+          color: "#FFFFFF",
+          textShadow: "0px 2px 4px rgba(0,0,0,0.9)",
+        }),
+  }}
+>
+  {normalizar(candidatosMVP[candidatoMVPIndex]?.nombre) ===
+  "welmert de los santos"
+    ? "MVP"
+    : "CANDIDATO MVP"}
+</h2>
+
+
+    <h3
+  className={`mt-1 w-full px-1 text-center font-black uppercase leading-tight tracking-[0.12em] ${
+    formato === "post" ? "text-[20px]" : "text-[29px]"
+  }`}
+  style={{
+    fontFamily: "Arial, Helvetica, sans-serif",
+    background: "linear-gradient(180deg, #fff6c7 0%, #f8d66d 25%, #d49a25 55%, #fff0a6 78%, #a96b12 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.85))",
+  }}
+>
+  {candidatosMVP[candidatoMVPIndex]?.nombre ?? "SIN CANDIDATO"}
+</h3>
+    <div className="mx-auto mt-0 mb-1 inline-flex items-center justify-center rounded-full border border-amber-400/60 bg-gradient-to-r from-[#172b4d] via-[#243653] to-[#172b4d] px-5 py-1 shadow-[0_0_12px_rgba(245,158,11,0.18)]">
+  <p className="text-center text-[11px] font-black uppercase tracking-[0.22em] text-amber-200">
+    {candidatosMVP[candidatoMVPIndex]?.equipo ?? "LIBAVIME"}
+  </p>
+</div>
+
+    {(() => {
+  const candidato = candidatosMVP[candidatoMVPIndex];
+
+  if (!candidato) return null;
+
+  const claveEncuadre = `mvp-${candidato.id}`;
+  const guardado = encuadres[claveEncuadre];
+
+  const ajuste = guardado?.[formato] ?? {
+    x: guardado?.x ?? 0,
+    y: guardado?.y ?? 0,
+    zoom: guardado?.zoom ?? 1,
+  };
+
+  const foto = obtenerRutaFotoInstagram(candidato.nombre);
+
+  return (
+    <div
+      className={`relative mx-auto mt-0 w-full shrink-0 overflow-hidden rounded-2xl border-2 border-amber-300 bg-[#101d38] shadow-[0_0_25px_rgba(245,158,11,0.35)] ring-1 ring-amber-100/30 ${
+  formato === "post" ? "h-[115px]" : "h-[180px]"
+}`}
+    >
+      <div
+  className="absolute inset-0"
+  style={{
+    backgroundImage: `
+      linear-gradient(rgba(2,6,23,0.08), rgba(2,6,23,0.18)),
+      url("/backgrounds/arena-mvp.png")
+    `,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat",
+  }}
+/>
+
+
+      {foto ? (
+        <img
+          src={foto}
+          alt={candidato.nombre}
+          className="absolute max-w-none"
+          style={{
+            display: "block",
+            width: `${100 * ajuste.zoom}%`,
+            height: "auto",
+            left: `calc(50% + ${ajuste.x}px)`,
+            top: `calc(50% + ${ajuste.y}px)`,
+            transform: "translate(-50%, -50%)",
+            transformOrigin: "center center",
+            filter: "contrast(1.15) saturate(1.12) brightness(1.04)",
+          }}
+        />
+      ) : (
+
+        <div className="flex h-full items-center justify-center text-sm text-white">
+          No hay foto disponible
+        </div>
+
+      )}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl border-2 border-amber-300/80 shadow-[inset_0_0_25px_rgba(245,158,11,0.35),0_0_18px_rgba(245,158,11,0.25)]" />
+
+<div className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-amber-200 to-transparent shadow-[0_0_12px_rgba(255,215,90,0.9)]" />
+
+<div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_12px_rgba(239,68,68,0.7)]" />
+    </div>
+  );
+})()}
+
+    {candidatosMVP[candidatoMVPIndex] && (
+  <div
+    className={`w-full rounded-xl border border-amber-400/30 bg-[#0b1b36]/95 ${
+      formato === "post" ? "px-2 py-1" : "px-3 py-2"
+
+    }`}
+  >
+    <p className="mb-1 text-center text-[10px] font-black tracking-widest text-amber-400">
+      PROMEDIOS POR PARTIDO
+    </p>
+
+    <div className="grid grid-cols-3 gap-2">
+  {[
+    ["PPG", candidatosMVP[candidatoMVPIndex].ppg],
+["APG", candidatosMVP[candidatoMVPIndex].apg],
+["RPG", candidatosMVP[candidatoMVPIndex].rpg],
+].map(([label, valor]) => (
+
+  <div
+    key={String(label)}
+    className="relative overflow-hidden rounded-xl border border-amber-300/70 bg-gradient-to-b from-[#263957]/95 via-[#111d34]/95 to-[#070d19]/95 px-1 py-0 text-center shadow-[0_0_16px_rgba(245,158,11,0.20)]"
+  >
+    <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#fff0a6] to-transparent" />
+
+    <p className="text-[10px] font-black tracking-[0.22em] text-amber-300">
+      {label}
+    </p>
+
+    <p
+      className={`font-black leading-none ${
+        formato === "post" ? "text-2xl" : "text-4xl"
+      }`}
+      style={{
+        background:
+          "linear-gradient(180deg, #fff8d6 0%, #f5d77a 30%, #d49a25 65%, #fff0a6 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.9))",
+      }}
+    >
+      {valor}
+    </p>
+  </div>
+))}
+</div>
+
+<div className="mt-2 rounded-xl border border-amber-400/70 bg-gradient-to-r from-[#172b4d] via-[#263957] to-[#172b4d] px-3 py-2 text-center shadow-[0_0_18px_rgba(245,158,11,0.25)]">
+  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
+    PUNTUACIÓN MVP
+  </p>
+
+  <p
+    className={`font-black leading-none ${
+      formato === "post" ? "text-3xl" : "text-5xl"
+    }`}
+    style={{
+      background:
+        "linear-gradient(180deg, #fff8d6 0%, #f5d77a 30%, #d49a25 65%, #fff0a6 100%)",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.9))",
+    }}
+  >
+    {candidatosMVP[candidatoMVPIndex].puntuacion_mvp.toFixed(2)}
+  </p>
+
+  <p className="text-[9px] font-bold tracking-widest text-amber-200">
+    PUNTOS
+  </p>
+</div>
+
+
+
+
+    </div>
+
+)}
+  </div>
+)}
 
 <footer
   className={`relative z-10 flex shrink-0 flex-col items-center border-t border-white/20 text-center ${
-    tipo === "destacados" && formato === "post"
-      ? "mt-[-200px] pt-1"
-      : tipo === "lideres" && formato === "post"
-        ? "mt-0 pt-1"
-        : "mt-1 pt-1"
+    tipo === "mvp"
+  ? "mt-auto pt-1 border-amber-400/40"
+  : tipo === "destacados" && formato === "post"
+    ? "mt-[-200px] pt-1"
+    : tipo === "lideres" && formato === "post"
+      ? "mt-0 pt-1"
+      : "mt-1 pt-1"
   }`}
 >
 
@@ -2110,6 +2994,8 @@ const ajusteFoto =
     Diseñado y desarrollado por Emmi De La Cruz
   </p>
 </footer>
+
+
               </div>
             </div>
             <div className="mt-5 w-full rounded-3xl bg-slate-200 p-4">
