@@ -12,6 +12,7 @@ export default function AdminPartidos() {
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [cancha, setCancha] = useState("");
+  const [fase, setFase] = useState<"serie_regular" | "finales">("serie_regular");
 
   const [equipos, setEquipos] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
@@ -69,6 +70,7 @@ export default function AdminPartidos() {
     setFecha("");
     setHora("");
     setCancha("");
+    setFase("serie_regular");
     setEditandoId(null);
   }
 
@@ -102,6 +104,7 @@ export default function AdminPartidos() {
           fecha,
           hora,
           cancha,
+          fase,
         })
         .eq("id", editandoId);
 
@@ -128,6 +131,7 @@ export default function AdminPartidos() {
           fecha,
           hora,
           cancha,
+          fase,
           estado: "Programado",
         },
       ]);
@@ -151,6 +155,7 @@ export default function AdminPartidos() {
     setFecha(partido.fecha ?? "");
     setHora(partido.hora ?? "");
     setCancha(partido.cancha ?? "");
+    setFase(partido.fase === "finales" ? "finales" : "serie_regular");
 
     window.scrollTo({
       top: 0,
@@ -310,6 +315,16 @@ export default function AdminPartidos() {
               ))}
             </select>
 
+            <select
+              required
+              value={fase}
+              onChange={(e) => setFase(e.target.value as "serie_regular" | "finales")}
+              className="border rounded-xl p-3 font-bold"
+            >
+              <option value="serie_regular">Serie regular</option>
+              <option value="finales">Finales</option>
+            </select>
+
             <input
               required
               type="date"
@@ -408,6 +423,10 @@ export default function AdminPartidos() {
 
                         <p>
                           📍 {partido.cancha}
+                        </p>
+
+                        <p className="mt-2 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-900">
+                          {partido.fase === "finales" ? "🏆 FINALES" : "🏀 SERIE REGULAR"} · LIBAVIME 2026
                         </p>
 
                         {finalizado ? (
