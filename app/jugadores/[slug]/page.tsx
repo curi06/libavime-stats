@@ -94,9 +94,9 @@ export default async function JugadorPage({
 
   const [{ data: temporadasData }, { data: partidosTemporada }] = await Promise.all([
     supabase
-      .from("temporadas")
-      .select("id, nombre, anio, estado")
-      .order("anio", { ascending: false }),
+      .from("admin_temporadas")
+      .select("id, nombre, fecha_inicio, fecha_fin, activa")
+      .order("fecha_inicio", { ascending: false }),
     idsPartidos.length > 0
       ? supabase
           .from("partidos")
@@ -105,7 +105,15 @@ export default async function JugadorPage({
       : Promise.resolve({ data: [] as { id: number; fase: string | null; temporada_id: number | null }[] }),
   ]);
 
-  const temporadaActual = (temporadasData ?? []).find((temporada: any) => temporada.estado === "en_curso") ?? (temporadasData ?? [])[0] ?? null;
+  const listaTemporadas = (temporadasData ?? []).map((temporada: any) => ({
+    ...temporada,
+    anio:
+      Number(String(temporada.fecha_inicio ?? "").slice(0, 4)) ||
+      Number(String(temporada.nombre ?? "").match(/\\d{4}/)?.[0]) ||
+      new Date().getFullYear(),
+    estado: temporada.activa ? "en_curso" : "archivada",
+  }));
+  const temporadaActual = listaTemporadas.find((temporada: any) => temporada.activa) ?? listaTemporadas[0] ?? null;
 
   const partidosPorId = new Map(
     (partidosTemporada ?? []).map((partido: any) => [Number(partido.id), partido])
