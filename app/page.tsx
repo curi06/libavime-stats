@@ -38,10 +38,14 @@ export default function Home() {
   const [ahora, setAhora] = useState(new Date());
   const [actualizacionEstadisticas, setActualizacionEstadisticas] =
     useState(0);
+  const [cargaInicialFinalizada, setCargaInicialFinalizada] = useState(false);
+  const [errorCarga, setErrorCarga] = useState("");
 
 useEffect(() => {
   const cargarDatos = async () => {
-    const [
+    try {
+      setErrorCarga("");
+      const [
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
@@ -70,24 +74,26 @@ useEffect(() => {
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
       supabase
-        .from("temporadas")
-        .select("id, anio, estado")
-        .order("anio", { ascending: false }),
+        .from("admin_temporadas")
+        .select("id, nombre, fecha_inicio, activa")
+        .order("fecha_inicio", { ascending: false }),
     ]);
 
-    if (
-      jugadoresError ||
-      estadisticasError ||
-      partidosError ||
-      temporadaError
-    ) {
-      console.error("Error jugadores:", jugadoresError);
-      console.error("Error estadísticas:", estadisticasError);
-      console.error("Error partidos:", partidosError);
-      return;
-    }
+      if (
+        jugadoresError ||
+        estadisticasError ||
+        partidosError ||
+        temporadaError
+      ) {
+        console.error("Error jugadores:", jugadoresError);
+        console.error("Error estadísticas:", estadisticasError);
+        console.error("Error partidos:", partidosError);
+        console.error("Error temporadas:", temporadaError);
+        setErrorCarga("No se pudieron cargar los datos de LIBAVIME. Comprueba tu conexión e inténtalo de nuevo.");
+        return;
+      }
 
-    const temporadaActual = (temporadaData ?? []).find((temporada: any) => temporada.estado === "en_curso") ?? (temporadaData ?? [])[0] ?? null;
+      const temporadaActual = (temporadaData ?? []).find((temporada: any) => temporada.activa) ?? (temporadaData ?? [])[0] ?? null;
 
     // LIDERATOS OFICIALES: misma lógica que /estadisticas.
     // Se calculan sumando las estadísticas de cada partido finalizado.
@@ -198,22 +204,28 @@ useEffect(() => {
 
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
-    setEstadisticasPartido(
-      (estadisticasData ?? []).map((estadistica: any) => ({
-        jugador_id: estadistica.jugador_id,
-        partido_id: estadistica.partido_id,
-        puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
-        rebotes: estadistica.rebotes === null ? null : Number(estadistica.rebotes),
-        asistencias:
-          estadistica.asistencias === null
-            ? null
-            : Number(estadistica.asistencias),
-        estado:
-          estadistica.estado === "no_jugo" || estadistica.estado === "lesionado"
-            ? estadistica.estado
-            : "jugó",
-      }))
-    );
+      setEstadisticasPartido(
+        (estadisticasData ?? []).map((estadistica: any) => ({
+          jugador_id: estadistica.jugador_id,
+          partido_id: estadistica.partido_id,
+          puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
+          rebotes: estadistica.rebotes === null ? null : Number(estadistica.rebotes),
+          asistencias:
+            estadistica.asistencias === null
+              ? null
+              : Number(estadistica.asistencias),
+          estado:
+            estadistica.estado === "no_jugo" || estadistica.estado === "lesionado"
+              ? estadistica.estado
+              : "jugó",
+        }))
+      );
+    } catch (error) {
+      console.error("Error inesperado al cargar LIBAVIME:", error);
+      setErrorCarga("Ocurrió un problema al cargar LIBAVIME. Vuelve a intentarlo.");
+    } finally {
+      setCargaInicialFinalizada(true);
+    }
   };
 
   cargarDatos();
@@ -636,11 +648,41 @@ useEffect(() => {
     };
   });
 
-  if (jugadores.length === 0) {
+  if (!cargaInicialFinalizada) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-xl font-bold text-blue-900">
           Cargando estadísticas...
+        </p>
+      </main>
+    );
+  }
+
+  if (errorCarga && jugadores.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-lg">
+          <p className="text-lg font-black text-red-700">{errorCarga}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setCargaInicialFinalizada(false);
+              setActualizacionEstadisticas((valor) => valor + 1);
+            }}
+            className="mt-5 rounded-xl bg-blue-900 px-5 py-3 font-bold text-white"
+          >
+            Reintentar
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (jugadores.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <p className="text-xl font-bold text-blue-900">
+          Todavía no hay jugadores registrados.
         </p>
       </main>
     );
