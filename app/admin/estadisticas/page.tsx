@@ -15,7 +15,10 @@ type Partido = {
   equipo_visitante: string | null;
   fecha: string | null;
   fase?: "serie_regular" | "finales" | null;
+  temporada_id?: number | null;
 };
+
+type Temporada = { id: number; nombre: string; anio: number; estado: string };
 
 type Estadistica = {
   jugador_id: number;
@@ -28,6 +31,8 @@ type Estadistica = {
 export default function AdminEstadisticasPage() {
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
+  const [temporadas, setTemporadas] = useState<Temporada[]>([]);
+  const [temporadaSeleccionada, setTemporadaSeleccionada] = useState("");
   const [partidoSeleccionado, setPartidoSeleccionado] =
     useState<string>("");
   const [faseFiltro, setFaseFiltro] =
@@ -53,7 +58,7 @@ export default function AdminEstadisticasPage() {
       await supabase
         .from("partidos")
         .select(
-          "id, equipo_local, equipo_visitante, fecha, fase"
+          "id, equipo_local, equipo_visitante, fecha, fase, temporada_id"
         )
         .order("fecha", { ascending: false });
 
@@ -62,6 +67,11 @@ export default function AdminEstadisticasPage() {
         .from("jugadores")
         .select("id, nombre, equipo")
         .order("nombre");
+
+    const { data: temporadasData, error: temporadasError } = await supabase
+      .from("temporadas")
+      .select("id, nombre, anio, estado")
+      .order("anio", { ascending: false });
 
     console.log("PARTIDOS:", partidosData);
     console.log("JUGADORES:", jugadoresData);
@@ -92,6 +102,15 @@ export default function AdminEstadisticasPage() {
       setJugadores(
         (jugadoresData ?? []) as Jugador[]
       );
+    }
+
+    if (temporadasError) {
+      setMensaje(`Error al cargar temporadas: ${temporadasError.message}`);
+    } else {
+      const lista = (temporadasData ?? []) as Temporada[];
+      setTemporadas(lista);
+      const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
+      if (preferida) setTemporadaSeleccionada(String(preferida.id));
     }
 
     setCargando(false);
@@ -149,6 +168,7 @@ export default function AdminEstadisticasPage() {
   }
 
   const partidosFiltrados = partidos.filter((partido) =>
+    Number(partido.temporada_id) === Number(temporadaSeleccionada) &&
     (partido.fase ?? "serie_regular") === faseFiltro
   );
 
@@ -378,6 +398,26 @@ export default function AdminEstadisticasPage() {
           </p>
 
           <div className="mt-8">
+
+            <label className="block font-bold mb-2">
+              Temporada
+            </label>
+            <select
+              value={temporadaSeleccionada}
+              onChange={(e) => {
+                setTemporadaSeleccionada(e.target.value);
+                setPartidoSeleccionado("");
+                setEstadisticas({});
+                setMensaje("");
+              }}
+              className="mb-5 w-full border-2 border-slate-200 rounded-xl p-4 font-bold"
+            >
+              {temporadas.map((temporada) => (
+                <option key={temporada.id} value={temporada.id}>
+                  {temporada.nombre}
+                </option>
+              ))}
+            </select>
 
             <label className="block font-bold mb-2">
               Fase que vas a registrar
