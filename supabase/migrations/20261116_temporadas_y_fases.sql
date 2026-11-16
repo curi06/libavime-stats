@@ -1,8 +1,8 @@
 -- LIBAVIME Stats: temporadas y fases de competencia
 -- Ejecutar una sola vez en Supabase SQL Editor antes de publicar la aplicación.
 -- Los partidos existentes se conservan y se asignan a LIBAVIME 2026.
--- Por seguridad, todos quedan inicialmente como serie_regular; los partidos de finales
--- ya registrados deben reclasificarse desde Administración > Gestión de Partidos.
+-- Los partidos previos al 14/11/2026 quedan como serie_regular; el cruce final
+-- Espartanos–Gladiadores desde esa fecha se clasifica automáticamente como finales.
 
 begin;
 
