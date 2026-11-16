@@ -34,7 +34,10 @@ export default function Estadisticas() {
       const lista = (data ?? []) as Temporada[];
       setTemporadas(lista);
       const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
-      if (preferida) setTemporadaSeleccionada(String(preferida.id));
+      if (preferida) {
+        setTemporadaSeleccionada(String(preferida.id));
+        setFaseSeleccionada(preferida.anio >= 2027 ? "serie_regular" : "finales");
+      }
       else setCargando(false);
     }
 
@@ -1528,7 +1531,11 @@ export default function Estadisticas() {
             <select
               aria-label="Seleccionar temporada"
               value={temporadaSeleccionada}
-              onChange={(e) => setTemporadaSeleccionada(e.target.value)}
+              onChange={(e) => {
+                const seleccionada = temporadas.find((temporada) => String(temporada.id) === e.target.value);
+                setTemporadaSeleccionada(e.target.value);
+                setFaseSeleccionada((seleccionada?.anio ?? 2026) >= 2027 ? "serie_regular" : "finales");
+              }}
               className="min-w-64 rounded-xl border border-slate-300 bg-white px-5 py-3 font-black text-blue-900 shadow-sm"
             >
               {temporadas.map((temporada) => (
