@@ -92,11 +92,12 @@ export default async function JugadorPage({
       .filter((id): id is number => id !== null)
   )];
 
-  const [{ data: temporada2026 }, { data: partidosTemporada }] = await Promise.all([
+  const [{ data: temporadaActual }, { data: partidosTemporada }] = await Promise.all([
     supabase
       .from("temporadas")
-      .select("id")
-      .eq("anio", 2026)
+      .select("id, nombre, anio")
+      .order("anio", { ascending: false })
+      .limit(1)
       .maybeSingle(),
     idsPartidos.length > 0
       ? supabase
@@ -115,7 +116,7 @@ export default async function JugadorPage({
       const partido = partidosPorId.get(Number(fila.partido_id)) as any;
       return (
         partido &&
-        Number(partido.temporada_id) === Number(temporada2026?.id) &&
+        Number(partido.temporada_id) === Number(temporadaActual?.id) &&
         partido.fase === fase &&
         fila.estado !== "no_jugo" &&
         fila.estado !== "lesionado"
@@ -139,8 +140,8 @@ export default async function JugadorPage({
     };
   }
 
-  const estadisticasSerieRegular2026 = calcularEstadisticasFase("serie_regular");
-  const estadisticasFinales2026 = calcularEstadisticasFase("finales");
+  const estadisticasSerieRegularActual = calcularEstadisticasFase("serie_regular");
+  const estadisticasFinalesActual = calcularEstadisticasFase("finales");
 
   // SUMAR ESTADÍSTICAS
   const puntosTotales = estadisticas.reduce(
@@ -413,7 +414,7 @@ if (equipoNormalizado === "vikingos") {
               {/* DESGLOSE DE LIBAVIME 2026 */}
               <section className="mt-12">
                 <h3 className="mb-2 text-center text-2xl font-black text-blue-900">
-                  🏆 LIBAVIME 2026 · Estadísticas por fase
+                  🏆 {temporadaActual?.nombre ?? "Temporada actual"} · Estadísticas por fase
                 </h3>
                 <p className="mb-6 text-center text-sm text-slate-500">
                   Tus números de la serie regular y de las finales se muestran por separado.
@@ -421,8 +422,8 @@ if (equipoNormalizado === "vikingos") {
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   {[
-                    { titulo: "🏀 Serie regular", datos: estadisticasSerieRegular2026, color: "blue" },
-                    { titulo: "🏆 Finales", datos: estadisticasFinales2026, color: "amber" },
+                    { titulo: "🏀 Serie regular", datos: estadisticasSerieRegularActual, color: "blue" },
+                    { titulo: "🏆 Finales", datos: estadisticasFinalesActual, color: "amber" },
                   ].map((fase) => (
                     <div key={fase.titulo} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                       <h4 className="mb-4 text-center text-xl font-black text-slate-800">{fase.titulo}</h4>
