@@ -45,6 +45,7 @@ useEffect(() => {
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
+      { data: temporadaData, error: temporadaError },
     ] = await Promise.all([
       supabase.from("jugadores").select("*"),
       supabase
@@ -63,16 +64,24 @@ useEffect(() => {
           cancha,
           puntos_local,
           puntos_visitante,
-          estado
+          estado,
+          temporada_id
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
+      supabase
+        .from("temporadas")
+        .select("id, anio")
+        .order("anio", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (
       jugadoresError ||
       estadisticasError ||
-      partidosError
+      partidosError ||
+      temporadaError
     ) {
       console.error("Error jugadores:", jugadoresError);
       console.error("Error estadísticas:", estadisticasError);
@@ -88,7 +97,8 @@ useEffect(() => {
           (partido: any) =>
             String(partido.estado ?? "")
               .trim()
-              .toLowerCase() === "finalizado"
+              .toLowerCase() === "finalizado" &&
+            Number(partido.temporada_id) === Number(temporadaData?.id)
         )
         .map((partido: any) => Number(partido.id))
     );
