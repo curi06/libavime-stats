@@ -6,15 +6,44 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type Temporada = { id: number; nombre: string; anio: number; estado: string };
+
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  const [temporadas, setTemporadas] = useState<Temporada[]>([]);
+  const [temporadaSeleccionada, setTemporadaSeleccionada] = useState("");
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
+  const temporadaActual = temporadas.find((temporada) => String(temporada.id) === temporadaSeleccionada);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
-    cargarDatos();
-  }, [faseSeleccionada]);
+    async function cargarTemporadas() {
+      const { data, error } = await supabase
+        .from("temporadas")
+        .select("id, nombre, anio, estado")
+        .order("anio", { ascending: false });
+
+      if (error) {
+        console.error("Error cargando temporadas:", error);
+        setErrorCarga("No se pudieron cargar las temporadas de LIBAVIME.");
+        setCargando(false);
+        return;
+      }
+
+      const lista = (data ?? []) as Temporada[];
+      setTemporadas(lista);
+      const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
+      if (preferida) setTemporadaSeleccionada(String(preferida.id));
+      else setCargando(false);
+    }
+
+    void cargarTemporadas();
+  }, []);
+
+  useEffect(() => {
+    if (temporadaSeleccionada) void cargarDatos();
+  }, [faseSeleccionada, temporadaSeleccionada]);
 
   async function cargarDatos() {
     setCargando(true);
@@ -37,17 +66,8 @@ export default function Estadisticas() {
   }
 
   async function cargarJugadores() {
-    const { data: temporadaData, error: temporadaError } = await supabase
-      .from("temporadas")
-      .select("id")
-      .eq("anio", 2026)
-      .single();
-
-    if (temporadaError || !temporadaData) {
-      console.error("Error cargando temporada 2026:", temporadaError);
-      setErrorCarga("No se pudo cargar la temporada LIBAVIME 2026.");
-      return;
-    }
+    const temporadaId = Number(temporadaSeleccionada);
+    if (!Number.isInteger(temporadaId) || temporadaId <= 0) return;
 
     const [
       { data: jugadoresData, error: jugadoresError },
@@ -74,7 +94,7 @@ export default function Estadisticas() {
         .from("partidos")
         .select("id, estado, fase, temporada_id, equipo_local, equipo_visitante, fecha")
         .eq("estado", "Finalizado")
-        .eq("temporada_id", temporadaData.id)
+        .eq("temporada_id", temporadaId)
         .eq("fase", faseSeleccionada),
     ]);
 
@@ -411,7 +431,7 @@ export default function Estadisticas() {
         doc.setFontSize(9);
         doc.setTextColor(75, 80, 90);
         doc.text(
-          "LIBAVIME · TORNEO 2026 · RANKING OFICIAL",
+          `LIBAVIME · TORNEO ${temporadaActual?.anio ?? ""} · RANKING OFICIAL`,
           pageWidth / 2,
           29,
           { align: "center" }
@@ -633,7 +653,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Lideratos_LIBAVIME_2026_${new Date()
+        `Lideratos_LIBAVIME_${temporadaActual?.anio ?? "temporada"}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -877,7 +897,7 @@ export default function Estadisticas() {
 
         doc.text(
           subtitulo ||
-            "TORNEO 2026 · LIBAVIME",
+            `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME`,
           centro,
           31,
           {
@@ -1384,7 +1404,7 @@ export default function Estadisticas() {
       // =========================
       // Incluye encabezado oficial, logo LIBAVIME, resumen y posiciones 1–15.
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · RANKING OFICIAL"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · RANKING OFICIAL`
       );
 
       dibujarResumen();
@@ -1405,7 +1425,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30`
       );
 
       autoTable(
@@ -1423,7 +1443,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44`
       );
 
       autoTable(
@@ -1452,7 +1472,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Estadisticas_LIBAVIME_2026_${new Date()
+        `Estadisticas_LIBAVIME_${temporadaActual?.anio ?? "temporada"}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -1492,7 +1512,7 @@ export default function Estadisticas() {
           {/* TÍTULO */}
 
           <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
-            📊 Estadísticas LIBAVIME 2026
+            📊 Estadísticas LIBAVIME {temporadaActual?.anio ?? ""}
           </h1>
 
           {/* MENSAJE DE ERROR */}
@@ -1502,6 +1522,22 @@ export default function Estadisticas() {
               {errorCarga}
             </div>
           )}
+
+          {/* SELECTOR DE TEMPORADA */}
+          <div className="mb-5 flex justify-center">
+            <select
+              aria-label="Seleccionar temporada"
+              value={temporadaSeleccionada}
+              onChange={(e) => setTemporadaSeleccionada(e.target.value)}
+              className="min-w-64 rounded-xl border border-slate-300 bg-white px-5 py-3 font-black text-blue-900 shadow-sm"
+            >
+              {temporadas.map((temporada) => (
+                <option key={temporada.id} value={temporada.id}>
+                  {temporada.nombre} {temporada.estado === "archivada" ? "· Archivo" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* SELECTOR DE FASE */}
           <div className="mb-8 flex flex-wrap justify-center gap-3">
@@ -1531,8 +1567,8 @@ export default function Estadisticas() {
 
           <p className="mb-8 text-center text-sm font-semibold text-slate-500">
             {faseSeleccionada === "finales"
-              ? "Mostrando exclusivamente las estadísticas de las finales 2026 · Espartanos y Gladiadores."
-              : "Mostrando exclusivamente las estadísticas de los nueve partidos de la serie regular 2026."}
+              ? `Mostrando exclusivamente las estadísticas de las finales ${temporadaActual?.anio ?? ""}.`
+              : `Mostrando exclusivamente las estadísticas de la serie regular ${temporadaActual?.anio ?? ""}.`}
           </p>
 
           {/* ESTADÍSTICAS DE LOS JUGADORES */}
