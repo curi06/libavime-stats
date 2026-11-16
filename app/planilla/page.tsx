@@ -28,6 +28,8 @@ type Partido = {
   puntos_local: number | null;
   puntos_visitante: number | null;
   estado: string | null;
+  fase: "serie_regular" | "finales" | null;
+  temporada_id: number | null;
 };
 
 type Estadistica = {
@@ -225,7 +227,7 @@ export default function PlanillaPage() {
         supabase
           .from("partidos")
           .select(
-            "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
+            "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado, fase, temporada_id"
           )
           .order("fecha", { ascending: false })
           .order("hora", { ascending: false }),
@@ -1043,7 +1045,7 @@ export default function PlanillaPage() {
                   {fechaPartido(
                     item.fecha,
                     item.hora
-                  )}
+                  )} · {item.fase === "finales" ? "🏆 FINALES" : "SERIE REGULAR"}
                 </option>
               ))}
             </select>
