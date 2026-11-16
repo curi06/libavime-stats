@@ -69,9 +69,9 @@ export default function AdminEstadisticasPage() {
         .order("nombre");
 
     const { data: temporadasData, error: temporadasError } = await supabase
-      .from("temporadas")
-      .select("id, nombre, anio, estado")
-      .order("anio", { ascending: false });
+      .from("admin_temporadas")
+      .select("id, nombre, fecha_inicio, fecha_fin, activa")
+      .order("fecha_inicio", { ascending: false });
 
     console.log("PARTIDOS:", partidosData);
     console.log("JUGADORES:", jugadoresData);
@@ -107,7 +107,14 @@ export default function AdminEstadisticasPage() {
     if (temporadasError) {
       setMensaje(`Error al cargar temporadas: ${temporadasError.message}`);
     } else {
-      const lista = (temporadasData ?? []) as Temporada[];
+      const lista = (temporadasData ?? []).map((temporada: any) => ({
+        ...temporada,
+        anio:
+          Number(String(temporada.fecha_inicio ?? "").slice(0, 4)) ||
+          Number(String(temporada.nombre ?? "").match(/\\d{4}/)?.[0]) ||
+          new Date().getFullYear(),
+        estado: temporada.activa ? "en_curso" : "archivada",
+      })) as Temporada[];
       setTemporadas(lista);
       const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
       if (preferida) {
