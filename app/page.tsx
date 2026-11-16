@@ -17,6 +17,8 @@ type Partido = {
   puntosLocal: number | null;
   puntosVisitante: number | null;
   estado: string | null;
+  fase?: "serie_regular" | "finales" | null;
+  temporada_id?: number | null;
 };
 
 type EstadisticaPartido = {
@@ -31,6 +33,7 @@ type EstadisticaPartido = {
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
+  const [temporadaActivaId, setTemporadaActivaId] = useState<number | null>(null);
   const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [herramientasAbierto, setHerramientasAbierto] =
@@ -38,13 +41,18 @@ export default function Home() {
   const [ahora, setAhora] = useState(new Date());
   const [actualizacionEstadisticas, setActualizacionEstadisticas] =
     useState(0);
+  const [cargaInicialFinalizada, setCargaInicialFinalizada] = useState(false);
+  const [errorCarga, setErrorCarga] = useState("");
 
 useEffect(() => {
   const cargarDatos = async () => {
-    const [
+    try {
+      setErrorCarga("");
+      const [
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
+      { data: temporadaData, error: temporadaError },
     ] = await Promise.all([
       supabase.from("jugadores").select("*"),
       supabase
@@ -63,22 +71,34 @@ useEffect(() => {
           cancha,
           puntos_local,
           puntos_visitante,
-          estado
+          estado,
+          temporada_id,
+          fase
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
+      supabase
+        .from("admin_temporadas")
+        .select("id, nombre, fecha_inicio, activa")
+        .order("fecha_inicio", { ascending: false }),
     ]);
 
-    if (
-      jugadoresError ||
-      estadisticasError ||
-      partidosError
-    ) {
-      console.error("Error jugadores:", jugadoresError);
-      console.error("Error estadísticas:", estadisticasError);
-      console.error("Error partidos:", partidosError);
-      return;
-    }
+      if (
+        jugadoresError ||
+        estadisticasError ||
+        partidosError ||
+        temporadaError
+      ) {
+        console.error("Error jugadores:", jugadoresError);
+        console.error("Error estadísticas:", estadisticasError);
+        console.error("Error partidos:", partidosError);
+        console.error("Error temporadas:", temporadaError);
+        setErrorCarga("No se pudieron cargar los datos de LIBAVIME. Comprueba tu conexión e inténtalo de nuevo.");
+        return;
+      }
+
+      const temporadaActual = (temporadaData ?? []).find((temporada: any) => temporada.activa) ?? (temporadaData ?? [])[0] ?? null;
+      setTemporadaActivaId(temporadaActual?.id ? Number(temporadaActual.id) : null);
 
     // LIDERATOS OFICIALES: misma lógica que /estadisticas.
     // Se calculan sumando las estadísticas de cada partido finalizado.
@@ -88,7 +108,9 @@ useEffect(() => {
           (partido: any) =>
             String(partido.estado ?? "")
               .trim()
-              .toLowerCase() === "finalizado"
+              .toLowerCase() === "finalizado" &&
+            Number(partido.temporada_id) === Number(temporadaActual?.id) &&
+            partido.fase === "finales"
         )
         .map((partido: any) => Number(partido.id))
     );
@@ -183,27 +205,37 @@ useEffect(() => {
             ? null
             : Number(partido.puntos_visitante),
         estado: partido.estado,
+        fase: partido.fase,
+        temporada_id: partido.temporada_id === null || partido.temporada_id === undefined
+          ? null
+          : Number(partido.temporada_id),
       })
     );
 
     setJugadores(jugadoresConEstadisticas);
     setPartidosActuales(partidosConFormato);
-    setEstadisticasPartido(
-      (estadisticasData ?? []).map((estadistica: any) => ({
-        jugador_id: estadistica.jugador_id,
-        partido_id: estadistica.partido_id,
-        puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
-        rebotes: estadistica.rebotes === null ? null : Number(estadistica.rebotes),
-        asistencias:
-          estadistica.asistencias === null
-            ? null
-            : Number(estadistica.asistencias),
-        estado:
-          estadistica.estado === "no_jugo" || estadistica.estado === "lesionado"
-            ? estadistica.estado
-            : "jugó",
-      }))
-    );
+      setEstadisticasPartido(
+        (estadisticasData ?? []).map((estadistica: any) => ({
+          jugador_id: estadistica.jugador_id,
+          partido_id: estadistica.partido_id,
+          puntos: estadistica.puntos === null ? null : Number(estadistica.puntos),
+          rebotes: estadistica.rebotes === null ? null : Number(estadistica.rebotes),
+          asistencias:
+            estadistica.asistencias === null
+              ? null
+              : Number(estadistica.asistencias),
+          estado:
+            estadistica.estado === "no_jugo" || estadistica.estado === "lesionado"
+              ? estadistica.estado
+              : "jugó",
+        }))
+      );
+    } catch (error) {
+      console.error("Error inesperado al cargar LIBAVIME:", error);
+      setErrorCarga("Ocurrió un problema al cargar LIBAVIME. Vuelve a intentarlo.");
+    } finally {
+      setCargaInicialFinalizada(true);
+    }
   };
 
   cargarDatos();
@@ -280,7 +312,7 @@ useEffect(() => {
     .slice(0, 3);
 
   // =========================================================
-  // LOS PROTAGONISTAS — SERIE REGULAR 2026
+  // LÍDERES OFICIALES — DATOS DE SERIE REGULAR PARA LA TABLA DE POSICIONES
   // =========================================================
   // El torneo comenzó el 05/09/2026. Cualquier partido anterior
   // (prueba, amistoso o registro histórico) NO forma parte de la
@@ -339,9 +371,31 @@ useEffect(() => {
 
       return (
         fecha >= FECHA_INICIO_SERIE_REGULAR &&
-        normalizarEstado(partido.estado) === "finalizado"
+        normalizarEstado(partido.estado) === "finalizado" &&
+        Number(partido.temporada_id) === Number(temporadaActivaId) &&
+        partido.fase === "serie_regular"
       );
     })
+    .sort((a, b) => {
+      const diferencia =
+        obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
+
+      if (diferencia !== 0) return diferencia;
+
+      return String(a.id).localeCompare(String(b.id), undefined, {
+        numeric: true,
+      });
+    });
+
+  // La sección de destacados de inicio utiliza exclusivamente partidos
+  // finalizados de la Serie Final.
+  const partidosFinalizadosSerieFinal = [...partidosActuales]
+    .filter(
+      (partido) =>
+        normalizarEstado(partido.estado) === "finalizado" &&
+        Number(partido.temporada_id) === Number(temporadaActivaId) &&
+        partido.fase === "finales"
+    )
     .sort((a, b) => {
       const diferencia =
         obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
@@ -498,10 +552,11 @@ useEffect(() => {
   };
 
   /*
-   * RESUMEN DINÁMICO DE LA JORNADA
+   * RESUMEN DE RESULTADOS DE LA SERIE REGULAR
    *
-   * Se toman únicamente partidos finalizados de la Serie Regular que
-   * tengan estadísticas registradas.
+   * Se conservan los partidos de la fase regular para la tabla de
+   * posiciones y los últimos resultados. Los destacados de inicio
+   * se calculan por separado usando únicamente la Serie Final.
    *
    * IMPORTANTE:
    * - Siempre se muestra el ÚLTIMO partido con estadísticas.
@@ -519,10 +574,21 @@ useEffect(() => {
           0
     );
 
-  const indiceResumenSeleccionado = resumenesPartidos.length - 1;
+  // Resúmenes independientes para los jugadores destacados de la Serie Final.
+  const resumenesFinales = partidosFinalizadosSerieFinal
+    .map(construirResumenDePartido)
+    .filter(
+      (resumen) =>
+        resumen.jugadoresPartido.length > 0 &&
+        Number(resumen.partido.puntosLocal ?? 0) +
+          Number(resumen.partido.puntosVisitante ?? 0) >
+          0
+    );
+
+  const indiceResumenSeleccionado = resumenesFinales.length - 1;
   const resumenSeleccionado =
     indiceResumenSeleccionado >= 0
-      ? resumenesPartidos[indiceResumenSeleccionado]
+      ? resumenesFinales[indiceResumenSeleccionado]
       : null;
 
   const partidoResumen = resumenSeleccionado?.partido ?? null;
@@ -560,23 +626,6 @@ useEffect(() => {
           Number(b.rebotesPartido) - Number(a.rebotesPartido)
       )[0] ?? null;
 
-  const numeroJornadaResumen = (() => {
-  if (!partidoResumen) return 0;
-
-  const fechaPartido = String(partidoResumen.fecha ?? "").trim();
-
-  if (!fechaPartido) return 0;
-
-  const inicio = new Date("2026-09-05T00:00:00");
-  const fecha = new Date(`${fechaPartido}T00:00:00`);
-
-  const diferenciaDias = Math.floor(
-    (fecha.getTime() - inicio.getTime()) / 86400000
-  );
-
-  return Math.floor(diferenciaDias / 7) + 1;
-})();
-
   const obtenerFotoJugador = (jugador: any) =>
     jugador?.foto &&
     (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
@@ -589,12 +638,12 @@ useEffect(() => {
   // JUGADORES DESTACADOS - 2 CON MÁS PUNTOS POR EQUIPO
   // =========================================================
   // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
-  // Así se muestran siempre los 4 equipos, aunque el último partido
-  // general solo haya enfrentado a 2 de ellos.
+  // Solo aparecen los equipos que han disputado partidos de la Serie Final
+  // y cuentan con estadísticas registradas en esa fase.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
     const equipoNormalizado = normalizarEquipo(equipo.nombre);
 
-    const resumenDelEquipo = [...resumenesPartidos]
+    const resumenDelEquipo = [...resumenesFinales]
       .reverse()
       .find((resumen) =>
         resumen.jugadoresPartido.some(
@@ -624,13 +673,43 @@ useEffect(() => {
       ...equipo,
       jugadoresDestacados: jugadoresDelEquipo,
     };
-  });
+  }).filter((equipo) => equipo.jugadoresDestacados.length > 0);
 
-  if (jugadores.length === 0) {
+  if (!cargaInicialFinalizada) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-xl font-bold text-blue-900">
           Cargando estadísticas...
+        </p>
+      </main>
+    );
+  }
+
+  if (errorCarga && jugadores.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-lg">
+          <p className="text-lg font-black text-red-700">{errorCarga}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setCargaInicialFinalizada(false);
+              setActualizacionEstadisticas((valor) => valor + 1);
+            }}
+            className="mt-5 rounded-xl bg-blue-900 px-5 py-3 font-bold text-white"
+          >
+            Reintentar
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (jugadores.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <p className="text-xl font-bold text-blue-900">
+          Todavía no hay jugadores registrados.
         </p>
       </main>
     );
@@ -1176,8 +1255,8 @@ const ultimosResultados = resumenesPartidos
 </h2>
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
   {partidoResumen
-    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
-    : "Serie Regular · Pendiente"}
+    ? `Serie Final · ${partidoResumen.fecha} · Último partido finalizado`
+    : "Finales · Pendiente"}
 </p>
     </div>
 
@@ -1445,8 +1524,8 @@ const ultimosResultados = resumenesPartidos
 
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
   {partidoResumen
-    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
-    : "Serie Regular · Pendiente"}
+    ? `Serie Final · ${partidoResumen.fecha} · Último partido finalizado`
+    : "Finales · Pendiente"}
 </p>
 
       <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
@@ -2102,7 +2181,7 @@ const ultimosResultados = resumenesPartidos
 
 <div className="mt-10">
   <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
-    🏆 LÍDERES DE LA LIGA
+    🏆 LÍDERES DE LA SERIE FINAL
   </h2>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

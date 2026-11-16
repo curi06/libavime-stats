@@ -28,6 +28,8 @@ type Partido = {
   puntos_local: number | null;
   puntos_visitante: number | null;
   estado: string | null;
+  fase: "serie_regular" | "finales" | null;
+  temporada_id: number | null;
 };
 
 type Estadistica = {
@@ -212,6 +214,19 @@ export default function PlanillaPage() {
       setCargando(true);
       setError("");
 
+      const { data: temporadaActiva, error: temporadaError } = await supabase
+        .from("admin_temporadas")
+        .select("id, activa")
+        .order("fecha_inicio", { ascending: false });
+
+      const temporadaActivaSeleccionada = (temporadaActiva ?? []).find((item: any) => item.activa) ?? (temporadaActiva ?? [])[0] ?? null;
+
+      if (temporadaError || !temporadaActivaSeleccionada) {
+        setError(temporadaError?.message ?? "No hay una temporada LIBAVIME disponible.");
+        setCargando(false);
+        return;
+      }
+
       const [
         {
           data: partidosData,
@@ -225,8 +240,9 @@ export default function PlanillaPage() {
         supabase
           .from("partidos")
           .select(
-            "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
+            "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado, fase, temporada_id"
           )
+          .eq("temporada_id", temporadaActivaSeleccionada.id)
           .order("fecha", { ascending: false })
           .order("hora", { ascending: false }),
 
@@ -1043,7 +1059,7 @@ export default function PlanillaPage() {
                   {fechaPartido(
                     item.fecha,
                     item.hora
-                  )}
+                  )} · {item.fase === "finales" ? "🏆 FINALES" : "SERIE REGULAR"}
                 </option>
               ))}
             </select>

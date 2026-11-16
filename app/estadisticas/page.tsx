@@ -6,14 +6,54 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type Temporada = { id: number; nombre: string; anio: number; estado: string };
+
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  const [temporadas, setTemporadas] = useState<Temporada[]>([]);
+  const [temporadaSeleccionada, setTemporadaSeleccionada] = useState("");
+  const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
+  const temporadaActual = temporadas.find((temporada) => String(temporada.id) === temporadaSeleccionada);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
-    cargarDatos();
+    async function cargarTemporadas() {
+      const { data, error } = await supabase
+        .from("admin_temporadas")
+        .select("id, nombre, fecha_inicio, fecha_fin, activa")
+        .order("fecha_inicio", { ascending: false });
+
+      if (error) {
+        console.error("Error cargando temporadas:", error);
+        setErrorCarga("No se pudieron cargar las temporadas de LIBAVIME.");
+        setCargando(false);
+        return;
+      }
+
+      const lista = (data ?? []).map((temporada: any) => ({
+        ...temporada,
+        anio:
+          Number(String(temporada.fecha_inicio ?? "").slice(0, 4)) ||
+          Number(String(temporada.nombre ?? "").match(/\\d{4}/)?.[0]) ||
+          new Date().getFullYear(),
+        estado: temporada.activa ? "en_curso" : "archivada",
+      })) as Temporada[];
+      setTemporadas(lista);
+      const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
+      if (preferida) {
+        setTemporadaSeleccionada(String(preferida.id));
+        setFaseSeleccionada(preferida.anio >= 2027 ? "serie_regular" : "finales");
+      }
+      else setCargando(false);
+    }
+
+    void cargarTemporadas();
   }, []);
+
+  useEffect(() => {
+    if (temporadaSeleccionada) void cargarDatos();
+  }, [faseSeleccionada, temporadaSeleccionada]);
 
   async function cargarDatos() {
     setCargando(true);
@@ -36,6 +76,9 @@ export default function Estadisticas() {
   }
 
   async function cargarJugadores() {
+    const temporadaId = Number(temporadaSeleccionada);
+    if (!Number.isInteger(temporadaId) || temporadaId <= 0) return;
+
     const [
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
@@ -59,8 +102,10 @@ export default function Estadisticas() {
 
       supabase
         .from("partidos")
-        .select("*")
-        .eq("estado", "Finalizado"),
+        .select("id, estado, fase, temporada_id, equipo_local, equipo_visitante, fecha")
+        .eq("estado", "Finalizado")
+        .eq("temporada_id", temporadaId)
+        .eq("fase", faseSeleccionada),
     ]);
 
     if (jugadoresError) {
@@ -155,8 +200,21 @@ export default function Estadisticas() {
   acumulado.asistencias += Number(registro.asistencias) || 0;
 });
 
+    const equiposDeLaFase = new Set(
+      (partidosData ?? []).flatMap((partido: any) => [
+        String(partido.equipo_local ?? "").trim().toLowerCase(),
+        String(partido.equipo_visitante ?? "").trim().toLowerCase(),
+      ])
+    );
+
+    const jugadoresDeLaFase = faseSeleccionada === "finales"
+      ? (jugadoresData ?? []).filter((jugador: any) =>
+          equiposDeLaFase.has(String(jugador.equipo ?? "").trim().toLowerCase())
+        )
+      : (jugadoresData ?? []);
+
     const jugadoresConEstadisticas =
-      (jugadoresData ?? []).map((jugador: any) => {
+      jugadoresDeLaFase.map((jugador: any) => {
         const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
         const partidosJugados = acumulado?.partidos.size ?? 0;
@@ -383,7 +441,7 @@ export default function Estadisticas() {
         doc.setFontSize(9);
         doc.setTextColor(75, 80, 90);
         doc.text(
-          "LIBAVIME · TORNEO 2026 · RANKING OFICIAL",
+          `LIBAVIME · TORNEO ${temporadaActual?.anio ?? ""} · RANKING OFICIAL`,
           pageWidth / 2,
           29,
           { align: "center" }
@@ -605,7 +663,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Lideratos_LIBAVIME_2026_${new Date()
+        `Lideratos_LIBAVIME_${temporadaActual?.anio ?? "temporada"}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -849,7 +907,7 @@ export default function Estadisticas() {
 
         doc.text(
           subtitulo ||
-            "TORNEO 2026 · LIBAVIME",
+            `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME`,
           centro,
           31,
           {
@@ -1356,7 +1414,7 @@ export default function Estadisticas() {
       // =========================
       // Incluye encabezado oficial, logo LIBAVIME, resumen y posiciones 1–15.
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · RANKING OFICIAL"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · RANKING OFICIAL`
       );
 
       dibujarResumen();
@@ -1377,7 +1435,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30`
       );
 
       autoTable(
@@ -1395,7 +1453,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44"
+        `TORNEO ${temporadaActual?.anio ?? ""} · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44`
       );
 
       autoTable(
@@ -1424,7 +1482,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Estadisticas_LIBAVIME_2026_${new Date()
+        `Estadisticas_LIBAVIME_${temporadaActual?.anio ?? "temporada"}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -1464,7 +1522,7 @@ export default function Estadisticas() {
           {/* TÍTULO */}
 
           <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
-            📊 Estadísticas LIBAVIME
+            📊 Estadísticas LIBAVIME {temporadaActual?.anio ?? ""}
           </h1>
 
           {/* MENSAJE DE ERROR */}
@@ -1474,6 +1532,58 @@ export default function Estadisticas() {
               {errorCarga}
             </div>
           )}
+
+          {/* SELECTOR DE TEMPORADA */}
+          <div className="mb-5 flex justify-center">
+            <select
+              aria-label="Seleccionar temporada"
+              value={temporadaSeleccionada}
+              onChange={(e) => {
+                const seleccionada = temporadas.find((temporada) => String(temporada.id) === e.target.value);
+                setTemporadaSeleccionada(e.target.value);
+                setFaseSeleccionada((seleccionada?.anio ?? 2026) >= 2027 ? "serie_regular" : "finales");
+              }}
+              className="min-w-64 rounded-xl border border-slate-300 bg-white px-5 py-3 font-black text-blue-900 shadow-sm"
+            >
+              {temporadas.map((temporada) => (
+                <option key={temporada.id} value={temporada.id}>
+                  {temporada.nombre} {temporada.estado === "archivada" ? "· Archivo" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* SELECTOR DE FASE */}
+          <div className="mb-8 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFaseSeleccionada("serie_regular")}
+              className={`rounded-xl px-5 py-3 font-black transition ${
+                faseSeleccionada === "serie_regular"
+                  ? "bg-blue-900 text-white shadow-lg"
+                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              🏀 Serie regular
+            </button>
+            <button
+              type="button"
+              onClick={() => setFaseSeleccionada("finales")}
+              className={`rounded-xl px-5 py-3 font-black transition ${
+                faseSeleccionada === "finales"
+                  ? "bg-blue-900 text-white shadow-lg"
+                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              🏆 Finales
+            </button>
+          </div>
+
+          <p className="mb-8 text-center text-sm font-semibold text-slate-500">
+            {faseSeleccionada === "finales"
+              ? `Mostrando exclusivamente las estadísticas de las finales ${temporadaActual?.anio ?? ""}.`
+              : `Mostrando exclusivamente las estadísticas de la serie regular ${temporadaActual?.anio ?? ""}.`}
+          </p>
 
           {/* ESTADÍSTICAS DE LOS JUGADORES */}
 
