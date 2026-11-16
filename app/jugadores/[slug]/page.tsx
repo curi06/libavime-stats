@@ -19,6 +19,7 @@ type EstadisticaPartido = {
   rebotes: number | null;
   asistencias: number | null;
   partido_id: number | null;
+  estado?: "jugó" | "no_jugo" | "lesionado" | null;
 };
 
 export default async function JugadorPage({
@@ -70,7 +71,8 @@ export default async function JugadorPage({
       puntos,
       rebotes,
       asistencias,
-      partido_id
+      partido_id,
+      estado
     `)
     .eq("jugador_id", jugador.id);
 
@@ -83,6 +85,62 @@ export default async function JugadorPage({
 
   const estadisticas =
     (estadisticasData ?? []) as EstadisticaPartido[];
+
+  const idsPartidos = [...new Set(
+    estadisticas
+      .map((fila) => fila.partido_id)
+      .filter((id): id is number => id !== null)
+  )];
+
+  const [{ data: temporada2026 }, { data: partidosTemporada }] = await Promise.all([
+    supabase
+      .from("temporadas")
+      .select("id")
+      .eq("anio", 2026)
+      .maybeSingle(),
+    idsPartidos.length > 0
+      ? supabase
+          .from("partidos")
+          .select("id, fase, temporada_id")
+          .in("id", idsPartidos)
+      : Promise.resolve({ data: [] as { id: number; fase: string | null; temporada_id: number | null }[] }),
+  ]);
+
+  const partidosPorId = new Map(
+    (partidosTemporada ?? []).map((partido: any) => [Number(partido.id), partido])
+  );
+
+  function calcularEstadisticasFase(fase: "serie_regular" | "finales") {
+    const filas = estadisticas.filter((fila) => {
+      const partido = partidosPorId.get(Number(fila.partido_id)) as any;
+      return (
+        partido &&
+        Number(partido.temporada_id) === Number(temporada2026?.id) &&
+        partido.fase === fase &&
+        fila.estado !== "no_jugo" &&
+        fila.estado !== "lesionado"
+      );
+    });
+
+    const partidos = new Set(filas.map((fila) => fila.partido_id));
+    const pj = partidos.size;
+    const pts = filas.reduce((total, fila) => total + Number(fila.puntos ?? 0), 0);
+    const reb = filas.reduce((total, fila) => total + Number(fila.rebotes ?? 0), 0);
+    const ast = filas.reduce((total, fila) => total + Number(fila.asistencias ?? 0), 0);
+
+    return {
+      pj,
+      pts,
+      reb,
+      ast,
+      ppg: pj > 0 ? Number((pts / pj).toFixed(1)) : 0,
+      rpg: pj > 0 ? Number((reb / pj).toFixed(1)) : 0,
+      apg: pj > 0 ? Number((ast / pj).toFixed(1)) : 0,
+    };
+  }
+
+  const estadisticasSerieRegular2026 = calcularEstadisticasFase("serie_regular");
+  const estadisticasFinales2026 = calcularEstadisticasFase("finales");
 
   // SUMAR ESTADÍSTICAS
   const puntosTotales = estadisticas.reduce(
@@ -351,6 +409,45 @@ if (equipoNormalizado === "vikingos") {
                 </div>
 
               </div>
+
+              {/* DESGLOSE DE LIBAVIME 2026 */}
+              <section className="mt-12">
+                <h3 className="mb-2 text-center text-2xl font-black text-blue-900">
+                  🏆 LIBAVIME 2026 · Estadísticas por fase
+                </h3>
+                <p className="mb-6 text-center text-sm text-slate-500">
+                  Tus números de la serie regular y de las finales se muestran por separado.
+                </p>
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  {[
+                    { titulo: "🏀 Serie regular", datos: estadisticasSerieRegular2026, color: "blue" },
+                    { titulo: "🏆 Finales", datos: estadisticasFinales2026, color: "amber" },
+                  ].map((fase) => (
+                    <div key={fase.titulo} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <h4 className="mb-4 text-center text-xl font-black text-slate-800">{fase.titulo}</h4>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {[
+                          ["PJ", fase.datos.pj],
+                          ["PTS", fase.datos.pts],
+                          ["REB", fase.datos.reb],
+                          ["AST", fase.datos.ast],
+                        ].map(([etiqueta, valor]) => (
+                          <div key={String(etiqueta)} className="rounded-xl bg-white p-3 text-center shadow-sm">
+                            <p className="text-xs font-bold text-slate-500">{etiqueta}</p>
+                            <p className="mt-1 text-2xl font-black text-blue-900">{valor}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                        <div><p className="text-xs text-slate-500">PPG</p><p className="font-black">{fase.datos.ppg}</p></div>
+                        <div><p className="text-xs text-slate-500">RPG</p><p className="font-black">{fase.datos.rpg}</p></div>
+                        <div><p className="text-xs text-slate-500">APG</p><p className="font-black">{fase.datos.apg}</p></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
             </div>
 
