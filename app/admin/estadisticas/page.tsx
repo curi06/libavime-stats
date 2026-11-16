@@ -110,7 +110,10 @@ export default function AdminEstadisticasPage() {
       const lista = (temporadasData ?? []) as Temporada[];
       setTemporadas(lista);
       const preferida = lista.find((temporada) => temporada.estado === "en_curso") ?? lista[0];
-      if (preferida) setTemporadaSeleccionada(String(preferida.id));
+      if (preferida) {
+        setTemporadaSeleccionada(String(preferida.id));
+        setFaseFiltro(preferida.anio >= 2027 ? "serie_regular" : "finales");
+      }
     }
 
     setCargando(false);
@@ -406,6 +409,8 @@ export default function AdminEstadisticasPage() {
               value={temporadaSeleccionada}
               onChange={(e) => {
                 setTemporadaSeleccionada(e.target.value);
+                const seleccionada = temporadas.find((temporada) => String(temporada.id) === e.target.value);
+                setFaseFiltro((seleccionada?.anio ?? 2026) >= 2027 ? "serie_regular" : "finales");
                 setPartidoSeleccionado("");
                 setEstadisticas({});
                 setMensaje("");
