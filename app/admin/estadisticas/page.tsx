@@ -14,6 +14,7 @@ type Partido = {
   equipo_local: string | null;
   equipo_visitante: string | null;
   fecha: string | null;
+  fase?: "serie_regular" | "finales" | null;
 };
 
 type Estadistica = {
@@ -29,6 +30,8 @@ export default function AdminEstadisticasPage() {
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidoSeleccionado, setPartidoSeleccionado] =
     useState<string>("");
+  const [faseFiltro, setFaseFiltro] =
+    useState<"serie_regular" | "finales">("finales");
 
   const [estadisticas, setEstadisticas] = useState<
     Record<number, Estadistica>
@@ -50,7 +53,7 @@ export default function AdminEstadisticasPage() {
       await supabase
         .from("partidos")
         .select(
-          "id, equipo_local, equipo_visitante, fecha"
+          "id, equipo_local, equipo_visitante, fecha, fase"
         )
         .order("fecha", { ascending: false });
 
@@ -144,6 +147,10 @@ export default function AdminEstadisticasPage() {
 
     setEstadisticas(estadisticasExistentes);
   }
+
+  const partidosFiltrados = partidos.filter((partido) =>
+    (partido.fase ?? "serie_regular") === faseFiltro
+  );
 
   const partidoActual = partidos.find(
     (partido) =>
@@ -373,6 +380,24 @@ export default function AdminEstadisticasPage() {
           <div className="mt-8">
 
             <label className="block font-bold mb-2">
+              Fase que vas a registrar
+            </label>
+
+            <select
+              value={faseFiltro}
+              onChange={(e) => {
+                setFaseFiltro(e.target.value as "serie_regular" | "finales");
+                setPartidoSeleccionado("");
+                setEstadisticas({});
+                setMensaje("");
+              }}
+              className="mb-5 w-full border-2 border-slate-200 rounded-xl p-4 font-bold"
+            >
+              <option value="finales">🏆 Finales 2026</option>
+              <option value="serie_regular">🏀 Serie regular 2026</option>
+            </select>
+
+            <label className="block font-bold mb-2">
               Seleccionar partido
             </label>
 
@@ -387,18 +412,24 @@ export default function AdminEstadisticasPage() {
                 Selecciona un partido
               </option>
 
-              {partidos.map((partido) => (
+              {partidosFiltrados.map((partido) => (
                 <option
                   key={partido.id}
                   value={partido.id}
                 >
                   {partido.equipo_local} vs{" "}
                   {partido.equipo_visitante} —{" "}
-                  {partido.fecha}
+                  {partido.fecha} · {faseFiltro === "finales" ? "FINAL" : "REGULAR"}
                 </option>
               ))}
 
             </select>
+
+            {partidosFiltrados.length === 0 && (
+              <p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                No hay partidos clasificados en esta fase. Ve a Gestión de Partidos y marca los encuentros correspondientes como finales.
+              </p>
+            )}
 
           </div>
 
@@ -407,6 +438,10 @@ export default function AdminEstadisticasPage() {
             <div className="mt-8">
 
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+
+                <p className="mb-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-blue-900">
+                  {partidoActual.fase === "finales" ? "🏆 FINALES 2026" : "🏀 SERIE REGULAR 2026"}
+                </p>
 
                 <h2 className="text-xl font-black text-blue-900">
                   🏀 {partidoActual.equipo_local}
