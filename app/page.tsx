@@ -306,7 +306,7 @@ useEffect(() => {
     .slice(0, 3);
 
   // =========================================================
-  // LOS PROTAGONISTAS — SERIE REGULAR 2026
+  // LÍDERES OFICIALES — DATOS DE SERIE REGULAR PARA LA TABLA DE POSICIONES
   // =========================================================
   // El torneo comenzó el 05/09/2026. Cualquier partido anterior
   // (prueba, amistoso o registro histórico) NO forma parte de la
@@ -544,10 +544,11 @@ useEffect(() => {
   };
 
   /*
-   * RESUMEN DINÁMICO DE LA JORNADA
+   * RESUMEN DE RESULTADOS DE LA SERIE REGULAR
    *
-   * Se toman únicamente partidos finalizados de la Serie Regular que
-   * tengan estadísticas registradas.
+   * Se conservan los partidos de la fase regular para la tabla de
+   * posiciones y los últimos resultados. Los destacados de inicio
+   * se calculan por separado usando únicamente la Serie Final.
    *
    * IMPORTANTE:
    * - Siempre se muestra el ÚLTIMO partido con estadísticas.
@@ -617,23 +618,6 @@ useEffect(() => {
           Number(b.rebotesPartido) - Number(a.rebotesPartido)
       )[0] ?? null;
 
-  const numeroJornadaResumen = (() => {
-  if (!partidoResumen) return 0;
-
-  const fechaPartido = String(partidoResumen.fecha ?? "").trim();
-
-  if (!fechaPartido) return 0;
-
-  const inicio = new Date("2026-09-05T00:00:00");
-  const fecha = new Date(`${fechaPartido}T00:00:00`);
-
-  const diferenciaDias = Math.floor(
-    (fecha.getTime() - inicio.getTime()) / 86400000
-  );
-
-  return Math.floor(diferenciaDias / 7) + 1;
-})();
-
   const obtenerFotoJugador = (jugador: any) =>
     jugador?.foto &&
     (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
@@ -646,8 +630,8 @@ useEffect(() => {
   // JUGADORES DESTACADOS - 2 CON MÁS PUNTOS POR EQUIPO
   // =========================================================
   // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
-  // Así se muestran siempre los 4 equipos, aunque el último partido
-  // general solo haya enfrentado a 2 de ellos.
+  // Solo aparecen los equipos que han disputado partidos de la Serie Final
+  // y cuentan con estadísticas registradas en esa fase.
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
     const equipoNormalizado = normalizarEquipo(equipo.nombre);
 
