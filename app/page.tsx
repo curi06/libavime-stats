@@ -18,6 +18,7 @@ type Partido = {
   puntosVisitante: number | null;
   estado: string | null;
   fase?: "serie_regular" | "finales" | null;
+  temporada_id?: number | null;
 };
 
 type EstadisticaPartido = {
@@ -32,6 +33,7 @@ type EstadisticaPartido = {
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
+  const [temporadaActivaId, setTemporadaActivaId] = useState<number | null>(null);
   const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [herramientasAbierto, setHerramientasAbierto] =
@@ -96,6 +98,7 @@ useEffect(() => {
       }
 
       const temporadaActual = (temporadaData ?? []).find((temporada: any) => temporada.activa) ?? (temporadaData ?? [])[0] ?? null;
+      setTemporadaActivaId(temporadaActual?.id ? Number(temporadaActual.id) : null);
 
     // LIDERATOS OFICIALES: misma lógica que /estadisticas.
     // Se calculan sumando las estadísticas de cada partido finalizado.
@@ -203,6 +206,9 @@ useEffect(() => {
             : Number(partido.puntos_visitante),
         estado: partido.estado,
         fase: partido.fase,
+        temporada_id: partido.temporada_id === null || partido.temporada_id === undefined
+          ? null
+          : Number(partido.temporada_id),
       })
     );
 
@@ -366,6 +372,7 @@ useEffect(() => {
       return (
         fecha >= FECHA_INICIO_SERIE_REGULAR &&
         normalizarEstado(partido.estado) === "finalizado" &&
+        Number(partido.temporada_id) === Number(temporadaActivaId) &&
         partido.fase === "serie_regular"
       );
     })
@@ -386,6 +393,7 @@ useEffect(() => {
     .filter(
       (partido) =>
         normalizarEstado(partido.estado) === "finalizado" &&
+        Number(partido.temporada_id) === Number(temporadaActivaId) &&
         partido.fase === "finales"
     )
     .sort((a, b) => {
