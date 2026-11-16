@@ -52,6 +52,19 @@ from public.temporadas t
 where t.anio = 2026
   and p.temporada_id is null;
 
+-- La final Espartanos vs. Gladiadores comenzó el 14 de noviembre de 2026.
+-- Reclasificamos como finales los partidos existentes de ese cruce desde esa fecha;
+-- los encuentros anteriores permanecen en serie_regular.
+update public.partidos
+set fase = 'finales'
+where temporada_id = (select id from public.temporadas where anio = 2026)
+  and fecha::date >= date '2026-11-14'
+  and (
+    (lower(trim(equipo_local)) = 'espartanos' and lower(trim(equipo_visitante)) = 'gladiadores')
+    or
+    (lower(trim(equipo_local)) = 'gladiadores' and lower(trim(equipo_visitante)) = 'espartanos')
+  );
+
 alter table public.partidos
   alter column temporada_id set not null;
 
