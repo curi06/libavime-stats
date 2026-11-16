@@ -37,6 +37,18 @@ export default function Estadisticas() {
   }
 
   async function cargarJugadores() {
+    const { data: temporadaData, error: temporadaError } = await supabase
+      .from("temporadas")
+      .select("id")
+      .eq("anio", 2026)
+      .single();
+
+    if (temporadaError || !temporadaData) {
+      console.error("Error cargando temporada 2026:", temporadaError);
+      setErrorCarga("No se pudo cargar la temporada LIBAVIME 2026.");
+      return;
+    }
+
     const [
       { data: jugadoresData, error: jugadoresError },
       { data: estadisticasData, error: estadisticasError },
@@ -62,6 +74,7 @@ export default function Estadisticas() {
         .from("partidos")
         .select("id, estado, fase, temporada_id, equipo_local, equipo_visitante, fecha")
         .eq("estado", "Finalizado")
+        .eq("temporada_id", temporadaData.id)
         .eq("fase", faseSeleccionada),
     ]);
 
