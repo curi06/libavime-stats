@@ -17,6 +17,7 @@ type Partido = {
   puntosLocal: number | null;
   puntosVisitante: number | null;
   estado: string | null;
+  fase?: "serie_regular" | "finales" | null;
 };
 
 type EstadisticaPartido = {
@@ -69,7 +70,8 @@ useEffect(() => {
           puntos_local,
           puntos_visitante,
           estado,
-          temporada_id
+          temporada_id,
+          fase
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
@@ -104,7 +106,8 @@ useEffect(() => {
             String(partido.estado ?? "")
               .trim()
               .toLowerCase() === "finalizado" &&
-            Number(partido.temporada_id) === Number(temporadaActual?.id)
+            Number(partido.temporada_id) === Number(temporadaActual?.id) &&
+            partido.fase === "finales"
         )
         .map((partido: any) => Number(partido.id))
     );
@@ -199,6 +202,7 @@ useEffect(() => {
             ? null
             : Number(partido.puntos_visitante),
         estado: partido.estado,
+        fase: partido.fase,
       })
     );
 
@@ -361,9 +365,29 @@ useEffect(() => {
 
       return (
         fecha >= FECHA_INICIO_SERIE_REGULAR &&
-        normalizarEstado(partido.estado) === "finalizado"
+        normalizarEstado(partido.estado) === "finalizado" &&
+        partido.fase === "serie_regular"
       );
     })
+    .sort((a, b) => {
+      const diferencia =
+        obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
+
+      if (diferencia !== 0) return diferencia;
+
+      return String(a.id).localeCompare(String(b.id), undefined, {
+        numeric: true,
+      });
+    });
+
+  // La sección de destacados de inicio utiliza exclusivamente partidos
+  // finalizados de la Serie Final.
+  const partidosFinalizadosSerieFinal = [...partidosActuales]
+    .filter(
+      (partido) =>
+        normalizarEstado(partido.estado) === "finalizado" &&
+        partido.fase === "finales"
+    )
     .sort((a, b) => {
       const diferencia =
         obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
@@ -541,10 +565,21 @@ useEffect(() => {
           0
     );
 
-  const indiceResumenSeleccionado = resumenesPartidos.length - 1;
+  // Resúmenes independientes para los jugadores destacados de la Serie Final.
+  const resumenesFinales = partidosFinalizadosSerieFinal
+    .map(construirResumenDePartido)
+    .filter(
+      (resumen) =>
+        resumen.jugadoresPartido.length > 0 &&
+        Number(resumen.partido.puntosLocal ?? 0) +
+          Number(resumen.partido.puntosVisitante ?? 0) >
+          0
+    );
+
+  const indiceResumenSeleccionado = resumenesFinales.length - 1;
   const resumenSeleccionado =
     indiceResumenSeleccionado >= 0
-      ? resumenesPartidos[indiceResumenSeleccionado]
+      ? resumenesFinales[indiceResumenSeleccionado]
       : null;
 
   const partidoResumen = resumenSeleccionado?.partido ?? null;
@@ -616,7 +651,7 @@ useEffect(() => {
   const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
     const equipoNormalizado = normalizarEquipo(equipo.nombre);
 
-    const resumenDelEquipo = [...resumenesPartidos]
+    const resumenDelEquipo = [...resumenesFinales]
       .reverse()
       .find((resumen) =>
         resumen.jugadoresPartido.some(
@@ -646,7 +681,7 @@ useEffect(() => {
       ...equipo,
       jugadoresDestacados: jugadoresDelEquipo,
     };
-  });
+  }).filter((equipo) => equipo.jugadoresDestacados.length > 0);
 
   if (!cargaInicialFinalizada) {
     return (
@@ -1228,8 +1263,8 @@ const ultimosResultados = resumenesPartidos
 </h2>
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
   {partidoResumen
-    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
-    : "Serie Regular · Pendiente"}
+    ? `Serie Final · ${partidoResumen.fecha} · Último partido finalizado`
+    : "Finales · Pendiente"}
 </p>
     </div>
 
@@ -1497,8 +1532,8 @@ const ultimosResultados = resumenesPartidos
 
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
   {partidoResumen
-    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
-    : "Serie Regular · Pendiente"}
+    ? `Serie Final · ${partidoResumen.fecha} · Último partido finalizado`
+    : "Finales · Pendiente"}
 </p>
 
       <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
@@ -2154,7 +2189,7 @@ const ultimosResultados = resumenesPartidos
 
 <div className="mt-10">
   <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
-    🏆 LÍDERES DE LA LIGA
+    🏆 LÍDERES DE LA SERIE FINAL
   </h2>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
