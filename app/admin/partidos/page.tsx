@@ -55,18 +55,25 @@ export default function AdminPartidos() {
 
   async function cargarTemporadas() {
     const { data, error } = await supabase
-      .from("temporadas")
-      .select("id, nombre, anio, estado")
-      .order("anio", { ascending: false });
+      .from("admin_temporadas")
+      .select("id, nombre, fecha_inicio, fecha_fin, activa")
+      .order("fecha_inicio", { ascending: false });
 
     if (error) {
       console.error("Error al cargar temporadas:", error);
       return;
     }
 
-    const lista = data ?? [];
+    const lista = (data ?? []).map((temporada: any) => ({
+      ...temporada,
+      anio:
+        Number(String(temporada.fecha_inicio ?? "").slice(0, 4)) ||
+        Number(String(temporada.nombre ?? "").match(/\\d{4}/)?.[0]) ||
+        new Date().getFullYear(),
+      estado: temporada.activa ? "en_curso" : "archivada",
+    }));
     setTemporadas(lista);
-    const preferida = lista.find((temporada: any) => temporada.estado === "en_curso") ?? lista[0];
+    const preferida = lista.find((temporada: any) => temporada.activa) ?? lista[0];
     if (preferida) setTemporadaSeleccionada(String(preferida.id));
   }
 
