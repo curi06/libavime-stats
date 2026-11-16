@@ -485,7 +485,7 @@ export default function AdminEstadisticasPage() {
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
 
                 <p className="mb-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-blue-900">
-                  {partidoActual.fase === "finales" ? "🏆 FINALES 2026" : "🏀 SERIE REGULAR 2026"}
+                  {partidoActual.fase === "finales" ? "🏆 FINALES" : "🏀 SERIE REGULAR"} · {temporadas.find((item) => Number(item.id) === Number(partidoActual.temporada_id))?.nombre ?? "LIBAVIME"}
                 </p>
 
                 <h2 className="text-xl font-black text-blue-900">
