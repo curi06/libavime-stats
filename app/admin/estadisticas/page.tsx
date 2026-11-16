@@ -433,8 +433,8 @@ export default function AdminEstadisticasPage() {
               }}
               className="mb-5 w-full border-2 border-slate-200 rounded-xl p-4 font-bold"
             >
-              <option value="finales">🏆 Finales 2026</option>
-              <option value="serie_regular">🏀 Serie regular 2026</option>
+              <option value="finales">🏆 Finales {temporadas.find((item) => String(item.id) === temporadaSeleccionada)?.anio ?? ""}</option>
+              <option value="serie_regular">🏀 Serie regular {temporadas.find((item) => String(item.id) === temporadaSeleccionada)?.anio ?? ""}</option>
             </select>
 
             <label className="block font-bold mb-2">
