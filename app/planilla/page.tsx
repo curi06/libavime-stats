@@ -216,12 +216,12 @@ export default function PlanillaPage() {
 
       const { data: temporadaActiva, error: temporadaError } = await supabase
         .from("temporadas")
-        .select("id")
-        .order("anio", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select("id, estado")
+        .order("anio", { ascending: false });
 
-      if (temporadaError || !temporadaActiva) {
+      const temporadaActivaSeleccionada = (temporadaActiva ?? []).find((item: any) => item.estado === "en_curso") ?? (temporadaActiva ?? [])[0] ?? null;
+
+      if (temporadaError || !temporadaActivaSeleccionada) {
         setError(temporadaError?.message ?? "No hay una temporada LIBAVIME disponible.");
         setCargando(false);
         return;
@@ -242,7 +242,7 @@ export default function PlanillaPage() {
           .select(
             "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado, fase, temporada_id"
           )
-          .eq("temporada_id", temporadaActiva.id)
+          .eq("temporada_id", temporadaActivaSeleccionada.id)
           .order("fecha", { ascending: false })
           .order("hora", { ascending: false }),
 
