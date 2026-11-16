@@ -111,6 +111,16 @@ export default async function JugadorPage({
     (partidosTemporada ?? []).map((partido: any) => [Number(partido.id), partido])
   );
 
+  const estadisticasTemporadaActual = estadisticas.filter((fila) => {
+    const partido = partidosPorId.get(Number(fila.partido_id)) as any;
+    return (
+      partido &&
+      Number(partido.temporada_id) === Number(temporadaActual?.id) &&
+      fila.estado !== "no_jugo" &&
+      fila.estado !== "lesionado"
+    );
+  });
+
   function calcularEstadisticasFase(fase: "serie_regular" | "finales") {
     const filas = estadisticas.filter((fila) => {
       const partido = partidosPorId.get(Number(fila.partido_id)) as any;
@@ -144,21 +154,21 @@ export default async function JugadorPage({
   const estadisticasFinalesActual = calcularEstadisticasFase("finales");
 
   // SUMAR ESTADÍSTICAS
-  const puntosTotales = estadisticas.reduce(
+  const puntosTotales = estadisticasTemporadaActual.reduce(
     (total, estadistica) =>
       total +
       Number(estadistica.puntos ?? 0),
     0
   );
 
-  const rebotesTotales = estadisticas.reduce(
+  const rebotesTotales = estadisticasTemporadaActual.reduce(
     (total, estadistica) =>
       total +
       Number(estadistica.rebotes ?? 0),
     0
   );
 
-  const asistenciasTotales = estadisticas.reduce(
+  const asistenciasTotales = estadisticasTemporadaActual.reduce(
     (total, estadistica) =>
       total +
       Number(estadistica.asistencias ?? 0),
@@ -167,7 +177,7 @@ export default async function JugadorPage({
 
   // PARTIDOS JUGADOS
   const partidosUnicos = new Set(
-    estadisticas
+    estadisticasTemporadaActual
       .map(
         (estadistica) =>
           estadistica.partido_id
@@ -309,7 +319,7 @@ if (equipoNormalizado === "vikingos") {
             <div className="p-6 md:p-10">
 
               <h2 className="text-3xl font-black text-center text-blue-900 mb-8">
-                📊 Estadísticas de la Temporada
+                📊 Estadísticas de {temporadaActual?.nombre ?? "la temporada"}
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
