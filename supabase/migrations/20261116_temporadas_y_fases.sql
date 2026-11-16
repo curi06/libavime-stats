@@ -55,6 +55,9 @@ where t.anio = 2026
 alter table public.partidos
   alter column temporada_id set not null;
 
+create index if not exists partidos_temporada_fase_estado_idx
+  on public.partidos (temporada_id, fase, estado);
+
 -- Los nuevos partidos sin temporada explícita se asignan a la temporada activa.
 create or replace function public.asignar_temporada_activa_a_partido()
 returns trigger
