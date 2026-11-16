@@ -8,12 +8,13 @@ import { supabase } from "@/lib/supabase";
 
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [faseSeleccionada]);
 
   async function cargarDatos() {
     setCargando(true);
@@ -59,8 +60,9 @@ export default function Estadisticas() {
 
       supabase
         .from("partidos")
-        .select("*")
-        .eq("estado", "Finalizado"),
+        .select("id, estado, fase, temporada_id, equipo_local, equipo_visitante, fecha")
+        .eq("estado", "Finalizado")
+        .eq("fase", faseSeleccionada),
     ]);
 
     if (jugadoresError) {
@@ -155,8 +157,21 @@ export default function Estadisticas() {
   acumulado.asistencias += Number(registro.asistencias) || 0;
 });
 
+    const equiposDeLaFase = new Set(
+      (partidosData ?? []).flatMap((partido: any) => [
+        String(partido.equipo_local ?? "").trim().toLowerCase(),
+        String(partido.equipo_visitante ?? "").trim().toLowerCase(),
+      ])
+    );
+
+    const jugadoresDeLaFase = faseSeleccionada === "finales"
+      ? (jugadoresData ?? []).filter((jugador: any) =>
+          equiposDeLaFase.has(String(jugador.equipo ?? "").trim().toLowerCase())
+        )
+      : (jugadoresData ?? []);
+
     const jugadoresConEstadisticas =
-      (jugadoresData ?? []).map((jugador: any) => {
+      jugadoresDeLaFase.map((jugador: any) => {
         const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
         const partidosJugados = acumulado?.partidos.size ?? 0;
@@ -1464,7 +1479,7 @@ export default function Estadisticas() {
           {/* TÍTULO */}
 
           <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
-            📊 Estadísticas LIBAVIME
+            📊 Estadísticas LIBAVIME 2026
           </h1>
 
           {/* MENSAJE DE ERROR */}
@@ -1474,6 +1489,38 @@ export default function Estadisticas() {
               {errorCarga}
             </div>
           )}
+
+          {/* SELECTOR DE FASE */}
+          <div className="mb-8 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFaseSeleccionada("serie_regular")}
+              className={`rounded-xl px-5 py-3 font-black transition ${
+                faseSeleccionada === "serie_regular"
+                  ? "bg-blue-900 text-white shadow-lg"
+                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              🏀 Serie regular
+            </button>
+            <button
+              type="button"
+              onClick={() => setFaseSeleccionada("finales")}
+              className={`rounded-xl px-5 py-3 font-black transition ${
+                faseSeleccionada === "finales"
+                  ? "bg-blue-900 text-white shadow-lg"
+                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              🏆 Finales
+            </button>
+          </div>
+
+          <p className="mb-8 text-center text-sm font-semibold text-slate-500">
+            {faseSeleccionada === "finales"
+              ? "Mostrando exclusivamente las estadísticas de las finales 2026 · Espartanos y Gladiadores."
+              : "Mostrando exclusivamente las estadísticas de los nueve partidos de la serie regular 2026."}
+          </p>
 
           {/* ESTADÍSTICAS DE LOS JUGADORES */}
 
