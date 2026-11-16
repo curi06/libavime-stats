@@ -215,11 +215,11 @@ export default function PlanillaPage() {
       setError("");
 
       const { data: temporadaActiva, error: temporadaError } = await supabase
-        .from("temporadas")
-        .select("id, estado")
-        .order("anio", { ascending: false });
+        .from("admin_temporadas")
+        .select("id, activa")
+        .order("fecha_inicio", { ascending: false });
 
-      const temporadaActivaSeleccionada = (temporadaActiva ?? []).find((item: any) => item.estado === "en_curso") ?? (temporadaActiva ?? [])[0] ?? null;
+      const temporadaActivaSeleccionada = (temporadaActiva ?? []).find((item: any) => item.activa) ?? (temporadaActiva ?? [])[0] ?? null;
 
       if (temporadaError || !temporadaActivaSeleccionada) {
         setError(temporadaError?.message ?? "No hay una temporada LIBAVIME disponible.");
