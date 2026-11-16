@@ -71,10 +71,8 @@ useEffect(() => {
         .order("hora", { ascending: true }),
       supabase
         .from("temporadas")
-        .select("id, anio")
-        .order("anio", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .select("id, anio, estado")
+        .order("anio", { ascending: false }),
     ]);
 
     if (
@@ -89,6 +87,8 @@ useEffect(() => {
       return;
     }
 
+    const temporadaActual = (temporadaData ?? []).find((temporada: any) => temporada.estado === "en_curso") ?? (temporadaData ?? [])[0] ?? null;
+
     // LIDERATOS OFICIALES: misma lógica que /estadisticas.
     // Se calculan sumando las estadísticas de cada partido finalizado.
     const partidosFinalizados = new Set(
@@ -98,7 +98,7 @@ useEffect(() => {
             String(partido.estado ?? "")
               .trim()
               .toLowerCase() === "finalizado" &&
-            Number(partido.temporada_id) === Number(temporadaData?.id)
+            Number(partido.temporada_id) === Number(temporadaActual?.id)
         )
         .map((partido: any) => Number(partido.id))
     );
