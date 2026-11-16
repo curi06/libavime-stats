@@ -13,6 +13,8 @@ export default function AdminPartidos() {
   const [hora, setHora] = useState("");
   const [cancha, setCancha] = useState("");
   const [fase, setFase] = useState<"serie_regular" | "finales">("serie_regular");
+  const [temporadas, setTemporadas] = useState<any[]>([]);
+  const [temporadaSeleccionada, setTemporadaSeleccionada] = useState("");
 
   const [equipos, setEquipos] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
@@ -22,6 +24,7 @@ export default function AdminPartidos() {
     verificarSesion();
     cargarEquipos();
     cargarPartidos();
+    cargarTemporadas();
   }, []);
 
   async function verificarSesion() {
@@ -48,6 +51,23 @@ export default function AdminPartidos() {
     if (data) {
       setEquipos(data);
     }
+  }
+
+  async function cargarTemporadas() {
+    const { data, error } = await supabase
+      .from("temporadas")
+      .select("id, nombre, anio, estado")
+      .order("anio", { ascending: false });
+
+    if (error) {
+      console.error("Error al cargar temporadas:", error);
+      return;
+    }
+
+    const lista = data ?? [];
+    setTemporadas(lista);
+    const preferida = lista.find((temporada: any) => temporada.estado === "en_curso") ?? lista[0];
+    if (preferida) setTemporadaSeleccionada(String(preferida.id));
   }
 
   async function cargarPartidos() {
@@ -105,6 +125,7 @@ export default function AdminPartidos() {
           hora,
           cancha,
           fase,
+          temporada_id: Number(temporadaSeleccionada),
         })
         .eq("id", editandoId);
 
@@ -132,6 +153,7 @@ export default function AdminPartidos() {
           hora,
           cancha,
           fase,
+          temporada_id: Number(temporadaSeleccionada),
           estado: "Programado",
         },
       ]);
@@ -156,6 +178,7 @@ export default function AdminPartidos() {
     setHora(partido.hora ?? "");
     setCancha(partido.cancha ?? "");
     setFase(partido.fase === "finales" ? "finales" : "serie_regular");
+    setTemporadaSeleccionada(String(partido.temporada_id ?? ""));
 
     window.scrollTo({
       top: 0,
@@ -317,6 +340,18 @@ export default function AdminPartidos() {
 
             <select
               required
+              value={temporadaSeleccionada}
+              onChange={(e) => setTemporadaSeleccionada(e.target.value)}
+              className="border rounded-xl p-3 font-bold"
+            >
+              <option value="">Selecciona temporada</option>
+              {temporadas.map((temporada) => (
+                <option key={temporada.id} value={temporada.id}>{temporada.nombre}</option>
+              ))}
+            </select>
+
+            <select
+              required
               value={fase}
               onChange={(e) => setFase(e.target.value as "serie_regular" | "finales")}
               className="border rounded-xl p-3 font-bold"
@@ -426,7 +461,7 @@ export default function AdminPartidos() {
                         </p>
 
                         <p className="mt-2 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-900">
-                          {partido.fase === "finales" ? "🏆 FINALES" : "🏀 SERIE REGULAR"} · LIBAVIME 2026
+                          {partido.fase === "finales" ? "🏆 FINALES" : "🏀 SERIE REGULAR"} · {temporadas.find((temporada) => Number(temporada.id) === Number(partido.temporada_id))?.nombre ?? "Temporada sin identificar"}
                         </p>
 
                         {finalizado ? (
