@@ -187,6 +187,8 @@ useEffect(() => {
             ? null
             : Number(partido.puntos_visitante),
         estado: partido.estado,
+        fase: partido.fase ?? "serie_regular",
+        temporada_id: partido.temporada_id ?? null,
       })
     );
 
