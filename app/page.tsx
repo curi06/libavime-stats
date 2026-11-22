@@ -17,6 +17,8 @@ type Partido = {
   puntosLocal: number | null;
   puntosVisitante: number | null;
   estado: string | null;
+  fase: "serie_regular" | "finales" | null;
+  temporada_id?: number | null;
 };
 
 type EstadisticaPartido = {
@@ -63,7 +65,9 @@ useEffect(() => {
           cancha,
           puntos_local,
           puntos_visitante,
-          estado
+          estado,
+          fase,
+          temporada_id
         `)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
@@ -333,12 +337,16 @@ useEffect(() => {
 
   const FECHA_INICIO_SERIE_REGULAR = "2026-09-05";
 
+  // La fase guardada en Supabase es la fuente oficial. Los partidos
+  // de finales nunca se mezclan con la Serie Regular, aunque sean posteriores.
   const partidosFinalizadosSerieRegular = [...partidosActuales]
     .filter((partido) => {
       const fecha = String(partido.fecha ?? "").trim();
+      const fase = normalizarEstado(partido.fase ?? "serie_regular");
 
       return (
         fecha >= FECHA_INICIO_SERIE_REGULAR &&
+        fase === "serie_regular" &&
         normalizarEstado(partido.estado) === "finalizado"
       );
     })
@@ -351,6 +359,18 @@ useEffect(() => {
       return String(a.id).localeCompare(String(b.id), undefined, {
         numeric: true,
       });
+    });
+
+  const partidosFinalizadosFinales = [...partidosActuales]
+    .filter(
+      (partido) =>
+        normalizarEstado(partido.fase) === "finales" &&
+        normalizarEstado(partido.estado) === "finalizado"
+    )
+    .sort((a, b) => {
+      const diferencia = obtenerFechaHoraPartido(a) - obtenerFechaHoraPartido(b);
+      if (diferencia !== 0) return diferencia;
+      return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
     });
 
   /*
@@ -519,6 +539,15 @@ useEffect(() => {
           0
     );
 
+  const resumenesPartidosFinales = partidosFinalizadosFinales
+    .map(construirResumenDePartido)
+    .filter(
+      (resumen) =>
+        resumen.jugadoresPartido.length > 0 &&
+        Number(resumen.partido.puntosLocal ?? 0) +
+          Number(resumen.partido.puntosVisitante ?? 0) > 0
+    );
+
   const indiceResumenSeleccionado = resumenesPartidos.length - 1;
   const resumenSeleccionado =
     indiceResumenSeleccionado >= 0
@@ -591,10 +620,14 @@ useEffect(() => {
   // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
   // Así se muestran siempre los 4 equipos, aunque el último partido
   // general solo haya enfrentado a 2 de ellos.
-  const jugadoresDestacadosPorEquipo = equipos.map((equipo) => {
+  const equiposFinalistas = equipos.filter((equipo) =>
+    ["gladiadores", "espartanos"].includes(normalizarEquipo(equipo.nombre))
+  );
+
+  const jugadoresDestacadosPorEquipo = equiposFinalistas.map((equipo) => {
     const equipoNormalizado = normalizarEquipo(equipo.nombre);
 
-    const resumenDelEquipo = [...resumenesPartidos]
+    const resumenDelEquipo = [...resumenesPartidosFinales]
       .reverse()
       .find((resumen) =>
         resumen.jugadoresPartido.some(
@@ -787,6 +820,11 @@ useEffect(() => {
   );
 
 const ultimosResultados = resumenesPartidos
+  .map((resumen) => resumen.partido)
+  .slice(-3)
+  .reverse();
+
+const resultadosFinales = resumenesPartidosFinales
   .map((resumen) => resumen.partido)
   .slice(-3)
   .reverse();
@@ -1175,9 +1213,9 @@ const ultimosResultados = resumenesPartidos
   🏀 LOS PROTAGONISTAS
 </h2>
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
-  {partidoResumen
-    ? `Jornada ${numeroJornadaResumen} · Último partido finalizado`
-    : "Serie Regular · Pendiente"}
+  {resultadosFinales.length > 0
+    ? "Finales · Protagonistas de Gladiadores y Espartanos"
+    : "Finales · Pendiente de estadísticas"}
 </p>
     </div>
 
@@ -1420,6 +1458,35 @@ const ultimosResultados = resumenesPartidos
 </div>
 
 </div>
+
+{resultadosFinales.length > 0 && (
+  <section className="mt-8 rounded-2xl border border-amber-300 bg-slate-950 p-5 text-white shadow-xl">
+    <div className="mb-5 text-center">
+      <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">LIBAVIME 2026</p>
+      <h2 className="mt-1 text-2xl font-black md:text-3xl">🏆 RESULTADOS DE LAS FINALES</h2>
+      <p className="mt-1 text-sm font-semibold text-slate-300">Serie final · Gladiadores vs. Espartanos</p>
+    </div>
+    <div className="grid gap-3 md:grid-cols-2">
+      {resultadosFinales.map((partido) => (
+        <div key={partido.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 text-center">
+              <p className="text-sm font-black">{partido.local}</p>
+              <p className="text-3xl font-black text-white">{partido.puntosLocal}</p>
+            </div>
+            <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-950">FINAL</span>
+            <div className="flex-1 text-center">
+              <p className="text-sm font-black">{partido.visitante}</p>
+              <p className="text-3xl font-black text-white">{partido.puntosVisitante}</p>
+            </div>
+          </div>
+          <p className="mt-2 text-center text-xs text-slate-400">{partido.fecha}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
 {/* =========================================================
     JUGADORES DESTACADOS
 ========================================================= */}
