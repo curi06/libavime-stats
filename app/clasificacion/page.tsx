@@ -24,7 +24,8 @@ export default async function ClasificacionPage() {
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
-    .eq("estado", "Finalizado");
+    .eq("estado", "Finalizado")
+    .eq("fase", "serie_regular");
 
   const partidos = (data ?? []) as Partido[];
 
@@ -194,11 +195,11 @@ export default async function ClasificacionPage() {
             </p>
 
             <h1 className="mt-2 text-4xl font-black text-blue-950 md:text-5xl">
-              🏆 TABLA DE POSICIONES
+              🏆 TABLA DE POSICIONES · SERIE REGULAR
             </h1>
 
             <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-              Clasificación oficial actualizada automáticamente con los partidos finalizados.
+              Clasificación oficial de la Serie Regular. Los resultados de las finales se muestran por separado.
             </p>
           </header>
 
