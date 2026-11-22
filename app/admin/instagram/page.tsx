@@ -10,7 +10,8 @@ type Tipo =
   | "lideres"
   | "posiciones"
   | "destacados"
-  | "mvp";
+  | "mvp"
+  | "finales";
 type Formato = "historia" | "post";
 type Categoria = "puntos" | "rebotes" | "asistencias";
 
@@ -1056,7 +1057,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
             ? "Líder en rebotes"
             : "Líder en asistencias"
         : "";
-      const titulo = `LIBAVIME ${tipo} - ${esHistoria ? "Historia" : "Post"}${
+      const titulo = `LIBAVIME ${tipo === "finales" ? "Gran Final 1-1" : tipo} - ${esHistoria ? "Historia" : "Post"}${
         tipo === "jugador" && jugador
           ? ` - ${jugador.nombre}`
           : tipo === "lideres" && liderSeleccionado?.jugador
@@ -1156,6 +1157,7 @@ if (!respuesta.ok) {
   ["posiciones", "Posiciones"],
   ["destacados", "Destacados de la jornada"],
   ["mvp", "Candidatos MVP"],
+  ["finales", "Finales"],
 ] as [Tipo, string][]).map(([valor, texto]) => (
                   <button
                     key={valor}
@@ -2651,6 +2653,109 @@ i === 0
                 )}
 
 
+{tipo === "finales" && (
+  <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center">
+    <p className={`mt-0 text-center font-black tracking-[0.24em] text-red-400 ${
+      formato === "post" ? "text-[8px]" : "text-xs"
+    }`}>
+      CAMPEONATO LIBAVIME 2026
+    </p>
+
+    <h2 className={`mt-1 text-center font-black uppercase leading-none tracking-[0.12em] text-white ${
+      formato === "post" ? "text-[23px]" : "text-4xl"
+    }`}>
+      LA GRAN FINAL
+    </h2>
+
+    <p className={`mt-1 text-center font-bold uppercase tracking-[0.18em] text-slate-300 ${
+      formato === "post" ? "text-[8px]" : "text-[10px]"
+    }`}>
+      TABLA DE LA SERIE
+    </p>
+
+    <div
+      className={`mt-3 w-full shrink-0 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-[#172b4d]/95 via-[#0b1730]/95 to-[#172b4d]/95 text-center shadow-[0_0_24px_rgba(212,175,55,0.20)] ${
+        formato === "post" ? "px-3 py-1.5" : "px-5 py-4"
+      }`}
+    >
+      <p className={`font-black uppercase tracking-[0.24em] text-amber-300 ${
+        formato === "post" ? "text-[8px]" : "text-[10px]"
+      }`}>
+        MARCADOR GLOBAL
+      </p>
+
+      <div className={`mt-1 flex items-center justify-center gap-4 font-black leading-none ${
+        formato === "post" ? "text-4xl" : "text-6xl"
+      }`}>
+        <span className="text-white">1</span>
+        <span className="text-amber-300">—</span>
+        <span className="text-white">1</span>
+      </div>
+
+      <p className={`mt-1 font-black uppercase tracking-[0.16em] text-slate-200 ${
+        formato === "post" ? "text-[8px]" : "text-[10px]"
+      }`}>
+        GLADIADORES <span className="text-red-400">VS</span> ESPARTANOS
+      </p>
+    </div>
+
+    <div className={`w-full shrink-0 overflow-hidden rounded-xl border border-white/15 bg-[#050b17]/95 shadow-[0_8px_24px_rgba(0,0,0,0.30)] ${
+      formato === "post" ? "mt-2" : "mt-5"
+    }`}>
+      <div className={`grid grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,0.55fr))] items-center gap-1 bg-red-600 font-black uppercase text-white ${
+        formato === "post" ? "px-2 py-2 text-[8px]" : "px-3 py-3 text-[10px]"
+      }`}>
+        <span>EQUIPO</span>
+        <span className="text-center">PJ</span>
+        <span className="text-center">PG</span>
+        <span className="text-center">PP</span>
+      </div>
+
+      {[
+        { nombre: "GLADIADORES", pj: 2, pg: 1, pp: 1 },
+        { nombre: "ESPARTANOS", pj: 2, pg: 1, pp: 1 },
+      ].map((equipo, indice) => (
+        <div
+          key={equipo.nombre}
+          className={`grid grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,0.55fr))] items-center gap-1 border-t border-white/10 text-white ${
+            formato === "post" ? "px-2 py-2" : "px-3 py-4"
+          } ${indice === 0 ? "bg-white/[0.07]" : "bg-black/20"}`}
+        >
+          <span className={`font-black leading-tight tracking-wide ${
+            formato === "post" ? "text-[9px]" : "text-xs"
+          }`}>
+            {equipo.nombre}
+          </span>
+          {[equipo.pj, equipo.pg, equipo.pp].map((valor, i) => (
+            <span
+              key={`${equipo.nombre}-${i}`}
+              className={`text-center font-black tabular-nums ${
+                formato === "post" ? "text-sm" : "text-base"
+              } ${i === 1 ? "text-emerald-300" : i === 2 ? "text-red-300" : "text-white"}`}
+            >
+              {valor}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+
+    <div className={`mt-2 w-full shrink-0 rounded-xl border border-amber-300/50 bg-gradient-to-r from-[#261d0b]/95 via-[#172b4d]/95 to-[#261d0b]/95 text-center shadow-[0_0_18px_rgba(212,175,55,0.18)] ${
+      formato === "post" ? "px-2 py-1.5" : "px-4 py-4"
+    }`}>
+      <p className={`font-black uppercase tracking-[0.22em] text-amber-300 ${
+        formato === "post" ? "text-[8px]" : "text-[10px]"
+      }`}>
+        PRÓXIMO PARTIDO · JUEGO DECISIVO
+      </p>
+      <p className={`mt-1 font-black uppercase leading-tight text-white ${
+        formato === "post" ? "text-[12px]" : "text-xl"
+      }`}>
+        ¡QUIEN GANA, LEVANTA LA COPA!
+      </p>
+    </div>
+  </div>
+)}
 
 
 {tipo === "destacados" && (
