@@ -8,12 +8,13 @@ import { supabase } from "@/lib/supabase";
 
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [faseSeleccionada]);
 
   async function cargarDatos() {
     setCargando(true);
@@ -60,7 +61,8 @@ export default function Estadisticas() {
       supabase
         .from("partidos")
         .select("*")
-        .eq("estado", "Finalizado"),
+        .eq("estado", "Finalizado")
+        .eq("fase", faseSeleccionada),
     ]);
 
     if (jugadoresError) {
@@ -156,7 +158,7 @@ export default function Estadisticas() {
 });
 
     const jugadoresConEstadisticas =
-      (jugadoresData ?? []).map((jugador: any) => {
+      (jugadoresData ?? []).filter((jugador: any) => acumuladosPorJugador.has(Number(jugador.id))).map((jugador: any) => {
         const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
         const partidosJugados = acumulado?.partidos.size ?? 0;
@@ -1463,9 +1465,18 @@ export default function Estadisticas() {
 
           {/* TÍTULO */}
 
-          <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-8">
+          <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-4">
             📊 Estadísticas LIBAVIME
           </h1>
+
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            <button type="button" onClick={() => setFaseSeleccionada("serie_regular")} className={`rounded-xl px-6 py-3 font-bold shadow transition ${faseSeleccionada === "serie_regular" ? "bg-blue-900 text-white" : "bg-white text-blue-900 border border-blue-200"}`}>
+              Serie Regular
+            </button>
+            <button type="button" onClick={() => setFaseSeleccionada("finales")} className={`rounded-xl px-6 py-3 font-bold shadow transition ${faseSeleccionada === "finales" ? "bg-blue-900 text-white" : "bg-white text-blue-900 border border-blue-200"}`}>
+              Finales
+            </button>
+          </div>
 
           {/* MENSAJE DE ERROR */}
 
@@ -1481,7 +1492,7 @@ export default function Estadisticas() {
 
             <div className="text-center mb-6">
               <h2 className="text-2xl md:text-4xl font-black text-blue-900">
-                🏀 Estadísticas de Jugadores
+                🏀 Estadísticas de Jugadores — {faseSeleccionada === "finales" ? "Finales" : "Serie Regular"}
               </h2>
               <button
   type="button"
