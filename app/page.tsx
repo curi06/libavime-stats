@@ -90,9 +90,10 @@ useEffect(() => {
       (partidosData ?? [])
         .filter(
           (partido: any) =>
-            String(partido.estado ?? "")
-              .trim()
-              .toLowerCase() === "finalizado"
+            String(partido.estado ?? "").trim().toLowerCase() === "finalizado" &&
+            String(partido.fase ?? "").trim().toLowerCase() === "finales" &&
+            ["gladiadores", "espartanos"].includes(String(partido.equipo_local ?? "").trim().toLowerCase()) &&
+            ["gladiadores", "espartanos"].includes(String(partido.equipo_visitante ?? "").trim().toLowerCase())
         )
         .map((partido: any) => Number(partido.id))
     );
@@ -137,8 +138,10 @@ useEffect(() => {
       acumulado.asistencias += Number(registro.asistencias) || 0;
     });
 
-    const jugadoresConEstadisticas = (jugadoresData ?? []).map(
-      (jugador: any) => {
+    const jugadoresConEstadisticas = (jugadoresData ?? [])
+      .filter((jugador: any) => acumuladosPorJugador.has(Number(jugador.id)))
+      .filter((jugador: any) => ["gladiadores", "espartanos"].includes(String(jugador.equipo ?? "").trim().toLowerCase()))
+      .map((jugador: any) => {
         const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
         const partidosJugados = acumulado?.partidos.size ?? 0;
