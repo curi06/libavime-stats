@@ -2937,7 +2937,7 @@ i === 0
 
   return (
     <div
-      className={`relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-none flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl ${formato === "post" ? "h-[850px]" : "h-[1450px]"}`}
+      className={`relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-none flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl ${formato === "post" ? "h-[330px]" : "h-[520px]"}`}
       style={{
         borderColor: color.borde,
         background: `linear-gradient(145deg, ${color.fondo} 0%, #07152e 100%)`,
@@ -2962,7 +2962,7 @@ i === 0
       </div>
 
       <div
-        className="relative mx-auto mt-1 min-h-0 w-full flex-1 overflow-hidden rounded-2xl border bg-[#061326]/50"
+        className={`relative mx-auto mt-1 w-full shrink-0 overflow-hidden rounded-2xl border bg-[#061326]/50 ${formato === "post" ? "h-[165px]" : "h-[270px]"}`}
         style={{ borderColor: color.borde, touchAction: "none", cursor: "grab" }}
         onPointerDown={(evento) => iniciarArrastreFoto(evento, ajusteFoto)}
         onPointerMove={moverArrastreFoto}
@@ -2977,9 +2977,9 @@ i === 0
             draggable={false}
             className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
             style={{
-              width: `${90 * ajusteFoto.zoom}%`,
+              width: `${86 * ajusteFoto.zoom}%`,
               height: "auto",
-              top: `calc(45% + ${ajusteFoto.y}px)`,
+              top: `calc(42% + ${ajusteFoto.y}px)`,
               transform: `translate(calc(-50% + ${ajusteFoto.x}px), -50%)`,
               transformOrigin: "center center",
             }}
@@ -2996,7 +2996,17 @@ i === 0
         <p className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: color.acento }}>
           JUGADOR DESTACADO
         </p>
-        <h2 className="mt-0.5 text-lg font-black uppercase leading-tight">{jugador.nombre}</h2>
+        <h2
+          className="mt-0.5 px-1 text-center text-[21px] font-black uppercase leading-tight tracking-[0.04em]"
+          style={{
+            fontFamily: "Arial Black, Impact, sans-serif",
+            color: "#FFF0A6",
+            WebkitTextStroke: "0.8px #422006",
+            textShadow: "0 2px 0 #422006, 0 3px 7px rgba(0,0,0,0.75)",
+          }}
+        >
+          {jugador.nombre}
+        </h2>
       </div>
 
       <div className={`mt-1 grid shrink-0 grid-cols-3 ${formato === "historia" ? "gap-2" : "gap-1"}`}>
