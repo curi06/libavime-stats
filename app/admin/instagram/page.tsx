@@ -3000,9 +3000,18 @@ i === 0
           className="mt-0.5 px-1 text-center text-[21px] font-black uppercase leading-tight tracking-[0.04em]"
           style={{
             fontFamily: "Arial Black, Impact, sans-serif",
-            color: "#FFF0A6",
-            WebkitTextStroke: "0.8px #422006",
-            textShadow: "0 2px 0 #422006, 0 3px 7px rgba(0,0,0,0.75)",
+            fontWeight: 900,
+            letterSpacing: "0.045em",
+            backgroundImage:
+              "linear-gradient(180deg, #fff8d6 0%, #f3d36b 16%, #b77b16 34%, #ffe99a 49%, #c28a24 64%, #f8dc83 82%, #8d5c12 100%)",
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            color: "transparent",
+            WebkitTextFillColor: "transparent",
+            WebkitTextStroke: "1.35px #080808",
+            textShadow:
+              "0 1px 0 #000000, 0 2px 0 rgba(0,0,0,0.95), 0 3px 5px rgba(0,0,0,0.85)",
+            filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.65))",
           }}
         >
           {jugador.nombre}
