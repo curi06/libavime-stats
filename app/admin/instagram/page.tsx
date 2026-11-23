@@ -1714,8 +1714,8 @@ if (!respuesta.ok) {
             </label>
             <input
               type="range"
-              min="-80"
-              max="80"
+              min="-180"
+              max="180"
               step="1"
               value={ajuste.x}
               onChange={(e) => actualizar("x", Number(e.target.value))}
@@ -1729,8 +1729,8 @@ if (!respuesta.ok) {
             </label>
             <input
               type="range"
-              min="-100"
-              max="100"
+              min="-260"
+              max="260"
               step="1"
               value={ajuste.y}
               onChange={(e) => actualizar("y", Number(e.target.value))}
@@ -2291,7 +2291,7 @@ if (!respuesta.ok) {
 <button
   type="button"
   onClick={() => guardarEnGaleria(true)}
-  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)}
   className="mt-3 w-full rounded-xl bg-blue-950 px-5 py-4 font-black text-white shadow-lg hover:bg-blue-900 disabled:opacity-50"
 >
   {publicando ? "Publicando diseño…" : "Publicar en la galería"}
