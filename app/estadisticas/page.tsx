@@ -3,7 +3,7 @@
 import Navbar from "../components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../../data/equipos";
 
@@ -12,6 +12,8 @@ export default function Estadisticas() {
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
   const [vistaSeleccionada, setVistaSeleccionada] = useState<"estadisticas" | "destacados">("estadisticas");
   const [jugadoresDestacadosPorEquipo, setJugadoresDestacadosPorEquipo] = useState<any[]>([]);
+  const [jugadorExportandoId, setJugadorExportandoId] = useState<string | null>(null);
+  const tarjetasDestacadosRef = useRef<Record<string, HTMLDivElement | null>>({});
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
@@ -1543,6 +1545,69 @@ export default function Estadisticas() {
     }
   }
 
+
+  async function descargarTarjetaDestacada(
+    jugador: any,
+    equipo: any,
+    indice: number
+  ) {
+    const tarjetaId = `${equipo.slug ?? equipo.nombre}-${jugador.id}`;
+    const tarjeta = tarjetasDestacadosRef.current[tarjetaId];
+
+    if (!tarjeta) {
+      alert("No se pudo preparar la tarjeta de este jugador.");
+      return;
+    }
+
+    setJugadorExportandoId(tarjetaId);
+
+    try {
+      const { toPng } = await import("html-to-image");
+
+      // Esperar a que las fotografías estén listas antes de capturar el diseño.
+      const imagenes = Array.from(tarjeta.querySelectorAll("img"));
+      await Promise.all(
+        imagenes.map(
+          (imagen) =>
+            new Promise<void>((resolve) => {
+              if (imagen.complete) {
+                resolve();
+                return;
+              }
+
+              imagen.addEventListener("load", () => resolve(), { once: true });
+              imagen.addEventListener("error", () => resolve(), { once: true });
+            })
+        )
+      );
+
+      const imagenGenerada = await toPng(tarjeta, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0f172a",
+      });
+
+      const limpiarNombre = (valor: string) =>
+        valor
+          .normalize("NFD")
+          .replace(/[\\u0300-\\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9]+/g, "_")
+          .replace(/^_|_$/g, "");
+
+      const enlace = document.createElement("a");
+      enlace.download = `LIBAVIME_${limpiarNombre(equipo.nombre)}_${limpiarNombre(jugador.nombre)}.png`;
+      enlace.href = imagenGenerada;
+      enlace.click();
+    } catch (error) {
+      console.error("Error generando tarjeta del jugador:", error);
+      alert(
+        "No se pudo generar la imagen. Verifica que la fotografía del jugador esté disponible e inténtalo nuevamente."
+      );
+    } finally {
+      setJugadorExportandoId(null);
+    }
+  }
+
   if (cargando) {
     return (
       <>
@@ -1613,35 +1678,36 @@ export default function Estadisticas() {
                   <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
                 </div>
 
+
                 {jugadoresDestacadosPorEquipo.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                  <div className="space-y-10">
                     {jugadoresDestacadosPorEquipo.map((equipo) => {
                       const colores: Record<string, { fondo: string; borde: string; brillo: string; texto: string; textoSuave: string }> = {
                         Gladiadores: {
                           fondo: "from-green-950 via-green-800 to-green-600",
                           borde: "border-green-400",
-                          brillo: "bg-green-400/20",
+                          brillo: "bg-green-300/25",
                           texto: "text-white",
                           textoSuave: "text-green-100",
                         },
                         Vikingos: {
                           fondo: "from-purple-950 via-purple-800 to-purple-600",
                           borde: "border-purple-400",
-                          brillo: "bg-purple-400/20",
+                          brillo: "bg-purple-300/25",
                           texto: "text-white",
                           textoSuave: "text-purple-100",
                         },
                         Titanes: {
                           fondo: "from-red-950 via-red-800 to-red-600",
                           borde: "border-red-400",
-                          brillo: "bg-red-400/20",
+                          brillo: "bg-red-300/25",
                           texto: "text-white",
                           textoSuave: "text-red-100",
                         },
                         Espartanos: {
                           fondo: "from-yellow-700 via-yellow-500 to-yellow-300",
                           borde: "border-yellow-300",
-                          brillo: "bg-white/20",
+                          brillo: "bg-white/25",
                           texto: "text-slate-950",
                           textoSuave: "text-slate-800",
                         },
@@ -1649,91 +1715,143 @@ export default function Estadisticas() {
                       const color = colores[equipo.nombre] ?? colores.Gladiadores;
 
                       return (
-                        <div
-                          key={equipo.nombre}
-                          className={`group relative overflow-hidden rounded-[2rem] border-2 ${color.borde} bg-gradient-to-br ${color.fondo} shadow-2xl transition-all duration-500 hover:-translate-y-2`}
-                        >
-                          <div className={`absolute -right-16 -top-16 h-48 w-48 rounded-full ${color.brillo} blur-2xl`} />
-                          <div className={`absolute -left-20 -bottom-20 h-56 w-56 rounded-full ${color.brillo} blur-3xl`} />
-
-                          <div className="relative px-5 pt-6 md:px-7 md:pt-7">
-                            <div className="flex flex-col items-center text-center">
-                              <div className={`relative h-24 w-24 md:h-28 md:w-28 overflow-hidden rounded-3xl bg-white p-2 shadow-2xl ring-4 ${equipo.nombre === "Gladiadores" ? "ring-green-300" : equipo.nombre === "Vikingos" ? "ring-purple-300" : equipo.nombre === "Titanes" ? "ring-red-300" : "ring-yellow-200"}`}>
-                                <Image src={equipo.logo} alt={equipo.nombre} fill sizes="112px" className="object-contain p-2" />
-                              </div>
-                              <p className={`mt-4 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] ${color.textoSuave}`}>EQUIPO</p>
-                              <h3 className={`mt-1 text-3xl md:text-4xl font-black uppercase tracking-tight ${color.texto}`}>{equipo.nombre}</h3>
-                              <div className={`mt-3 h-1 w-20 rounded-full ${equipo.nombre === "Gladiadores" ? "bg-green-300" : equipo.nombre === "Vikingos" ? "bg-purple-300" : equipo.nombre === "Titanes" ? "bg-red-300" : "bg-yellow-200"}`} />
-                              <p className={`mt-3 text-[10px] md:text-xs font-black uppercase tracking-[0.18em] ${color.textoSuave}`}>⭐ LOS PROTAGONISTAS DE LA JORNADA</p>
+                        <section key={equipo.nombre}>
+                          <div className="mb-5 flex flex-col items-center justify-center gap-2 text-center sm:flex-row sm:gap-4">
+                            <div className="relative h-12 w-12 overflow-hidden rounded-xl bg-white p-1 shadow">
+                              <Image
+                                src={equipo.logo}
+                                alt={equipo.nombre}
+                                fill
+                                sizes="48px"
+                                className="object-contain p-1"
+                              />
                             </div>
-                            <div className={`mt-5 border-t ${equipo.nombre === "Espartanos" ? "border-black/10" : "border-white/20"}`} />
+                            <div>
+                              <h3 className="text-2xl font-black uppercase tracking-wide text-blue-950">
+                                {equipo.nombre}
+                              </h3>
+                              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                                Dos jugadores destacados · Tarjetas individuales
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 md:p-7">
+                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-2">
                             {equipo.jugadoresDestacados.map((jugador: any, index: number) => {
                               const fotoJugador =
-                                jugador.foto && (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
+                                jugador.foto &&
+                                (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
                                   ? jugador.foto
                                   : "/logos/LIBAVIME.png";
                               const primero = index === 0;
+                              const tarjetaId = `${equipo.slug ?? equipo.nombre}-${jugador.id}`;
 
                               return (
-                                <Link
-                                  key={jugador.id}
-                                  href={jugador.slug ? `/jugadores/${jugador.slug}` : "#"}
-                                  className="block"
-                                >
-                                  <div className={`relative h-full overflow-hidden rounded-2xl border backdrop-blur-sm p-4 transition-all duration-300 hover:scale-[1.03] hover:bg-black/30 ${equipo.nombre === "Espartanos" ? "border-black/10 bg-black/10" : "border-white/20 bg-black/20"}`}>
-                                    <div className="absolute left-3 top-3 z-20">
-                                      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-lg shadow-xl ${primero ? "bg-yellow-400" : "bg-slate-200"}`}>
-                                        {primero ? "🥇" : "🥈"}
+                                <div key={tarjetaId} className="mx-auto w-full max-w-[430px]">
+                                  {/* DISEÑO INDIVIDUAL: solo aparece un jugador por tarjeta. */}
+                                  <div
+                                    ref={(nodo) => {
+                                      tarjetasDestacadosRef.current[tarjetaId] = nodo;
+                                    }}
+                                    className={`relative isolate overflow-hidden rounded-[2rem] border-2 ${color.borde} bg-gradient-to-br ${color.fondo} px-6 py-7 shadow-2xl`}
+                                  >
+                                    <div className={`pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full ${color.brillo} blur-3xl`} />
+                                    <div className={`pointer-events-none absolute -bottom-16 -left-12 h-52 w-52 rounded-full ${color.brillo} blur-3xl`} />
+
+                                    <div className="relative">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                          <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white p-1.5 shadow-lg">
+                                            <Image
+                                              src={equipo.logo}
+                                              alt={equipo.nombre}
+                                              fill
+                                              sizes="56px"
+                                              className="object-contain p-1.5"
+                                            />
+                                          </div>
+                                          <div>
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.25em] ${color.textoSuave}`}>
+                                              LIBAVIME 2026
+                                            </p>
+                                            <p className={`mt-1 text-sm font-black uppercase tracking-wider ${color.texto}`}>
+                                              {equipo.nombre}
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className={`rounded-full px-4 py-2 text-xs font-black shadow-lg ${primero ? "bg-yellow-300 text-yellow-950" : "bg-white text-slate-900"}`}>
+                                          {primero ? "🥇 TOP 1" : "🥈 TOP 2"}
+                                        </div>
                                       </div>
-                                    </div>
 
-                                    <div className="flex justify-center pt-2">
-                                      <div className={`relative h-36 w-36 md:h-44 md:w-44 overflow-hidden rounded-full border-4 ${primero ? "border-yellow-300" : "border-white/70"} bg-white/20 shadow-2xl transition-transform duration-500 group-hover:scale-105`}>
-                                        <Image
-                                          src={fotoJugador}
-                                          unoptimized
-                                          alt={jugador.nombre || "Jugador LIBAVIME"}
-                                          fill
-                                          sizes="192px"
-                                          className={`object-cover transition-transform duration-500 ${primero ? "scale-[1.38] object-[center_38%]" : "scale-[1.32] object-[center_38%]"}`}
-                                        />
+                                      <div className="mt-7 flex justify-center">
+                                        <div className={`relative h-52 w-52 overflow-hidden rounded-full border-[6px] ${primero ? "border-yellow-300" : "border-white/80"} bg-white/20 shadow-2xl`}>
+                                          <Image
+                                            src={fotoJugador}
+                                            unoptimized
+                                            crossOrigin="anonymous"
+                                            alt={jugador.nombre || "Jugador LIBAVIME"}
+                                            fill
+                                            sizes="208px"
+                                            className={`object-cover ${primero ? "scale-[1.38] object-[center_38%]" : "scale-[1.32] object-[center_38%]"}`}
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
 
-                                    <div className="mt-5 text-center">
-                                      <h4 className={`text-lg md:text-xl font-black leading-tight ${color.texto}`}>{jugador.nombre}</h4>
-                                      <p className={`mt-2 inline-flex items-center justify-center rounded-full px-4 py-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md ${equipo.nombre === "Espartanos" ? "bg-yellow-300 text-yellow-950" : "bg-yellow-400 text-slate-950"}`}>
-                                        ⭐ JUGADOR DESTACADO
-                                      </p>
+                                      <div className="mt-6 text-center">
+                                        <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${color.textoSuave}`}>
+                                          JUGADOR DESTACADO DE LA JORNADA
+                                        </p>
+                                        <h4 className={`mt-2 text-2xl font-black leading-tight md:text-3xl ${color.texto}`}>
+                                          {jugador.nombre}
+                                        </h4>
+                                        <div className="mx-auto mt-3 h-1 w-20 rounded-full bg-yellow-300" />
+                                      </div>
 
-                                      <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
+                                      <div className="mt-7 grid grid-cols-3 gap-3">
                                         {[
-                                          { label: "PTS", value: Number(jugador.puntosPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-blue-700" : "text-blue-200", valueColor: equipo.nombre === "Espartanos" ? "text-blue-950" : "text-white" },
-                                          { label: "REB", value: Number(jugador.rebotesPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-green-700" : "text-green-200", valueColor: equipo.nombre === "Espartanos" ? "text-green-950" : "text-white" },
-                                          { label: "AST", value: Number(jugador.asistenciasPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-orange-700" : "text-orange-200", valueColor: equipo.nombre === "Espartanos" ? "text-orange-950" : "text-white" },
-                                        ].map((stat) => (
-                                          <div key={stat.label} className={`min-w-0 min-h-[78px] rounded-xl px-2 py-3 md:px-3 flex flex-col items-center justify-center ${stat.bg}`}>
-                                            <p className={`text-[9px] md:text-[10px] font-black tracking-wide ${stat.labelColor}`}>{stat.label}</p>
-                                            <p className={`mt-1 text-xl md:text-2xl font-black leading-none whitespace-nowrap ${stat.valueColor}`}>{stat.value}</p>
+                                          { label: "PUNTOS", corto: "PTS", valor: Number(jugador.puntosPartido || 0), color: "text-blue-700" },
+                                          { label: "REBOTES", corto: "REB", valor: Number(jugador.rebotesPartido || 0), color: "text-green-700" },
+                                          { label: "ASISTENCIAS", corto: "AST", valor: Number(jugador.asistenciasPartido || 0), color: "text-orange-700" },
+                                        ].map((estadistica) => (
+                                          <div key={estadistica.corto} className="flex min-h-[92px] flex-col items-center justify-center rounded-2xl bg-white/90 px-2 py-3 text-center shadow-lg">
+                                            <p className={`text-[9px] font-black tracking-wide sm:text-[10px] ${estadistica.color}`}>
+                                              {estadistica.label}
+                                            </p>
+                                            <p className={`mt-2 text-3xl font-black leading-none text-slate-950 sm:text-4xl`}>
+                                              {estadistica.valor}
+                                            </p>
                                           </div>
                                         ))}
                                       </div>
+
+                                      <div className={`mt-7 border-t pt-4 text-center ${equipo.nombre === "Espartanos" ? "border-black/20" : "border-white/30"}`}>
+                                        <p className={`text-[10px] font-black uppercase tracking-[0.25em] ${color.textoSuave}`}>
+                                          LIGA DE BALONCESTO DE VISITADORES MÉDICOS
+                                        </p>
+                                        <p className={`mt-1 text-[9px] font-semibold ${color.textoSuave}`}>
+                                          TORNEO LIBAVIME 2026
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                </Link>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => descargarTarjetaDestacada(jugador, equipo, index)}
+                                    disabled={jugadorExportandoId !== null}
+                                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                                  >
+                                    {jugadorExportandoId === tarjetaId
+                                      ? "GENERANDO IMAGEN..."
+                                      : "📥 DESCARGAR TARJETA INDIVIDUAL"}
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
-
-                          <div className="relative px-5 pb-5 md:px-7 md:pb-7 text-center">
-                            <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.18em] ${color.textoSuave}`}>
-                              🏀 LOS PROTAGONISTAS DE LA JORNADA
-                            </p>
-                          </div>
-                        </div>
+                        </section>
                       );
                     })}
                   </div>
