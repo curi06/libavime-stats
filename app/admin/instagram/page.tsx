@@ -2950,8 +2950,8 @@ i === 0
         <p
           className="text-center text-[15px] font-black uppercase tracking-[0.20em]"
           style={{
-            color: equipo === "Espartanos" ? "#12345B" : color.texto,
-            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.28)" : "none",
+            color: "#FFFFFF",
+            textShadow: "0 1px 3px rgba(7,21,46,0.78)",
           }}
         >
           {equipo}
@@ -2965,8 +2965,8 @@ i === 0
         <p
           className="text-[9px] font-black uppercase tracking-[0.18em]"
           style={{
-            color: equipo === "Espartanos" ? "#12345B" : color.acento,
-            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.24)" : "none",
+            color: "#FFFFFF",
+            textShadow: "0 1px 3px rgba(7,21,46,0.78)",
           }}
         >
           JORNADA · {fechaJornada.split("-").reverse().join("/")}
@@ -3008,8 +3008,8 @@ i === 0
         <p
           className="text-[8px] font-black uppercase tracking-[0.2em]"
           style={{
-            color: equipo === "Espartanos" ? "#12345B" : color.acento,
-            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.24)" : "none",
+            color: "#FFFFFF",
+            textShadow: "0 1px 3px rgba(7,21,46,0.78)",
           }}
         >
           JUGADOR DESTACADO
