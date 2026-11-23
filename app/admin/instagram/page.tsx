@@ -2937,7 +2937,7 @@ i === 0
 
   return (
     <div
-      className="relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-1 flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl"
+      className={`relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-none flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl ${formato === "post" ? "h-[850px]" : "h-[1450px]"}`}
       style={{
         borderColor: color.borde,
         background: `linear-gradient(145deg, ${color.fondo} 0%, #07152e 100%)`,
@@ -2962,7 +2962,7 @@ i === 0
       </div>
 
       <div
-        className="relative mx-auto mt-1 min-h-[300px] w-full flex-1 overflow-hidden rounded-2xl border bg-[#061326]/50"
+        className="relative mx-auto mt-1 min-h-0 w-full flex-1 overflow-hidden rounded-2xl border bg-[#061326]/50"
         style={{ borderColor: color.borde, touchAction: "none", cursor: "grab" }}
         onPointerDown={(evento) => iniciarArrastreFoto(evento, ajusteFoto)}
         onPointerMove={moverArrastreFoto}
@@ -2977,9 +2977,10 @@ i === 0
             draggable={false}
             className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
             style={{
-              width: `${82 * ajusteFoto.zoom}%`,
+              width: `${90 * ajusteFoto.zoom}%`,
               height: "auto",
-              transform: `translate(calc(-50% + ${ajusteFoto.x}px), calc(-50% + ${ajusteFoto.y}px))`,
+              top: `calc(45% + ${ajusteFoto.y}px)`,
+              transform: `translate(calc(-50% + ${ajusteFoto.x}px), -50%)`,
               transformOrigin: "center center",
             }}
           />
