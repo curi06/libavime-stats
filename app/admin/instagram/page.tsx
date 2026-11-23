@@ -2947,7 +2947,13 @@ i === 0
       }}
     >
       <div className="relative flex h-7 shrink-0 items-center justify-center px-14">
-        <p className="text-center text-sm font-black uppercase tracking-[0.20em]">
+        <p
+          className="text-center text-[15px] font-black uppercase tracking-[0.20em]"
+          style={{
+            color: equipo === "Espartanos" ? "#12345B" : color.texto,
+            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.28)" : "none",
+          }}
+        >
           {equipo}
         </p>
         <span className="absolute right-0 top-0 rounded-full px-3 py-1 text-[9px] font-black text-slate-950 shadow" style={{ background: esPrimero ? "#fde047" : "#ffffff" }}>
@@ -2956,7 +2962,13 @@ i === 0
       </div>
 
       <div className="mt-1 flex shrink-0 justify-center">
-        <p className="text-[8px] font-black uppercase tracking-[0.18em]" style={{ color: color.acento }}>
+        <p
+          className="text-[9px] font-black uppercase tracking-[0.18em]"
+          style={{
+            color: equipo === "Espartanos" ? "#12345B" : color.acento,
+            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.24)" : "none",
+          }}
+        >
           JORNADA · {fechaJornada.split("-").reverse().join("/")}
         </p>
       </div>
@@ -2993,11 +3005,17 @@ i === 0
       </div>
 
       <div className="mt-1 shrink-0 text-center">
-        <p className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: color.acento }}>
+        <p
+          className="text-[8px] font-black uppercase tracking-[0.2em]"
+          style={{
+            color: equipo === "Espartanos" ? "#12345B" : color.acento,
+            textShadow: equipo === "Espartanos" ? "0 1px 0 rgba(255,255,255,0.24)" : "none",
+          }}
+        >
           JUGADOR DESTACADO
         </p>
         <h2
-          className={`mt-0.5 w-full px-1 text-center font-black uppercase leading-tight tracking-[0.12em] ${formato === "post" ? "text-[20px]" : "text-[29px]"}`}
+          className={`mt-0.5 w-full px-1 text-center font-black uppercase leading-tight tracking-[0.12em] ${formato === "post" ? "text-[18px]" : "text-[25px]"}`}
           style={{
             fontFamily: "Arial, Helvetica, sans-serif",
             background:
