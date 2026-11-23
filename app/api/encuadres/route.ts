@@ -43,6 +43,23 @@ async function leerRespaldo() {
 
 export async function GET() {
   try {
+    // Los encuadres solo se consultan desde el editor administrativo.
+    const supabaseAuth = await crearSupabaseServidor();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "No autorizado. Inicia sesión para acceder al editor." },
+        {
+          status: 401,
+          headers: { "Cache-Control": "private, no-store" },
+        }
+      );
+    }
+
     const supabase = obtenerSupabaseServidor();
 
     const { data, error } = await supabase
@@ -60,10 +77,14 @@ export async function GET() {
     }
 
     if (data?.datos) {
-      return NextResponse.json(data.datos);
+      return NextResponse.json(data.datos, {
+        headers: { "Cache-Control": "private, no-store" },
+      });
     }
 
-    return NextResponse.json(await leerRespaldo());
+    return NextResponse.json(await leerRespaldo(), {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error("Error en GET de encuadres:", error);
     return NextResponse.json(
