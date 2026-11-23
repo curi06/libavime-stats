@@ -204,7 +204,7 @@ export default function Estadisticas() {
     const normalizarEquipo = (valor: unknown) =>
       String(valor ?? "")
         .normalize("NFD")
-        .replace(/[\\u0300-\\u036f]/g, "")
+        .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLowerCase();
 
