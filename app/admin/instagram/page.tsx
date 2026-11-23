@@ -2937,12 +2937,11 @@ i === 0
 
   return (
     <div
-      className="relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-none flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl"
+      className="relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-1 flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl"
       style={{
         borderColor: color.borde,
         background: `linear-gradient(145deg, ${color.fondo} 0%, #07152e 100%)`,
         color: color.texto,
-        maxHeight: formato === "post" ? "350px" : "470px",
         marginTop: "5px",
         marginBottom: "5px",
       }}
@@ -2963,7 +2962,7 @@ i === 0
       </div>
 
       <div
-        className={`relative mx-auto mt-1 w-full shrink-0 overflow-hidden rounded-2xl border bg-[#061326]/50 ${formato === "historia" ? "h-[195px]" : "h-[130px]"}`}
+        className="relative mx-auto mt-1 min-h-[300px] w-full flex-1 overflow-hidden rounded-2xl border bg-[#061326]/50"
         style={{ borderColor: color.borde, touchAction: "none", cursor: "grab" }}
         onPointerDown={(evento) => iniciarArrastreFoto(evento, ajusteFoto)}
         onPointerMove={moverArrastreFoto}
@@ -3344,8 +3343,8 @@ const ajusteFoto =
   ? "mt-auto pt-1 border-amber-400/40"
   : tipo === "destacados" && formato === "post"
     ? "mt-[-200px] pt-1"
-    : tipo === "destacado_individual"
-      ? "mt-1 pt-1"
+    : tipo === "destacado_individual" || (tipo === "destacados" && modoIndividualDestacado)
+      ? "mt-auto pt-1 pb-2"
     : tipo === "lideres" && formato === "post"
       ? "mt-0 pt-1"
       : "mt-1 pt-1"
