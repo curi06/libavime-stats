@@ -17,10 +17,33 @@ export default function Estadisticas() {
   const tarjetasDestacadosRef = useRef<Record<string, HTMLDivElement | null>>({});
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState(false);
+
 
   useEffect(() => {
     cargarDatos();
   }, [faseSeleccionada]);
+
+  // El enlace al editor solo se muestra a usuarios con una sesión activa.
+  // La protección real de la ruta se realiza además en el servidor.
+  useEffect(() => {
+    let activo = true;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (activo) setUsuarioAutenticado(Boolean(user));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_evento, session) => {
+      if (activo) setUsuarioAutenticado(Boolean(session?.user));
+    });
+
+    return () => {
+      activo = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function cargarDatos() {
     setCargando(true);
@@ -1954,12 +1977,14 @@ export default function Estadisticas() {
                                         ? "GENERANDO PUBLICACIÓN..."
                                         : "📸 DESCARGAR FEED (1080 × 1350)"}
                                     </button>
-                                    <Link
-                                      href={`/admin/instagram?tipo=destacados&fecha=${encodeURIComponent(jornadaActual.fecha)}&jugador=${encodeURIComponent(String(jugador.id))}&individual=1&formato=post`}
-                                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400 bg-amber-50 px-5 py-3 text-sm font-black text-amber-950 shadow transition hover:bg-amber-100"
-                                    >
-                                      🎨 EDITAR FOTO Y ENCUADRE
-                                    </Link>
+                                    {usuarioAutenticado && (
+                                      <Link
+                                        href={`/admin/instagram?tipo=destacados&fecha=${encodeURIComponent(jornadaActual.fecha)}&jugador=${encodeURIComponent(String(jugador.id))}&individual=1&formato=post`}
+                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400 bg-amber-50 px-5 py-3 text-sm font-black text-amber-950 shadow transition hover:bg-amber-100"
+                                      >
+                                        🎨 EDITAR FOTO Y ENCUADRE
+                                      </Link>
+                                    )}
                                   </div>
                                 </div>
                               );
