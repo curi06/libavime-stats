@@ -1766,7 +1766,15 @@ export default function Estadisticas() {
 
                 {jornadaActual && jornadaActual.equipos.length > 0 ? (
                   <div className="space-y-10">
-                    {jugadoresDestacadosPorEquipo.map((equipo) => {
+                    <div className="text-center">
+                      <p className="text-xl font-black uppercase tracking-wide text-blue-950">
+                        JORNADA {jornadaActual.numero}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-500">
+                        {jornadaActual.fecha.split("-").reverse().join("/")}
+                      </p>
+                    </div>
+                    {jornadaActual.equipos.map((equipo: any) => {
                       const colores: Record<string, { fondo: string; borde: string; brillo: string; texto: string; textoSuave: string }> = {
                         Gladiadores: {
                           fondo: "from-green-950 via-green-800 to-green-600",
