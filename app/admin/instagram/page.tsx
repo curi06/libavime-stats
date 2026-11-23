@@ -3003,15 +3003,16 @@ i === 0
             fontWeight: 900,
             letterSpacing: "0.045em",
             backgroundImage:
-              "linear-gradient(180deg, #fff8d6 0%, #f3d36b 16%, #b77b16 34%, #ffe99a 49%, #c28a24 64%, #f8dc83 82%, #8d5c12 100%)",
+              "linear-gradient(180deg, #ffffff 0%, #e8f5ff 18%, #b8cbd9 34%, #fffdf2 48%, #f4d98b 62%, #d7b45a 78%, #fff5d7 100%)",
             backgroundClip: "text",
             WebkitBackgroundClip: "text",
             color: "transparent",
             WebkitTextFillColor: "transparent",
-            WebkitTextStroke: "1.35px #080808",
+            WebkitTextStroke: "0.7px rgba(255,255,255,0.85)",
             textShadow:
-              "0 1px 0 #000000, 0 2px 0 rgba(0,0,0,0.95), 0 3px 5px rgba(0,0,0,0.85)",
-            filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.65))",
+              "0 0 2px rgba(255,255,255,0.9), 0 0 7px rgba(239,215,150,0.8), 0 2px 10px rgba(212,175,55,0.42)",
+            filter:
+              "drop-shadow(0 0 3px rgba(255,255,255,0.55)) drop-shadow(0 2px 5px rgba(212,175,55,0.38))",
           }}
         >
           {jugador.nombre}
