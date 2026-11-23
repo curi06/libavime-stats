@@ -155,6 +155,8 @@ function fotoValida(foto?: string | null) {
 
 export default function InstagramPage() {
   const [tipo, setTipo] = useState<Tipo>("jugador");
+  const [modoIndividualDestacado, setModoIndividualDestacado] = useState(false);
+  const arrastreFotoRef = useRef<{ pointerId: number; startX: number; startY: number; x: number; y: number; factor: number } | null>(null);
   const [formato, setFormato] = useState<Formato>("post");
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [encuadres, setEncuadres] = useState<Record<string, Encuadre>>({});
@@ -219,6 +221,26 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState("");
+
+  // Permite abrir el editor directamente desde una tarjeta de Estadísticas.
+  useEffect(() => {
+    const parametros = new URLSearchParams(window.location.search);
+    if (parametros.get("tipo") === "destacados") {
+      setTipo("destacados");
+    }
+    const fecha = parametros.get("fecha");
+    if (fecha) setFechaJornada(fecha);
+
+    const jugadorSeleccionado = parametros.get("jugador");
+    if (jugadorSeleccionado) setJugadorEncuadreId(jugadorSeleccionado);
+
+    setModoIndividualDestacado(parametros.get("individual") === "1");
+    const formatoParametro = parametros.get("formato");
+    if (formatoParametro === "historia" || formatoParametro === "post") {
+      setFormato(formatoParametro);
+    }
+  }, []);
+
 
 
   useEffect(() => {
@@ -517,6 +539,105 @@ const destacadosPorEquipo = useMemo(() => {
       .slice(0, 2),
   }));
 }, [destacadosJornada]);
+
+  const destacadoIndividual = useMemo(
+    () =>
+      destacadosJornada.find(
+        (jugador: any) => String(jugador.id) === jugadorEncuadreId
+      ) ?? null,
+    [destacadosJornada, jugadorEncuadreId]
+  );
+
+  useEffect(() => {
+    if (!modoIndividualDestacado || destacadosJornada.length === 0) return;
+
+    let seleccionado = destacadosJornada.find(
+      (jugador: any) => String(jugador.id) === jugadorEncuadreId
+    );
+
+    // Al cambiar de fecha, selecciona un destacado disponible de esa jornada.
+    if (!seleccionado) {
+      seleccionado = destacadosJornada[0];
+      setJugadorEncuadreId(String(seleccionado.id));
+    }
+
+    const indiceEquipo = NOMBRES_EQUIPOS.findIndex(
+      (nombre) => normalizar(nombre) === normalizar(seleccionado.equipo)
+    );
+    if (indiceEquipo >= 0) setEquipoDestacadoIndex(indiceEquipo);
+  }, [modoIndividualDestacado, destacadosJornada, jugadorEncuadreId]);
+
+  function actualizarEncuadreDestacado(
+    campo: "x" | "y" | "zoom",
+    valor: number
+  ) {
+    if (!jugadorEncuadreId) return;
+
+    setEncuadres((actual) => {
+      const anterior = actual[jugadorEncuadreId] ?? {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      };
+      const anteriorFormato = anterior[formato] ?? {
+        x: anterior.x ?? 0,
+        y: anterior.y ?? 0,
+        zoom: anterior.zoom ?? 1,
+      };
+
+      return {
+        ...actual,
+        [jugadorEncuadreId]: {
+          ...anterior,
+          [formato]: {
+            ...anteriorFormato,
+            [campo]: valor,
+          },
+        },
+      };
+    });
+  }
+
+  function iniciarArrastreFoto(evento: any, ajuste: AjusteFormato) {
+    if (evento.button !== undefined && evento.button !== 0) return;
+
+    const marco = arteRef.current?.getBoundingClientRect();
+    const factor = marco?.width ? ancho / marco.width : 1;
+
+    arrastreFotoRef.current = {
+      pointerId: evento.pointerId,
+      startX: evento.clientX,
+      startY: evento.clientY,
+      x: ajuste.x,
+      y: ajuste.y,
+      factor,
+    };
+
+    evento.currentTarget.setPointerCapture?.(evento.pointerId);
+  }
+
+  function moverArrastreFoto(evento: any) {
+    const arrastre = arrastreFotoRef.current;
+    if (!arrastre || arrastre.pointerId !== evento.pointerId) return;
+
+    const desplazamientoX = (evento.clientX - arrastre.startX) * arrastre.factor;
+    const desplazamientoY = (evento.clientY - arrastre.startY) * arrastre.factor;
+
+    actualizarEncuadreDestacado(
+      "x",
+      Math.max(-180, Math.min(180, Math.round(arrastre.x + desplazamientoX)))
+    );
+    actualizarEncuadreDestacado(
+      "y",
+      Math.max(-260, Math.min(260, Math.round(arrastre.y + desplazamientoY)))
+    );
+  }
+
+  function terminarArrastreFoto(evento: any) {
+    if (arrastreFotoRef.current?.pointerId === evento.pointerId) {
+      arrastreFotoRef.current = null;
+    }
+  }
 
   // Un ganador oficial por cada categoría estadística.
   const ganadoresPorCategoria = useMemo(() => {
@@ -1062,7 +1183,9 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
           ? ` - ${jugador.nombre}`
           : tipo === "lideres" && liderSeleccionado?.jugador
             ? ` - ${etiquetaLider} - ${liderSeleccionado.jugador.nombre}`
-            : ""
+            : tipo === "destacados" && modoIndividualDestacado
+              ? ` - Jornada ${fechaJornada} - ${destacadoIndividual?.nombre ?? "Jugador destacado"}`
+              : ""
       }`;
 
       const respuesta = await fetch("/api/disenos", {
@@ -1077,7 +1200,9 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
       ? jugador.nombre
       : tipo === "lideres"
         ? liderSeleccionado?.jugador?.nombre ?? null
-        : null,
+        : tipo === "destacados" && modoIndividualDestacado
+          ? destacadoIndividual?.nombre ?? null
+          : null,
   categoria:
     tipo === "lideres" && liderSeleccionado?.categoria
       ? `lider-${liderSeleccionado.categoria}`
@@ -1487,6 +1612,7 @@ if (!respuesta.ok) {
     <h3 className="font-black text-blue-950">
       Editor individual de jugadores
     </h3>
+    <p className="text-sm text-slate-600">Arrastra la foto directamente en la vista previa o utiliza estos controles para ajustarla y centrarla. Los cambios se guardan para el formato seleccionado.</p>
 
     <div>
       <label className="mb-2 block text-sm font-bold">
@@ -1629,6 +1755,17 @@ if (!respuesta.ok) {
 
           <button
             type="button"
+            onClick={() => {
+              actualizar("x", 0);
+              actualizar("y", 0);
+            }}
+            className="w-full rounded-xl border border-blue-950 bg-white px-4 py-3 font-bold text-blue-950 hover:bg-blue-50"
+          >
+            🎯 Centrar foto
+          </button>
+
+          <button
+            type="button"
             disabled={guardandoEncuadre}
             onClick={async () => {
               setGuardandoEncuadre(true);
@@ -1673,7 +1810,7 @@ if (!respuesta.ok) {
 
 
 
-{tipo === "destacados" && (
+{tipo === "destacados" && !modoIndividualDestacado && (
   <div className="space-y-4 rounded-xl border border-slate-200 p-4">
     <h3 className="font-black text-blue-950">
       Editor individual de jugadores
@@ -2128,7 +2265,8 @@ if (!respuesta.ok) {
   descargando ||
   (tipo === "jugador" && !jugador) ||
   (tipo === "mvp" && candidatosMVP.length === 0) ||
-  (tipo === "lideres" && !ganadoresPorCategoria.some(({ jugador }) => jugador))
+  (tipo === "lideres" && !ganadoresPorCategoria.some(({ jugador }) => jugador)) ||
+  (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)
 }
 
               className="w-full rounded-xl bg-red-600 px-5 py-4 font-black text-white shadow-lg hover:bg-red-700 disabled:opacity-50"
@@ -2144,7 +2282,7 @@ if (!respuesta.ok) {
 <button
   type="button"
   onClick={() => guardarEnGaleria(false)}
-  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)}
   className="mt-3 w-full rounded-xl bg-emerald-700 px-5 py-4 font-black text-white shadow-lg hover:bg-emerald-800 disabled:opacity-50"
 >
   {publicando ? "Guardando diseño…" : "Guardar diseño"}
@@ -2758,7 +2896,134 @@ i === 0
 )}
 
 
-{tipo === "destacados" && (
+{tipo === "destacados" && modoIndividualDestacado && (() => {
+  const jugador = destacadoIndividual;
+  if (!jugador) {
+    return (
+      <div className="relative z-10 flex flex-1 items-center justify-center px-5 text-center text-sm font-bold text-slate-300">
+        Selecciona una jornada con jugadores destacados para editar esta tarjeta
+      </div>
+    );
+  }
+
+  const equipo = NOMBRES_EQUIPOS.find(
+    (nombre) => normalizar(nombre) === normalizar(jugador.equipo)
+  ) ?? jugador.equipo ?? "LIBAVIME";
+  const jugadoresEquipo = destacadosPorEquipo.find(
+    (grupo) => normalizar(grupo.equipo) === normalizar(equipo)
+  )?.jugadores ?? [];
+  const posicion = jugadoresEquipo.findIndex(
+    (destacado: any) => String(destacado.id) === String(jugador.id)
+  );
+  const esPrimero = posicion <= 0;
+  const colores: Record<string, { fondo: string; borde: string; acento: string; texto: string }> = {
+    Gladiadores: { fondo: "#14532d", borde: "#86efac", acento: "#bbf7d0", texto: "#ffffff" },
+    Vikingos: { fondo: "#581c87", borde: "#d8b4fe", acento: "#e9d5ff", texto: "#ffffff" },
+    Titanes: { fondo: "#7f1d1d", borde: "#fca5a5", acento: "#fecaca", texto: "#ffffff" },
+    Espartanos: { fondo: "#eab308", borde: "#fde047", acento: "#422006", texto: "#1c1917" },
+  };
+  const color = colores[equipo] ?? colores.Gladiadores;
+  const guardado = encuadres[String(jugador.id)];
+  const ajusteFoto = formato === "post"
+    ? guardado?.post ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 }
+    : guardado?.historia ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 };
+  const foto = obtenerRutaFotoInstagram(jugador.nombre) || fotoValida(jugador.foto);
+
+  return (
+    <div
+      className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 p-3 shadow-2xl"
+      style={{
+        borderColor: color.borde,
+        background: `linear-gradient(145deg, ${color.fondo} 0%, #07152e 100%)`,
+        color: color.texto,
+      }}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <img src={LOGO} alt="LIBAVIME" className="h-10 w-10 object-contain" />
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-[0.18em]" style={{ color: color.acento }}>LIBAVIME 2026</p>
+            <p className="text-xs font-black uppercase tracking-wider">{equipo}</p>
+          </div>
+        </div>
+        <span className="rounded-full px-3 py-1 text-[9px] font-black text-slate-950 shadow" style={{ background: esPrimero ? "#fde047" : "#ffffff" }}>
+          {esPrimero ? "🥇 TOP 1" : "🥈 TOP 2"}
+        </span>
+      </div>
+
+      <div className="mt-2 flex shrink-0 justify-center">
+        <p className="text-[8px] font-black uppercase tracking-[0.18em]" style={{ color: color.acento }}>
+          JORNADA · {fechaJornada.split("-").reverse().join("/")}
+        </p>
+      </div>
+
+      <div
+        className={`relative mx-auto mt-2 w-full shrink-0 overflow-hidden rounded-2xl border bg-[#061326]/50 ${formato === "historia" ? "h-[210px]" : "h-[145px]"}`}
+        style={{ borderColor: color.borde, touchAction: "none", cursor: "grab" }}
+        onPointerDown={(evento) => iniciarArrastreFoto(evento, ajusteFoto)}
+        onPointerMove={moverArrastreFoto}
+        onPointerUp={terminarArrastreFoto}
+        onPointerCancel={terminarArrastreFoto}
+        title="Arrastra para mover y centrar la fotografía"
+      >
+        {foto ? (
+          <img
+            src={foto}
+            alt={jugador.nombre}
+            draggable={false}
+            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+            style={{
+              width: `${82 * ajusteFoto.zoom}%`,
+              height: "auto",
+              transform: `translate(calc(-50% + ${ajusteFoto.x}px), calc(-50% + ${ajusteFoto.y}px))`,
+              transformOrigin: "center center",
+            }}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs font-bold text-slate-300">
+            No hay foto disponible para este jugador
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 border border-white/10" />
+        <div className="pointer-events-none absolute bottom-2 left-0 right-0 text-center text-[8px] font-bold uppercase tracking-widest text-white/70">
+          Arrastra la foto para ajustar su posición
+        </div>
+      </div>
+
+      <div className="mt-2 shrink-0 text-center">
+        <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: color.acento }}>
+          JUGADOR DESTACADO
+        </p>
+        <h2 className="mt-1 text-xl font-black uppercase leading-tight">{jugador.nombre}</h2>
+        <p className="mt-1 text-[9px] font-bold uppercase tracking-wider" style={{ color: color.acento }}>{equipo}</p>
+      </div>
+
+      <div className={`mt-2 grid shrink-0 grid-cols-3 ${formato === "historia" ? "gap-2" : "gap-1"}`}>
+        {[
+          ["PTS", jugador.puntos],
+          ["REB", jugador.rebotes],
+          ["AST", jugador.asistencias],
+        ].map(([label, valor]) => (
+          <div key={String(label)} className="rounded-xl bg-white/90 px-1 py-2 text-center text-slate-950">
+            <p className="text-[8px] font-black tracking-wider text-blue-900">{label}</p>
+            <p className={`font-black leading-none ${formato === "historia" ? "text-2xl" : "text-xl"}`}>{valor}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-auto border-t border-white/20 pt-2 text-center">
+        <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: color.acento }}>
+          LIGA DE BALONCESTO DE VISITADORES MÉDICOS · LIBAVIME 2026
+        </p>
+        <p className="mt-1 text-[8px] font-bold" style={{ color: color.acento }}>
+          Diseñado y desarrollado por Emmi de la Cruz
+        </p>
+      </div>
+    </div>
+  );
+})()}
+
+{tipo === "destacados" && !modoIndividualDestacado && (
   <div className="relative z-10 flex min-h-0 flex-1 flex-col">
     <p className="mt-1 text-center text-[9px] font-black tracking-[0.2em] text-red-400">
       JORNADA · {fechaJornada.split("-").reverse().join("/")}
