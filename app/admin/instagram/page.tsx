@@ -3012,11 +3012,7 @@ i === 0
         ))}
       </div>
 
-      <div className="mt-2 shrink-0 border-t border-white/20 pt-1.5 text-center">
-        <p className="text-[7px] font-bold tracking-wide" style={{ color: color.acento }}>
-          Diseñado y desarrollado por Emmi de la Cruz
-        </p>
-      </div>
+
     </div>
   );
 })()}
