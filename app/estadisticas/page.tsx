@@ -11,7 +11,8 @@ export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
   const [vistaSeleccionada, setVistaSeleccionada] = useState<"estadisticas" | "destacados">("estadisticas");
-  const [jugadoresDestacadosPorEquipo, setJugadoresDestacadosPorEquipo] = useState<any[]>([]);
+  const [jornadasDestacados, setJornadasDestacados] = useState<any[]>([]);
+  const [jornadaSeleccionada, setJornadaSeleccionada] = useState("");
   const [jugadorExportandoId, setJugadorExportandoId] = useState<string | null>(null);
   const tarjetasDestacadosRef = useRef<Record<string, HTMLDivElement | null>>({});
   const [cargando, setCargando] = useState(true);
@@ -199,101 +200,110 @@ export default function Estadisticas() {
 
 
     // ============================================================
-    // JUGADORES DESTACADOS POR EQUIPO
-    // Se utiliza el partido más reciente de cada equipo dentro de
-    // la fase seleccionada y se muestran sus dos mejores anotadores.
+    // DESTACADOS AGRUPADOS POR JORNADA (FECHA DEL PARTIDO)
+    // La tabla partidos no contiene un número de jornada; por eso
+    // cada fecha de juego se agrupa como una jornada dentro de la fase.
     // ============================================================
     const normalizarEquipo = (valor: unknown) =>
       String(valor ?? "")
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\\u0300-\\u036f]/g, "")
         .trim()
         .toLowerCase();
-
-    const fechaHora = (partido: any) => {
-      const fecha = String(partido.fecha ?? "").trim();
-      const hora = String(partido.hora ?? "00:00:00").trim();
-      const tiempo = new Date(`${fecha}T${hora}`).getTime();
-      return Number.isFinite(tiempo) ? tiempo : 0;
-    };
 
     const jugadoresPorId = new Map(
       (jugadoresData ?? []).map((jugador: any) => [String(jugador.id), jugador])
     );
 
-    const resumenesParaDestacados = [...(partidosData ?? [])]
-      .sort((a: any, b: any) => fechaHora(b) - fechaHora(a))
-      .map((partido: any) => {
-        const porJugador = new Map<string, any>();
+    const estadisticasPorPartido = new Map<string, any[]>();
+    (estadisticasData ?? []).forEach((registro: any) => {
+      const id = String(registro.partido_id);
+      const actuales = estadisticasPorPartido.get(id) ?? [];
+      actuales.push(registro);
+      estadisticasPorPartido.set(id, actuales);
+    });
 
-        (estadisticasData ?? [])
-          .filter((registro: any) =>
-            String(registro.partido_id) === String(partido.id) &&
-            registro.estado !== "no_jugo" &&
-            registro.estado !== "lesionado"
-          )
-          .forEach((registro: any) => {
-            const jugador = jugadoresPorId.get(String(registro.jugador_id));
-            if (!jugador) return;
+    const gruposPorFecha = new Map<string, any>();
 
-            const jugadorId = String(jugador.id);
-            if (!porJugador.has(jugadorId)) {
-              porJugador.set(jugadorId, {
-                ...jugador,
-                puntosPartido: 0,
-                rebotesPartido: 0,
-                asistenciasPartido: 0,
-              });
-            }
+    (partidosData ?? []).forEach((partido: any) => {
+      const fecha = String(partido.fecha ?? "").slice(0, 10);
+      if (!fecha) return;
 
-            const acumulado = porJugador.get(jugadorId);
-            acumulado.puntosPartido += Number(registro.puntos) || 0;
-            acumulado.rebotesPartido += Number(registro.rebotes) || 0;
-            acumulado.asistenciasPartido += Number(registro.asistencias) || 0;
-          });
+      if (!gruposPorFecha.has(fecha)) {
+        gruposPorFecha.set(fecha, {
+          fecha,
+          partidos: [],
+          equiposParticipantes: new Set<string>(),
+          jugadores: new Map<string, any>(),
+        });
+      }
 
-        return {
-          partido,
-          jugadoresPartido: Array.from(porJugador.values()),
-        };
+      const grupo = gruposPorFecha.get(fecha);
+      grupo.partidos.push(partido);
+      [partido.equipo_local, partido.equipo_visitante].forEach((nombre) => {
+        if (nombre) grupo.equiposParticipantes.add(normalizarEquipo(nombre));
       });
 
-    const destacadosCalculados = equipos
-      .map((equipo) => {
-        const equipoNormalizado = normalizarEquipo(equipo.nombre);
-        const resumenDelEquipo = resumenesParaDestacados.find((resumen) =>
-          resumen.jugadoresPartido.some(
-            (jugador: any) =>
-              normalizarEquipo(jugador.equipo) === equipoNormalizado &&
-              (Number(jugador.puntosPartido) > 0 ||
-                Number(jugador.rebotesPartido) > 0 ||
-                Number(jugador.asistenciasPartido) > 0)
-          )
-        );
+      (estadisticasPorPartido.get(String(partido.id)) ?? []).forEach((registro: any) => {
+        if (registro.estado === "no_jugo" || registro.estado === "lesionado") return;
 
-        const jugadoresDelEquipo = [...(resumenDelEquipo?.jugadoresPartido ?? [])]
-          .filter(
-            (jugador: any) =>
-              normalizarEquipo(jugador.equipo) === equipoNormalizado &&
-              Number(jugador.puntosPartido) > 0
-          )
-          .sort(
-            (a: any, b: any) =>
-              Number(b.puntosPartido) - Number(a.puntosPartido) ||
-              Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
-              Number(b.asistenciasPartido) - Number(a.asistenciasPartido)
-          )
-          .slice(0, 2);
+        const jugador = jugadoresPorId.get(String(registro.jugador_id));
+        if (!jugador) return;
 
-        return {
+        const idJugador = String(jugador.id);
+        if (!grupo.jugadores.has(idJugador)) {
+          grupo.jugadores.set(idJugador, {
+            ...jugador,
+            puntosPartido: 0,
+            rebotesPartido: 0,
+            asistenciasPartido: 0,
+          });
+        }
+
+        const acumulado = grupo.jugadores.get(idJugador);
+        acumulado.puntosPartido += Number(registro.puntos) || 0;
+        acumulado.rebotesPartido += Number(registro.rebotes) || 0;
+        acumulado.asistenciasPartido += Number(registro.asistencias) || 0;
+      });
+    });
+
+    const jornadasCronologicas = Array.from(gruposPorFecha.values()).sort(
+      (a, b) => a.fecha.localeCompare(b.fecha)
+    );
+
+    const jornadasCalculadas = jornadasCronologicas.map((grupo, index) => ({
+      fecha: grupo.fecha,
+      numero: index + 1,
+      partidos: grupo.partidos,
+      cruces: grupo.partidos.map(
+        (partido: any) => `${partido.equipo_local} vs ${partido.equipo_visitante}`
+      ),
+      equipos: equipos
+        .filter((equipo) =>
+          grupo.equiposParticipantes.has(normalizarEquipo(equipo.nombre))
+        )
+        .map((equipo) => ({
           ...equipo,
-          jugadoresDestacados: jugadoresDelEquipo,
-          fechaPartido: resumenDelEquipo?.partido?.fecha ?? null,
-        };
-      })
-      .filter((equipo) => equipo.jugadoresDestacados.length > 0);
+          jugadoresDestacados: Array.from(grupo.jugadores.values())
+            .filter(
+              (jugador: any) =>
+                normalizarEquipo(jugador.equipo) === normalizarEquipo(equipo.nombre) &&
+                Number(jugador.puntosPartido) > 0
+            )
+            .sort(
+              (a: any, b: any) =>
+                Number(b.puntosPartido) - Number(a.puntosPartido) ||
+                Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
+                Number(b.asistenciasPartido) - Number(a.asistenciasPartido)
+            )
+            .slice(0, 2),
+        }))
+        .filter((equipo) => equipo.jugadoresDestacados.length > 0),
+    }));
 
-    setJugadoresDestacadosPorEquipo(destacadosCalculados);
+    // Presentamos primero la jornada más reciente, conservando su número cronológico.
+    setJornadasDestacados([...jornadasCalculadas].reverse());
+    setJornadaSeleccionada(jornadasCalculadas[jornadasCalculadas.length - 1]?.fecha ?? "");
 
     setJugadores(jugadoresConEstadisticas);
   }
@@ -380,6 +390,11 @@ export default function Estadisticas() {
       String(b.nombre ?? "")
     );
   });
+
+  const jornadaActual =
+    jornadasDestacados.find((jornada) => jornada.fecha === jornadaSeleccionada) ??
+    jornadasDestacados[0] ??
+    null;
 
   async function exportarLideratosPDF() {
     try {
@@ -1550,9 +1565,10 @@ export default function Estadisticas() {
     jugador: any,
     equipo: any,
     indice: number,
+    fechaJornada: string,
     formato: "story" | "feed"
   ) {
-    const tarjetaId = `${equipo.slug ?? equipo.nombre}-${jugador.id}`;
+    const tarjetaId = `${fechaJornada}-${equipo.slug ?? equipo.nombre}-${jugador.id}`;
     const tarjeta = tarjetasDestacadosRef.current[tarjetaId];
 
     if (!tarjeta) {
@@ -1723,13 +1739,32 @@ export default function Estadisticas() {
                     </h2>
                   </div>
                   <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
-                    {faseSeleccionada === "finales" ? "Finales" : "Serie Regular"} · Los dos mejores anotadores del partido más reciente de cada equipo
+                    {faseSeleccionada === "finales" ? "Finales" : "Serie Regular"} · Los dos mejores anotadores de cada equipo, organizados por jornada
                   </p>
                   <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
+                <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-blue-100 bg-white p-4 text-left shadow-sm">
+                  <label className="mb-2 block text-sm font-black uppercase tracking-wide text-blue-950">
+                    Seleccionar jornada
+                  </label>
+                  <select
+                    value={jornadaActual?.fecha ?? ""}
+                    onChange={(evento) => setJornadaSeleccionada(evento.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-bold text-slate-800 outline-none focus:border-blue-700"
+                  >
+                    {jornadasDestacados.map((jornada) => (
+                      <option key={jornada.fecha} value={jornada.fecha}>
+                        Jornada {jornada.numero} · {jornada.fecha.split("-").reverse().join("/")}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {jornadaActual?.cruces?.join(" · ")}
+                  </p>
+                </div>
                 </div>
 
 
-                {jugadoresDestacadosPorEquipo.length > 0 ? (
+                {jornadaActual && jornadaActual.equipos.length > 0 ? (
                   <div className="space-y-10">
                     {jugadoresDestacadosPorEquipo.map((equipo) => {
                       const colores: Record<string, { fondo: string; borde: string; brillo: string; texto: string; textoSuave: string }> = {
@@ -1794,7 +1829,7 @@ export default function Estadisticas() {
                                   ? jugador.foto
                                   : "/logos/LIBAVIME.png";
                               const primero = index === 0;
-                              const tarjetaId = `${equipo.slug ?? equipo.nombre}-${jugador.id}`;
+                              const tarjetaId = `${jornadaActual.fecha}-${equipo.slug ?? equipo.nombre}-${jugador.id}`;
 
                               return (
                                 <div key={tarjetaId} className="mx-auto w-full max-w-[430px]">
@@ -1893,7 +1928,7 @@ export default function Estadisticas() {
                                   <div className="mt-3 grid grid-cols-1 gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, "story")}
+                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, jornadaActual.fecha, "story")}
                                       disabled={jugadorExportandoId !== null}
                                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
                                     >
@@ -1903,7 +1938,7 @@ export default function Estadisticas() {
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, "feed")}
+                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, jornadaActual.fecha, "feed")}
                                       disabled={jugadorExportandoId !== null}
                                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-950 bg-white px-5 py-3 text-sm font-black text-blue-950 shadow transition hover:bg-blue-50 disabled:cursor-wait disabled:opacity-60"
                                     >
@@ -1911,6 +1946,12 @@ export default function Estadisticas() {
                                         ? "GENERANDO PUBLICACIÓN..."
                                         : "📸 DESCARGAR FEED (1080 × 1350)"}
                                     </button>
+                                    <Link
+                                      href={`/admin/instagram?tipo=destacados&fecha=${encodeURIComponent(jornadaActual.fecha)}&jugador=${encodeURIComponent(String(jugador.id))}&individual=1&formato=post`}
+                                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400 bg-amber-50 px-5 py-3 text-sm font-black text-amber-950 shadow transition hover:bg-amber-100"
+                                    >
+                                      🎨 EDITAR FOTO Y ENCUADRE
+                                    </Link>
                                   </div>
                                 </div>
                               );
@@ -1922,8 +1963,8 @@ export default function Estadisticas() {
                   </div>
                 ) : (
                   <div className="rounded-2xl bg-white p-10 text-center shadow">
-                    <p className="text-lg font-black text-blue-950">Todavía no hay jugadores destacados para esta fase.</p>
-                    <p className="mt-2 text-sm text-slate-500">Se mostrarán cuando los equipos tengan partidos finalizados con estadísticas registradas.</p>
+                    <p className="text-lg font-black text-blue-950">Todavía no hay jornadas con jugadores destacados para esta fase.</p>
+                    <p className="mt-2 text-sm text-slate-500">Las jornadas aparecerán cuando existan partidos finalizados con estadísticas registradas.</p>
                   </div>
                 )}
               </div>
