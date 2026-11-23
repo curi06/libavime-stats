@@ -5,10 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { equipos } from "../../data/equipos";
 
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
+  const [vistaSeleccionada, setVistaSeleccionada] = useState<"estadisticas" | "destacados">("estadisticas");
+  const [jugadoresDestacadosPorEquipo, setJugadoresDestacadosPorEquipo] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
@@ -191,6 +194,104 @@ export default function Estadisticas() {
               : 0,
         };
       });
+
+
+    // ============================================================
+    // JUGADORES DESTACADOS POR EQUIPO
+    // Se utiliza el partido más reciente de cada equipo dentro de
+    // la fase seleccionada y se muestran sus dos mejores anotadores.
+    // ============================================================
+    const normalizarEquipo = (valor: unknown) =>
+      String(valor ?? "")
+        .normalize("NFD")
+        .replace(/[\\u0300-\\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+
+    const fechaHora = (partido: any) => {
+      const fecha = String(partido.fecha ?? "").trim();
+      const hora = String(partido.hora ?? "00:00:00").trim();
+      const tiempo = new Date(`${fecha}T${hora}`).getTime();
+      return Number.isFinite(tiempo) ? tiempo : 0;
+    };
+
+    const jugadoresPorId = new Map(
+      (jugadoresData ?? []).map((jugador: any) => [String(jugador.id), jugador])
+    );
+
+    const resumenesParaDestacados = [...(partidosData ?? [])]
+      .sort((a: any, b: any) => fechaHora(b) - fechaHora(a))
+      .map((partido: any) => {
+        const porJugador = new Map<string, any>();
+
+        (estadisticasData ?? [])
+          .filter((registro: any) =>
+            String(registro.partido_id) === String(partido.id) &&
+            registro.estado !== "no_jugo" &&
+            registro.estado !== "lesionado"
+          )
+          .forEach((registro: any) => {
+            const jugador = jugadoresPorId.get(String(registro.jugador_id));
+            if (!jugador) return;
+
+            const jugadorId = String(jugador.id);
+            if (!porJugador.has(jugadorId)) {
+              porJugador.set(jugadorId, {
+                ...jugador,
+                puntosPartido: 0,
+                rebotesPartido: 0,
+                asistenciasPartido: 0,
+              });
+            }
+
+            const acumulado = porJugador.get(jugadorId);
+            acumulado.puntosPartido += Number(registro.puntos) || 0;
+            acumulado.rebotesPartido += Number(registro.rebotes) || 0;
+            acumulado.asistenciasPartido += Number(registro.asistencias) || 0;
+          });
+
+        return {
+          partido,
+          jugadoresPartido: Array.from(porJugador.values()),
+        };
+      });
+
+    const destacadosCalculados = equipos
+      .map((equipo) => {
+        const equipoNormalizado = normalizarEquipo(equipo.nombre);
+        const resumenDelEquipo = resumenesParaDestacados.find((resumen) =>
+          resumen.jugadoresPartido.some(
+            (jugador: any) =>
+              normalizarEquipo(jugador.equipo) === equipoNormalizado &&
+              (Number(jugador.puntosPartido) > 0 ||
+                Number(jugador.rebotesPartido) > 0 ||
+                Number(jugador.asistenciasPartido) > 0)
+          )
+        );
+
+        const jugadoresDelEquipo = [...(resumenDelEquipo?.jugadoresPartido ?? [])]
+          .filter(
+            (jugador: any) =>
+              normalizarEquipo(jugador.equipo) === equipoNormalizado &&
+              Number(jugador.puntosPartido) > 0
+          )
+          .sort(
+            (a: any, b: any) =>
+              Number(b.puntosPartido) - Number(a.puntosPartido) ||
+              Number(b.rebotesPartido) - Number(a.rebotesPartido) ||
+              Number(b.asistenciasPartido) - Number(a.asistenciasPartido)
+          )
+          .slice(0, 2);
+
+        return {
+          ...equipo,
+          jugadoresDestacados: jugadoresDelEquipo,
+          fechaPartido: resumenDelEquipo?.partido?.fecha ?? null,
+        };
+      })
+      .filter((equipo) => equipo.jugadoresDestacados.length > 0);
+
+    setJugadoresDestacadosPorEquipo(destacadosCalculados);
 
     setJugadores(jugadoresConEstadisticas);
   }
@@ -1478,6 +1579,174 @@ export default function Estadisticas() {
             </button>
           </div>
 
+
+          <div className="mb-8 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setVistaSeleccionada("estadisticas")}
+              className={`rounded-xl px-6 py-3 font-bold shadow transition ${vistaSeleccionada === "estadisticas" ? "bg-blue-900 text-white" : "bg-white text-blue-900 border border-blue-200"}`}
+            >
+              📊 Estadísticas y lideratos
+            </button>
+            <button
+              type="button"
+              onClick={() => setVistaSeleccionada("destacados")}
+              className={`rounded-xl px-6 py-3 font-bold shadow transition ${vistaSeleccionada === "destacados" ? "bg-blue-900 text-white" : "bg-white text-blue-900 border border-blue-200"}`}
+            >
+              ⭐ Jugadores destacados
+            </button>
+          </div>
+
+          {vistaSeleccionada === "destacados" ? (
+            <section className="mt-2 mb-10">
+              <div className="max-w-7xl mx-auto px-1 sm:px-2">
+                <div className="text-center mb-8 md:mb-10">
+                  <div className="inline-flex items-center gap-3">
+                    <span className="text-4xl md:text-5xl">🏀</span>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-blue-950">
+                      JUGADORES <span className="text-yellow-500">DESTACADOS</span>
+                    </h2>
+                  </div>
+                  <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
+                    {faseSeleccionada === "finales" ? "Finales" : "Serie Regular"} · Los dos mejores anotadores del partido más reciente de cada equipo
+                  </p>
+                  <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-yellow-400" />
+                </div>
+
+                {jugadoresDestacadosPorEquipo.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    {jugadoresDestacadosPorEquipo.map((equipo) => {
+                      const colores: Record<string, { fondo: string; borde: string; brillo: string; texto: string; textoSuave: string }> = {
+                        Gladiadores: {
+                          fondo: "from-green-950 via-green-800 to-green-600",
+                          borde: "border-green-400",
+                          brillo: "bg-green-400/20",
+                          texto: "text-white",
+                          textoSuave: "text-green-100",
+                        },
+                        Vikingos: {
+                          fondo: "from-purple-950 via-purple-800 to-purple-600",
+                          borde: "border-purple-400",
+                          brillo: "bg-purple-400/20",
+                          texto: "text-white",
+                          textoSuave: "text-purple-100",
+                        },
+                        Titanes: {
+                          fondo: "from-red-950 via-red-800 to-red-600",
+                          borde: "border-red-400",
+                          brillo: "bg-red-400/20",
+                          texto: "text-white",
+                          textoSuave: "text-red-100",
+                        },
+                        Espartanos: {
+                          fondo: "from-yellow-700 via-yellow-500 to-yellow-300",
+                          borde: "border-yellow-300",
+                          brillo: "bg-white/20",
+                          texto: "text-slate-950",
+                          textoSuave: "text-slate-800",
+                        },
+                      };
+                      const color = colores[equipo.nombre] ?? colores.Gladiadores;
+
+                      return (
+                        <div
+                          key={equipo.nombre}
+                          className={`group relative overflow-hidden rounded-[2rem] border-2 ${color.borde} bg-gradient-to-br ${color.fondo} shadow-2xl transition-all duration-500 hover:-translate-y-2`}
+                        >
+                          <div className={`absolute -right-16 -top-16 h-48 w-48 rounded-full ${color.brillo} blur-2xl`} />
+                          <div className={`absolute -left-20 -bottom-20 h-56 w-56 rounded-full ${color.brillo} blur-3xl`} />
+
+                          <div className="relative px-5 pt-6 md:px-7 md:pt-7">
+                            <div className="flex flex-col items-center text-center">
+                              <div className={`relative h-24 w-24 md:h-28 md:w-28 overflow-hidden rounded-3xl bg-white p-2 shadow-2xl ring-4 ${equipo.nombre === "Gladiadores" ? "ring-green-300" : equipo.nombre === "Vikingos" ? "ring-purple-300" : equipo.nombre === "Titanes" ? "ring-red-300" : "ring-yellow-200"}`}>
+                                <Image src={equipo.logo} alt={equipo.nombre} fill sizes="112px" className="object-contain p-2" />
+                              </div>
+                              <p className={`mt-4 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] ${color.textoSuave}`}>EQUIPO</p>
+                              <h3 className={`mt-1 text-3xl md:text-4xl font-black uppercase tracking-tight ${color.texto}`}>{equipo.nombre}</h3>
+                              <div className={`mt-3 h-1 w-20 rounded-full ${equipo.nombre === "Gladiadores" ? "bg-green-300" : equipo.nombre === "Vikingos" ? "bg-purple-300" : equipo.nombre === "Titanes" ? "bg-red-300" : "bg-yellow-200"}`} />
+                              <p className={`mt-3 text-[10px] md:text-xs font-black uppercase tracking-[0.18em] ${color.textoSuave}`}>⭐ LOS PROTAGONISTAS DE LA JORNADA</p>
+                            </div>
+                            <div className={`mt-5 border-t ${equipo.nombre === "Espartanos" ? "border-black/10" : "border-white/20"}`} />
+                          </div>
+
+                          <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 md:p-7">
+                            {equipo.jugadoresDestacados.map((jugador: any, index: number) => {
+                              const fotoJugador =
+                                jugador.foto && (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
+                                  ? jugador.foto
+                                  : "/logos/LIBAVIME.png";
+                              const primero = index === 0;
+
+                              return (
+                                <Link
+                                  key={jugador.id}
+                                  href={jugador.slug ? `/jugadores/${jugador.slug}` : "#"}
+                                  className="block"
+                                >
+                                  <div className={`relative h-full overflow-hidden rounded-2xl border backdrop-blur-sm p-4 transition-all duration-300 hover:scale-[1.03] hover:bg-black/30 ${equipo.nombre === "Espartanos" ? "border-black/10 bg-black/10" : "border-white/20 bg-black/20"}`}>
+                                    <div className="absolute left-3 top-3 z-20">
+                                      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-lg shadow-xl ${primero ? "bg-yellow-400" : "bg-slate-200"}`}>
+                                        {primero ? "🥇" : "🥈"}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex justify-center pt-2">
+                                      <div className={`relative h-36 w-36 md:h-44 md:w-44 overflow-hidden rounded-full border-4 ${primero ? "border-yellow-300" : "border-white/70"} bg-white/20 shadow-2xl transition-transform duration-500 group-hover:scale-105`}>
+                                        <Image
+                                          src={fotoJugador}
+                                          unoptimized
+                                          alt={jugador.nombre || "Jugador LIBAVIME"}
+                                          fill
+                                          sizes="192px"
+                                          className={`object-cover transition-transform duration-500 ${primero ? "scale-[1.38] object-[center_38%]" : "scale-[1.32] object-[center_38%]"}`}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-5 text-center">
+                                      <h4 className={`text-lg md:text-xl font-black leading-tight ${color.texto}`}>{jugador.nombre}</h4>
+                                      <p className={`mt-2 inline-flex items-center justify-center rounded-full px-4 py-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md ${equipo.nombre === "Espartanos" ? "bg-yellow-300 text-yellow-950" : "bg-yellow-400 text-slate-950"}`}>
+                                        ⭐ JUGADOR DESTACADO
+                                      </p>
+
+                                      <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
+                                        {[
+                                          { label: "PTS", value: Number(jugador.puntosPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-blue-700" : "text-blue-200", valueColor: equipo.nombre === "Espartanos" ? "text-blue-950" : "text-white" },
+                                          { label: "REB", value: Number(jugador.rebotesPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-green-700" : "text-green-200", valueColor: equipo.nombre === "Espartanos" ? "text-green-950" : "text-white" },
+                                          { label: "AST", value: Number(jugador.asistenciasPartido || 0), bg: equipo.nombre === "Espartanos" ? "bg-white/70" : "bg-white/15", labelColor: equipo.nombre === "Espartanos" ? "text-orange-700" : "text-orange-200", valueColor: equipo.nombre === "Espartanos" ? "text-orange-950" : "text-white" },
+                                        ].map((stat) => (
+                                          <div key={stat.label} className={`min-w-0 min-h-[78px] rounded-xl px-2 py-3 md:px-3 flex flex-col items-center justify-center ${stat.bg}`}>
+                                            <p className={`text-[9px] md:text-[10px] font-black tracking-wide ${stat.labelColor}`}>{stat.label}</p>
+                                            <p className={`mt-1 text-xl md:text-2xl font-black leading-none whitespace-nowrap ${stat.valueColor}`}>{stat.value}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+
+                          <div className="relative px-5 pb-5 md:px-7 md:pb-7 text-center">
+                            <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.18em] ${color.textoSuave}`}>
+                              🏀 LOS PROTAGONISTAS DE LA JORNADA
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-white p-10 text-center shadow">
+                    <p className="text-lg font-black text-blue-950">Todavía no hay jugadores destacados para esta fase.</p>
+                    <p className="mt-2 text-sm text-slate-500">Se mostrarán cuando los equipos tengan partidos finalizados con estadísticas registradas.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : (
+            <>
           {/* MENSAJE DE ERROR */}
 
           {errorCarga && (
@@ -2199,6 +2468,9 @@ export default function Estadisticas() {
           </section>
 
 
+
+            </>
+          )}
 
         </div>
       </main>
