@@ -1591,7 +1591,7 @@ export default function Estadisticas() {
     fechaJornada: string,
     formato: "story" | "feed"
   ) {
-    const tarjetaId = `${fechaJornada}-${equipo.slug ?? equipo.nombre}-${jugador.id}`;
+    const tarjetaId = fechaJornada + "-" + (equipo.slug ?? equipo.nombre) + "-" + jugador.id;
     const tarjeta = tarjetasDestacadosRef.current[tarjetaId];
 
     if (!tarjeta || !tarjeta.isConnected) {
@@ -1599,218 +1599,404 @@ export default function Estadisticas() {
       return;
     }
 
-    const claveExportacion = `${tarjetaId}:${formato}`;
+    const claveExportacion = tarjetaId + ":" + formato;
     setJugadorExportandoId(claveExportacion);
-
     let urlTemporal: string | null = null;
-    const restaurarImagenes: Array<() => void> = [];
 
     try {
-      const { toCanvas } = await import("html-to-image");
-      const esHistoria = formato === "story";
+      // Safari móvil puede omitir imágenes al convertir HTML mediante SVG foreignObject.
+      // Por eso se dibujan logo, fotografía, textos y estadísticas directamente en canvas.
+      const cargarImagen = async (fuente: string, descripcion: string): Promise<HTMLImageElement> => {
+        if (!fuente) throw new Error("No se encontró " + descripcion + ".");
 
-      // Dimensiones finales exactas: Historia 1080×1920 / Feed 1080×1350.
+        const url = new URL(fuente, window.location.origin);
+        const ruta = url.origin === window.location.origin
+          ? url.pathname + url.search
+          : "/api/imagen-exportacion?src=" + encodeURIComponent(url.href);
+
+        const respuesta = await fetch(ruta, { cache: "force-cache" });
+        if (!respuesta.ok) {
+          let detalle = "";
+          try {
+            const cuerpo = await respuesta.json();
+            detalle = cuerpo && cuerpo.error ? " " + cuerpo.error : "";
+          } catch {}
+          throw new Error("No se pudo cargar " + descripcion + "." + detalle);
+        }
+
+        const blob = await respuesta.blob();
+        if (!blob.type.startsWith("image/") || blob.size === 0) {
+          throw new Error(descripcion + " no es un archivo de imagen válido.");
+        }
+
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const lector = new FileReader();
+          lector.onload = () => {
+            if (typeof lector.result === "string") resolve(lector.result);
+            else reject(new Error("No se pudo preparar " + descripcion + "."));
+          };
+          lector.onerror = () => reject(new Error("No se pudo leer " + descripcion + "."));
+          lector.readAsDataURL(blob);
+        });
+
+        const imagen = new window.Image();
+        imagen.src = dataUrl;
+        if (typeof imagen.decode === "function") {
+          await imagen.decode();
+        } else {
+          await new Promise<void>((resolve, reject) => {
+            imagen.onload = () => resolve();
+            imagen.onerror = () => reject(new Error("No se pudo decodificar " + descripcion + "."));
+          });
+        }
+
+        if (!imagen.naturalWidth || !imagen.naturalHeight) {
+          throw new Error(descripcion + " llegó vacía.");
+        }
+        return imagen;
+      };
+
+      const fotoJugador =
+        jugador.foto &&
+        (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
+          ? jugador.foto
+          : "/logos/LIBAVIME.png";
+
+      const [logo, foto] = await Promise.all([
+        cargarImagen(equipo.logo, "el escudo de " + equipo.nombre),
+        cargarImagen(fotoJugador, "la fotografía de " + (jugador.nombre || "el jugador")),
+      ]);
+
+      const esHistoria = formato === "story";
       const anchoFinal = 1080;
       const altoFinal = esHistoria ? 1920 : 1350;
-      const medidas = tarjeta.getBoundingClientRect();
+      const canvas = document.createElement("canvas");
+      canvas.width = anchoFinal;
+      canvas.height = altoFinal;
 
-      if (medidas.width < 80 || medidas.height < 100) {
-        throw new Error("La tarjeta no tiene un tamaño válido para exportar.");
-      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("El navegador no pudo crear el lienzo de la imagen.");
 
-      // En Safari móvil, html-to-image puede capturar el contenido HTML y los
-      // textos, pero omitir imágenes remotas o seleccionadas mediante srcset.
-      // Para evitarlo, incrustamos temporalmente cada imagen como data URL.
-      const imagenes = Array.from(tarjeta.querySelectorAll("img"));
-      if (imagenes.length === 0) {
-        throw new Error("La tarjeta no contiene imágenes para exportar.");
-      }
+      const equipoEstilos: Record<string, {
+        inicio: string; medio: string; final: string; borde: string; brillo: string; texto: string; textoSuave: string;
+      }> = {
+        Gladiadores: {
+          inicio: "#052e16", medio: "#166534", final: "#16a34a",
+          borde: "#4ade80", brillo: "rgba(134,239,172,0.18)",
+          texto: "#ffffff", textoSuave: "#dcfce7",
+        },
+        Vikingos: {
+          inicio: "#3b0764", medio: "#6b21a8", final: "#9333ea",
+          borde: "#c084fc", brillo: "rgba(216,180,254,0.18)",
+          texto: "#ffffff", textoSuave: "#f3e8ff",
+        },
+        Titanes: {
+          inicio: "#450a0a", medio: "#991b1b", final: "#dc2626",
+          borde: "#f87171", brillo: "rgba(252,165,165,0.18)",
+          texto: "#ffffff", textoSuave: "#fee2e2",
+        },
+        Espartanos: {
+          inicio: "#a16207", medio: "#eab308", final: "#fde047",
+          borde: "#fde047", brillo: "rgba(255,255,255,0.23)",
+          texto: "#0f172a", textoSuave: "#1e293b",
+        },
+      };
+      const estilo = equipoEstilos[equipo.nombre] ?? equipoEstilos.Gladiadores;
+      const primero = indice === 0;
 
-      await Promise.all(
-        imagenes.map(async (imagen) => {
-          const atributosOriginales = {
-            src: imagen.getAttribute("src"),
-            srcset: imagen.getAttribute("srcset"),
-            sizes: imagen.getAttribute("sizes"),
-            crossorigin: imagen.getAttribute("crossorigin"),
-            loading: imagen.getAttribute("loading"),
-          };
+      const redondear = (
+        contexto: CanvasRenderingContext2D,
+        x: number, y: number, ancho: number, alto: number, radio: number
+      ) => {
+        const r = Math.min(radio, ancho / 2, alto / 2);
+        contexto.beginPath();
+        contexto.moveTo(x + r, y);
+        contexto.lineTo(x + ancho - r, y);
+        contexto.arcTo(x + ancho, y, x + ancho, y + r, r);
+        contexto.lineTo(x + ancho, y + alto - r);
+        contexto.arcTo(x + ancho, y + alto, x + ancho - r, y + alto, r);
+        contexto.lineTo(x + r, y + alto);
+        contexto.arcTo(x, y + alto, x, y + alto - r, r);
+        contexto.lineTo(x, y + r);
+        contexto.arcTo(x, y, x + r, y, r);
+        contexto.closePath();
+      };
 
-          // Guardamos la forma original de cada elemento para restaurarla
-          // incluso si la captura o la descarga falla.
-          restaurarImagenes.push(() => {
-            const restaurarAtributo = (nombre: string, valor: string | null) => {
-              if (valor === null) imagen.removeAttribute(nombre);
-              else imagen.setAttribute(nombre, valor);
-            };
-            restaurarAtributo("src", atributosOriginales.src);
-            restaurarAtributo("srcset", atributosOriginales.srcset);
-            restaurarAtributo("sizes", atributosOriginales.sizes);
-            restaurarAtributo("crossorigin", atributosOriginales.crossorigin);
-            restaurarAtributo("loading", atributosOriginales.loading);
-          });
+      const dibujarTextoAjustado = (
+        contexto: CanvasRenderingContext2D,
+        texto: string,
+        x: number,
+        y: number,
+        anchoMaximo: number,
+        tamano: number,
+        minimo: number,
+        color: string,
+        peso = 900
+      ) => {
+        let tamanoActual = tamano;
+        contexto.textAlign = "center";
+        contexto.textBaseline = "middle";
+        contexto.fillStyle = color;
+        contexto.font = peso + " " + tamanoActual + "px Arial, Helvetica, sans-serif";
+        while (contexto.measureText(texto).width > anchoMaximo && tamanoActual > minimo) {
+          tamanoActual -= 2;
+          contexto.font = peso + " " + tamanoActual + "px Arial, Helvetica, sans-serif";
+        }
+        contexto.fillText(texto, x, y, anchoMaximo);
+      };
 
-          imagen.loading = "eager";
-          const fuenteOriginal = imagen.currentSrc || imagen.src;
-          if (!fuenteOriginal) {
-            throw new Error(`No se encontró el archivo de ${imagen.alt || "una imagen"}.`);
-          }
+      const dibujarImagenContain = (
+        contexto: CanvasRenderingContext2D,
+        imagen: HTMLImageElement,
+        x: number,
+        y: number,
+        ancho: number,
+        alto: number
+      ) => {
+        const escala = Math.min(ancho / imagen.naturalWidth, alto / imagen.naturalHeight);
+        const w = imagen.naturalWidth * escala;
+        const h = imagen.naturalHeight * escala;
+        contexto.drawImage(imagen, x + (ancho - w) / 2, y + (alto - h) / 2, w, h);
+      };
 
-          const urlImagen = new URL(fuenteOriginal, window.location.href);
-          const mismaOrigen = urlImagen.origin === window.location.origin;
-          const respuesta = await fetch(urlImagen.href, {
-            mode: "cors",
-            credentials: mismaOrigen ? "same-origin" : "omit",
-            cache: "force-cache",
-          });
+      const dibujarImagenCoverCircular = (
+        contexto: CanvasRenderingContext2D,
+        imagen: HTMLImageElement,
+        x: number,
+        y: number,
+        diametro: number
+      ) => {
+        const origenW = imagen.naturalWidth;
+        const origenH = imagen.naturalHeight;
+        let sx = 0, sy = 0, sw = origenW, sh = origenH;
 
-          if (!respuesta.ok) {
-            throw new Error(
-              `No se pudo preparar ${imagen.alt || "una imagen"} (HTTP ${respuesta.status}).`
-            );
-          }
+        if (origenW > origenH) {
+          sw = origenH;
+          sx = (origenW - sw) / 2;
+        } else {
+          sh = origenW;
+          sy = (origenH - sh) * 0.38;
+        }
 
-          const archivoImagen = await respuesta.blob();
-          const imagenDataUrl = await new Promise<string>((resolve, reject) => {
-            const lector = new FileReader();
-            lector.onload = () => {
-              if (typeof lector.result === "string") resolve(lector.result);
-              else reject(new Error("No se pudo incrustar una imagen de la ficha."));
-            };
-            lector.onerror = () => reject(new Error("Error leyendo una imagen de la ficha."));
-            lector.readAsDataURL(archivoImagen);
-          });
+        contexto.save();
+        contexto.beginPath();
+        contexto.arc(x + diametro / 2, y + diametro / 2, diametro / 2, 0, Math.PI * 2);
+        contexto.clip();
+        contexto.drawImage(imagen, sx, sy, sw, sh, x, y, diametro, diametro);
+        contexto.restore();
+      };
 
-          // Quitamos srcset para impedir que Safari seleccione otra variante
-          // de la imagen durante la captura del DOM.
-          imagen.removeAttribute("srcset");
-          imagen.removeAttribute("sizes");
-          imagen.removeAttribute("crossorigin");
-          imagen.src = imagenDataUrl;
-
-          if (typeof imagen.decode === "function") {
-            await imagen.decode();
-          } else if (!imagen.complete) {
-            await new Promise<void>((resolve, reject) => {
-              imagen.onload = () => resolve();
-              imagen.onerror = () => reject(new Error("No se pudo decodificar una imagen de la ficha."));
-            });
-          }
-
-          if (imagen.naturalWidth === 0 || imagen.naturalHeight === 0) {
-            throw new Error(`La imagen ${imagen.alt || "de la ficha"} quedó vacía.`);
-          }
-        })
-      );
-
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      );
-
-      // Capturamos la tarjeta original con todas sus imágenes ya incrustadas.
-      const tarjetaCanvas = await toCanvas(tarjeta, {
-        cacheBust: false,
-        pixelRatio: 2,
-        backgroundColor: "#0f172a",
-        skipAutoScale: true,
-      });
-
-      // Restauramos los src/srcset originales antes de continuar con la descarga.
-      restaurarImagenes.reverse().forEach((restaurar) => restaurar());
-      restaurarImagenes.length = 0;
-
-      if (
-        tarjetaCanvas.width < 100 ||
-        tarjetaCanvas.height < 100 ||
-        tarjetaCanvas.width / Math.max(tarjetaCanvas.height, 1) < 0.25
-      ) {
-        throw new Error("La captura de la tarjeta salió vacía o incompleta.");
-      }
-
-      // Componer la tarjeta capturada sobre un lienzo de Instagram.
-      const lienzoFinal = document.createElement("canvas");
-      lienzoFinal.width = anchoFinal;
-      lienzoFinal.height = altoFinal;
-
-      const contexto = lienzoFinal.getContext("2d");
-      if (!contexto) {
-        throw new Error("El navegador no pudo crear el lienzo de descarga.");
-      }
-
-      const fondo = contexto.createLinearGradient(0, 0, anchoFinal, altoFinal);
+      // Fondo vertical final.
+      const fondo = ctx.createLinearGradient(0, 0, anchoFinal, altoFinal);
       fondo.addColorStop(0, "#061326");
       fondo.addColorStop(0.52, "#102b4a");
       fondo.addColorStop(1, "#07182d");
-      contexto.fillStyle = fondo;
-      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+      ctx.fillStyle = fondo;
+      ctx.fillRect(0, 0, anchoFinal, altoFinal);
 
-      const brilloAzul = contexto.createRadialGradient(
-        110, 150, 8, 110, 150, 390
-      );
+      const brilloAzul = ctx.createRadialGradient(110, 150, 8, 110, 150, 390);
       brilloAzul.addColorStop(0, "rgba(59,130,246,0.32)");
       brilloAzul.addColorStop(1, "rgba(59,130,246,0)");
-      contexto.fillStyle = brilloAzul;
-      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+      ctx.fillStyle = brilloAzul;
+      ctx.fillRect(0, 0, anchoFinal, altoFinal);
 
-      const brilloDorado = contexto.createRadialGradient(
-        970, altoFinal - 120, 8, 970, altoFinal - 120, 380
-      );
+      const brilloDorado = ctx.createRadialGradient(970, altoFinal - 120, 8, 970, altoFinal - 120, 380);
       brilloDorado.addColorStop(0, "rgba(234,179,8,0.22)");
       brilloDorado.addColorStop(1, "rgba(234,179,8,0)");
-      contexto.fillStyle = brilloDorado;
-      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+      ctx.fillStyle = brilloDorado;
+      ctx.fillRect(0, 0, anchoFinal, altoFinal);
 
+      // Ficha con proporciones equivalentes a la tarjeta de la página.
+      const tarjetaCanvas = document.createElement("canvas");
+      tarjetaCanvas.width = 900;
+      tarjetaCanvas.height = 1420;
+      const ficha = tarjetaCanvas.getContext("2d");
+      if (!ficha) throw new Error("No se pudo preparar el diseño de la ficha.");
+
+      const degradadoFicha = ficha.createLinearGradient(0, 0, 900, 1420);
+      degradadoFicha.addColorStop(0, estilo.inicio);
+      degradadoFicha.addColorStop(0.52, estilo.medio);
+      degradadoFicha.addColorStop(1, estilo.final);
+      redondear(ficha, 5, 5, 890, 1410, 42);
+      ficha.fillStyle = degradadoFicha;
+      ficha.fill();
+
+      ficha.save();
+      redondear(ficha, 5, 5, 890, 1410, 42);
+      ficha.clip();
+
+      const brilloFicha1 = ficha.createRadialGradient(790, 140, 10, 790, 140, 330);
+      brilloFicha1.addColorStop(0, estilo.brillo);
+      brilloFicha1.addColorStop(1, "rgba(255,255,255,0)");
+      ficha.fillStyle = brilloFicha1;
+      ficha.fillRect(0, 0, 900, 1420);
+
+      const brilloFicha2 = ficha.createRadialGradient(100, 1260, 10, 100, 1260, 350);
+      brilloFicha2.addColorStop(0, estilo.brillo);
+      brilloFicha2.addColorStop(1, "rgba(255,255,255,0)");
+      ficha.fillStyle = brilloFicha2;
+      ficha.fillRect(0, 0, 900, 1420);
+      ficha.restore();
+
+      ficha.strokeStyle = estilo.borde;
+      ficha.lineWidth = 8;
+      redondear(ficha, 5, 5, 890, 1410, 42);
+      ficha.stroke();
+
+      // Escudo y encabezado.
+      redondear(ficha, 58, 58, 132, 132, 22);
+      ficha.fillStyle = "#ffffff";
+      ficha.shadowColor = "rgba(0,0,0,0.22)";
+      ficha.shadowBlur = 18;
+      ficha.shadowOffsetY = 7;
+      ficha.fill();
+      ficha.shadowColor = "transparent";
+      ficha.shadowBlur = 0;
+      ficha.shadowOffsetY = 0;
+      ficha.save();
+      redondear(ficha, 72, 72, 104, 104, 14);
+      ficha.clip();
+      dibujarImagenContain(ficha, logo, 74, 74, 100, 100);
+      ficha.restore();
+
+      ficha.textAlign = "left";
+      ficha.textBaseline = "middle";
+      ficha.fillStyle = estilo.textoSuave;
+      ficha.font = "900 28px Arial, Helvetica, sans-serif";
+      ficha.fillText("LIBAVIME 2026", 220, 91);
+      ficha.fillStyle = estilo.texto;
+      ficha.font = "900 38px Arial, Helvetica, sans-serif";
+      ficha.fillText(String(equipo.nombre || "").toUpperCase(), 220, 145, 390);
+
+      // Etiqueta de posición.
+      redondear(ficha, 660, 82, 185, 66, 34);
+      ficha.fillStyle = primero ? "#fde047" : "#ffffff";
+      ficha.shadowColor = "rgba(0,0,0,0.2)";
+      ficha.shadowBlur = 14;
+      ficha.shadowOffsetY = 5;
+      ficha.fill();
+      ficha.shadowColor = "transparent";
+      ficha.shadowBlur = 0;
+      ficha.shadowOffsetY = 0;
+      ficha.fillStyle = primero ? "#713f12" : "#0f172a";
+      ficha.font = "900 28px Arial, Helvetica, sans-serif";
+      ficha.textAlign = "center";
+      ficha.fillText(primero ? "TOP 1" : "TOP 2", 752, 116);
+
+      // Fotografía: recorte circular y encuadre vertical.
+      const fotoX = 235, fotoY = 270, fotoD = 430;
+      ficha.beginPath();
+      ficha.arc(450, fotoY + fotoD / 2, fotoD / 2 + 9, 0, Math.PI * 2);
+      ficha.fillStyle = primero ? "#fde047" : "rgba(255,255,255,0.86)";
+      ficha.shadowColor = "rgba(0,0,0,0.28)";
+      ficha.shadowBlur = 24;
+      ficha.shadowOffsetY = 10;
+      ficha.fill();
+      ficha.shadowColor = "transparent";
+      ficha.shadowBlur = 0;
+      ficha.shadowOffsetY = 0;
+      dibujarImagenCoverCircular(ficha, foto, fotoX, fotoY, fotoD);
+
+      // Nombre del jugador.
+      ficha.fillStyle = estilo.textoSuave;
+      ficha.font = "900 23px Arial, Helvetica, sans-serif";
+      ficha.textAlign = "center";
+      ficha.fillText("JUGADOR DESTACADO DE LA JORNADA", 450, 770);
+      dibujarTextoAjustado(
+        ficha,
+        String(jugador.nombre || "JUGADOR").toUpperCase(),
+        450, 842, 820, 58, 34, estilo.texto
+      );
+      ficha.beginPath();
+      ficha.moveTo(410, 895);
+      ficha.lineTo(490, 895);
+      ficha.lineWidth = 8;
+      ficha.lineCap = "round";
+      ficha.strokeStyle = "#fde047";
+      ficha.stroke();
+
+      // Estadísticas del partido.
+      const estadisticas = [
+        { label: "PUNTOS", value: Number(jugador.puntosPartido || 0), color: "#1d4ed8" },
+        { label: "REBOTES", value: Number(jugador.rebotesPartido || 0), color: "#15803d" },
+        { label: "ASISTENCIAS", value: Number(jugador.asistenciasPartido || 0), color: "#c2410c" },
+      ];
+      const statX = [55, 335, 615];
+      estadisticas.forEach((stat, i) => {
+        redondear(ficha, statX[i], 965, 230, 170, 26);
+        ficha.fillStyle = "rgba(255,255,255,0.94)";
+        ficha.shadowColor = "rgba(0,0,0,0.16)";
+        ficha.shadowBlur = 16;
+        ficha.shadowOffsetY = 6;
+        ficha.fill();
+        ficha.shadowColor = "transparent";
+        ficha.shadowBlur = 0;
+        ficha.shadowOffsetY = 0;
+        ficha.fillStyle = stat.color;
+        ficha.font = "900 23px Arial, Helvetica, sans-serif";
+        ficha.textAlign = "center";
+        ficha.fillText(stat.label, statX[i] + 115, 1015);
+        ficha.fillStyle = "#020617";
+        ficha.font = "900 70px Arial, Helvetica, sans-serif";
+        ficha.fillText(String(stat.value), statX[i] + 115, 1080);
+      });
+
+      // Pie y crédito de la ficha.
+      ficha.beginPath();
+      ficha.moveTo(58, 1190);
+      ficha.lineTo(842, 1190);
+      ficha.lineWidth = 2;
+      ficha.strokeStyle = equipo.nombre === "Espartanos" ? "rgba(15,23,42,0.28)" : "rgba(255,255,255,0.38)";
+      ficha.stroke();
+      ficha.textAlign = "center";
+      ficha.fillStyle = estilo.textoSuave;
+      ficha.font = "900 20px Arial, Helvetica, sans-serif";
+      ficha.fillText("LIGA DE BALONCESTO DE VISITADORES MÉDICOS", 450, 1245);
+      ficha.font = "700 19px Arial, Helvetica, sans-serif";
+      ficha.fillText("TORNEO LIBAVIME 2026", 450, 1290);
+      ficha.font = "700 18px Arial, Helvetica, sans-serif";
+      ficha.fillText("Diseñado y desarrollado por Emmi de la Cruz", 450, 1345);
+
+      // Ajuste del mismo diseño a Feed o Story.
       const margenHorizontal = 64;
       const margenVertical = esHistoria ? 170 : 120;
-      const escalaFinal = Math.min(
+      const escala = Math.min(
         (anchoFinal - margenHorizontal * 2) / tarjetaCanvas.width,
         (altoFinal - margenVertical * 2) / tarjetaCanvas.height
       );
-
-      const anchoTarjeta = tarjetaCanvas.width * escalaFinal;
-      const altoTarjeta = tarjetaCanvas.height * escalaFinal;
+      const anchoTarjeta = tarjetaCanvas.width * escala;
+      const altoTarjeta = tarjetaCanvas.height * escala;
       const xTarjeta = (anchoFinal - anchoTarjeta) / 2;
       const yTarjeta = (altoFinal - altoTarjeta) / 2;
 
-      contexto.save();
-      contexto.shadowColor = "rgba(0,0,0,0.38)";
-      contexto.shadowBlur = 28;
-      contexto.shadowOffsetY = 10;
-      contexto.drawImage(
-        tarjetaCanvas,
-        xTarjeta,
-        yTarjeta,
-        anchoTarjeta,
-        altoTarjeta
-      );
-      contexto.restore();
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.42)";
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 14;
+      ctx.drawImage(tarjetaCanvas, xTarjeta, yTarjeta, anchoTarjeta, altoTarjeta);
+      ctx.restore();
 
       const archivo = await new Promise<Blob>((resolve, reject) => {
-        lienzoFinal.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error("No se pudo generar el archivo PNG final."));
-          },
-          "image/png"
-        );
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("El navegador no pudo crear el archivo PNG."));
+        }, "image/png");
       });
 
       if (archivo.size < 10_000) {
-        throw new Error("El archivo final quedó demasiado pequeño; la tarjeta podría no haberse incluido.");
+        throw new Error("El PNG generado quedó demasiado pequeño.");
       }
 
       const limpiarNombre = (valor: string) =>
         String(valor ?? "")
           .normalize("NFD")
-          .replace(/[\\u0300-\\u036f]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-zA-Z0-9]+/g, "_")
           .replace(/^_|_$/g, "") || "LIBAVIME";
 
-      const nombreArchivo = `LIBAVIME_${limpiarNombre(equipo.nombre)}_${limpiarNombre(jugador.nombre)}_${esHistoria ? "Historia_1080x1920" : "Feed_1080x1350"}.png`;
+      const nombreArchivo = "LIBAVIME_" + limpiarNombre(equipo.nombre) + "_" +
+        limpiarNombre(jugador.nombre) + "_" +
+        (esHistoria ? "Historia_1080x1920" : "Feed_1080x1350") + ".png";
 
       urlTemporal = URL.createObjectURL(archivo);
       const enlace = document.createElement("a");
@@ -1821,20 +2007,14 @@ export default function Estadisticas() {
       enlace.click();
       enlace.remove();
 
-      window.setTimeout(() => {
-        if (urlTemporal) URL.revokeObjectURL(urlTemporal);
-      }, 60_000);
+      const urlLiberar = urlTemporal;
+      window.setTimeout(() => URL.revokeObjectURL(urlLiberar), 60_000);
       urlTemporal = null;
     } catch (error) {
       console.error("Error generando tarjeta del jugador:", error);
       const mensaje = error instanceof Error ? error.message : "Error desconocido";
-      alert(
-        `No se pudo descargar la tarjeta completa. ${mensaje} Revisa que la fotografía y el logo estén visibles e inténtalo de nuevo.`
-      );
+      alert("No se pudo descargar la ficha completa. " + mensaje);
     } finally {
-      // Protección adicional: devolver las imágenes originales si ocurrió
-      // algún error antes de que la captura terminara.
-      restaurarImagenes.reverse().forEach((restaurar) => restaurar());
       if (urlTemporal) URL.revokeObjectURL(urlTemporal);
       setJugadorExportandoId(null);
     }
