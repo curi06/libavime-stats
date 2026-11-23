@@ -10,6 +10,7 @@ type Tipo =
   | "lideres"
   | "posiciones"
   | "destacados"
+  | "destacado_individual"
   | "mvp"
   | "finales";
 type Formato = "historia" | "post";
@@ -225,8 +226,9 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
   // Permite abrir el editor directamente desde una tarjeta de Estadísticas.
   useEffect(() => {
     const parametros = new URLSearchParams(window.location.search);
+    const modoIndividual = parametros.get("individual") === "1";
     if (parametros.get("tipo") === "destacados") {
-      setTipo("destacados");
+      setTipo(modoIndividual ? "destacado_individual" : "destacados");
     }
     const fecha = parametros.get("fecha");
     if (fecha) setFechaJornada(fecha);
@@ -234,7 +236,7 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
     const jugadorSeleccionado = parametros.get("jugador");
     if (jugadorSeleccionado) setJugadorEncuadreId(jugadorSeleccionado);
 
-    setModoIndividualDestacado(parametros.get("individual") === "1");
+    setModoIndividualDestacado(modoIndividual);
     const formatoParametro = parametros.get("formato");
     if (formatoParametro === "historia" || formatoParametro === "post") {
       setFormato(formatoParametro);
@@ -1183,7 +1185,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
           ? ` - ${jugador.nombre}`
           : tipo === "lideres" && liderSeleccionado?.jugador
             ? ` - ${etiquetaLider} - ${liderSeleccionado.jugador.nombre}`
-            : tipo === "destacados" && modoIndividualDestacado
+            : (tipo === "destacado_individual" || (tipo === "destacados" && modoIndividualDestacado))
               ? ` - Jornada ${fechaJornada} - ${destacadoIndividual?.nombre ?? "Jugador destacado"}`
               : ""
       }`;
@@ -1200,7 +1202,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
       ? jugador.nombre
       : tipo === "lideres"
         ? liderSeleccionado?.jugador?.nombre ?? null
-        : tipo === "destacados" && modoIndividualDestacado
+        : (tipo === "destacado_individual" || (tipo === "destacados" && modoIndividualDestacado))
           ? destacadoIndividual?.nombre ?? null
           : null,
   categoria:
@@ -1281,12 +1283,16 @@ if (!respuesta.ok) {
   ["lideres", "Líderes"],
   ["posiciones", "Posiciones"],
   ["destacados", "Destacados de la jornada"],
+  ["destacado_individual", "Destacado de la jornada individual"],
   ["mvp", "Candidatos MVP"],
   ["finales", "Finales"],
 ] as [Tipo, string][]).map(([valor, texto]) => (
                   <button
                     key={valor}
-                    onClick={() => setTipo(valor)}
+                    onClick={() => {
+                      setTipo(valor);
+                      setModoIndividualDestacado(valor === "destacado_individual");
+                    }}
                     className={`rounded-xl border px-2 py-3 text-sm font-bold ${
                       tipo === valor
                         ? "border-red-600 bg-red-50 text-red-700"
@@ -1586,7 +1592,7 @@ if (!respuesta.ok) {
   </div>
 )}
 
-{tipo === "destacados" && (
+{(tipo === "destacados" || tipo === "destacado_individual") && (
   <div>
     <label className="mb-2 block text-sm font-medium text-slate-700">
       Seleccionar jornada
@@ -1607,10 +1613,10 @@ if (!respuesta.ok) {
 )}
 
 
-{tipo === "destacados" && (
+{tipo === "destacado_individual" && (
   <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
     <h3 className="font-black text-blue-950">
-      Editor individual de jugadores
+      Editor de destacado individual
     </h3>
     <p className="text-sm text-slate-600">Arrastra la foto directamente en la vista previa o utiliza estos controles para ajustarla y centrarla. Los cambios se guardan para el formato seleccionado.</p>
 
@@ -2266,7 +2272,7 @@ if (!respuesta.ok) {
   (tipo === "jugador" && !jugador) ||
   (tipo === "mvp" && candidatosMVP.length === 0) ||
   (tipo === "lideres" && !ganadoresPorCategoria.some(({ jugador }) => jugador)) ||
-  (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)
+  (tipo === "destacado_individual" && !destacadoIndividual)
 }
 
               className="w-full rounded-xl bg-red-600 px-5 py-4 font-black text-white shadow-lg hover:bg-red-700 disabled:opacity-50"
@@ -2282,7 +2288,7 @@ if (!respuesta.ok) {
 <button
   type="button"
   onClick={() => guardarEnGaleria(false)}
-  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacado_individual" && !destacadoIndividual)}
   className="mt-3 w-full rounded-xl bg-emerald-700 px-5 py-4 font-black text-white shadow-lg hover:bg-emerald-800 disabled:opacity-50"
 >
   {publicando ? "Guardando diseño…" : "Guardar diseño"}
@@ -2291,7 +2297,7 @@ if (!respuesta.ok) {
 <button
   type="button"
   onClick={() => guardarEnGaleria(true)}
-  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacados" && modoIndividualDestacado && !destacadoIndividual)}
+  disabled={cargando || descargando || publicando || (tipo === "jugador" && !jugador) || (tipo === "destacado_individual" && !destacadoIndividual)}
   className="mt-3 w-full rounded-xl bg-blue-950 px-5 py-4 font-black text-white shadow-lg hover:bg-blue-900 disabled:opacity-50"
 >
   {publicando ? "Publicando diseño…" : "Publicar en la galería"}
@@ -2896,7 +2902,7 @@ i === 0
 )}
 
 
-{tipo === "destacados" && modoIndividualDestacado && (() => {
+{(tipo === "destacado_individual" || (tipo === "destacados" && modoIndividualDestacado)) && (() => {
   const jugador = destacadoIndividual;
   if (!jugador) {
     return (
@@ -2931,34 +2937,33 @@ i === 0
 
   return (
     <div
-      className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 p-3 shadow-2xl"
+      className="relative z-10 mx-auto flex min-h-0 w-full max-w-[320px] flex-none flex-col overflow-hidden rounded-2xl border-2 p-2 shadow-2xl"
       style={{
         borderColor: color.borde,
         background: `linear-gradient(145deg, ${color.fondo} 0%, #07152e 100%)`,
         color: color.texto,
+        maxHeight: formato === "post" ? "350px" : "470px",
+        marginTop: "5px",
+        marginBottom: "5px",
       }}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <img src={LOGO} alt="LIBAVIME" className="h-10 w-10 object-contain" />
-          <div>
-            <p className="text-[8px] font-black uppercase tracking-[0.18em]" style={{ color: color.acento }}>LIBAVIME 2026</p>
-            <p className="text-xs font-black uppercase tracking-wider">{equipo}</p>
-          </div>
-        </div>
-        <span className="rounded-full px-3 py-1 text-[9px] font-black text-slate-950 shadow" style={{ background: esPrimero ? "#fde047" : "#ffffff" }}>
+      <div className="relative flex h-7 shrink-0 items-center justify-center px-14">
+        <p className="text-center text-sm font-black uppercase tracking-[0.20em]">
+          {equipo}
+        </p>
+        <span className="absolute right-0 top-0 rounded-full px-3 py-1 text-[9px] font-black text-slate-950 shadow" style={{ background: esPrimero ? "#fde047" : "#ffffff" }}>
           {esPrimero ? "🥇 TOP 1" : "🥈 TOP 2"}
         </span>
       </div>
 
-      <div className="mt-2 flex shrink-0 justify-center">
+      <div className="mt-1 flex shrink-0 justify-center">
         <p className="text-[8px] font-black uppercase tracking-[0.18em]" style={{ color: color.acento }}>
           JORNADA · {fechaJornada.split("-").reverse().join("/")}
         </p>
       </div>
 
       <div
-        className={`relative mx-auto mt-2 w-full shrink-0 overflow-hidden rounded-2xl border bg-[#061326]/50 ${formato === "historia" ? "h-[210px]" : "h-[145px]"}`}
+        className={`relative mx-auto mt-1 w-full shrink-0 overflow-hidden rounded-2xl border bg-[#061326]/50 ${formato === "historia" ? "h-[195px]" : "h-[130px]"}`}
         style={{ borderColor: color.borde, touchAction: "none", cursor: "grab" }}
         onPointerDown={(evento) => iniciarArrastreFoto(evento, ajusteFoto)}
         onPointerMove={moverArrastreFoto}
@@ -2985,37 +2990,30 @@ i === 0
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 border border-white/10" />
-        <div className="pointer-events-none absolute bottom-2 left-0 right-0 text-center text-[8px] font-bold uppercase tracking-widest text-white/70">
-          Arrastra la foto para ajustar su posición
-        </div>
       </div>
 
-      <div className="mt-2 shrink-0 text-center">
-        <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: color.acento }}>
+      <div className="mt-1 shrink-0 text-center">
+        <p className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: color.acento }}>
           JUGADOR DESTACADO
         </p>
-        <h2 className="mt-1 text-xl font-black uppercase leading-tight">{jugador.nombre}</h2>
-        <p className="mt-1 text-[9px] font-bold uppercase tracking-wider" style={{ color: color.acento }}>{equipo}</p>
+        <h2 className="mt-0.5 text-lg font-black uppercase leading-tight">{jugador.nombre}</h2>
       </div>
 
-      <div className={`mt-2 grid shrink-0 grid-cols-3 ${formato === "historia" ? "gap-2" : "gap-1"}`}>
+      <div className={`mt-1 grid shrink-0 grid-cols-3 ${formato === "historia" ? "gap-2" : "gap-1"}`}>
         {[
           ["PTS", jugador.puntos],
           ["REB", jugador.rebotes],
           ["AST", jugador.asistencias],
         ].map(([label, valor]) => (
-          <div key={String(label)} className="rounded-xl bg-white/90 px-1 py-2 text-center text-slate-950">
+          <div key={String(label)} className="rounded-xl bg-white/90 px-1 py-1.5 text-center text-slate-950">
             <p className="text-[8px] font-black tracking-wider text-blue-900">{label}</p>
             <p className={`font-black leading-none ${formato === "historia" ? "text-2xl" : "text-xl"}`}>{valor}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-auto border-t border-white/20 pt-2 text-center">
-        <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: color.acento }}>
-          LIGA DE BALONCESTO DE VISITADORES MÉDICOS · LIBAVIME 2026
-        </p>
-        <p className="mt-1 text-[8px] font-bold" style={{ color: color.acento }}>
+      <div className="mt-2 shrink-0 border-t border-white/20 pt-1.5 text-center">
+        <p className="text-[7px] font-bold tracking-wide" style={{ color: color.acento }}>
           Diseñado y desarrollado por Emmi de la Cruz
         </p>
       </div>
@@ -3350,6 +3348,8 @@ const ajusteFoto =
   ? "mt-auto pt-1 border-amber-400/40"
   : tipo === "destacados" && formato === "post"
     ? "mt-[-200px] pt-1"
+    : tipo === "destacado_individual"
+      ? "mt-1 pt-1"
     : tipo === "lideres" && formato === "post"
       ? "mt-0 pt-1"
       : "mt-1 pt-1"
