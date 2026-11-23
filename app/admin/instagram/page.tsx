@@ -2997,22 +2997,14 @@ i === 0
           JUGADOR DESTACADO
         </p>
         <h2
-          className="mt-0.5 px-1 text-center text-[21px] font-black uppercase leading-tight tracking-[0.04em]"
+          className={`mt-0.5 w-full px-1 text-center font-black uppercase leading-tight tracking-[0.12em] ${formato === "post" ? "text-[20px]" : "text-[29px]"}`}
           style={{
-            fontFamily: "Arial Black, Impact, sans-serif",
-            fontWeight: 900,
-            letterSpacing: "0.045em",
-            backgroundImage:
-              "linear-gradient(180deg, #ffffff 0%, #e8f5ff 18%, #b8cbd9 34%, #fffdf2 48%, #f4d98b 62%, #d7b45a 78%, #fff5d7 100%)",
-            backgroundClip: "text",
+            fontFamily: "Arial, Helvetica, sans-serif",
+            background:
+              "linear-gradient(180deg, #fff6c7 0%, #f8d66d 25%, #d49a25 55%, #fff0a6 78%, #a96b12 100%)",
             WebkitBackgroundClip: "text",
-            color: "transparent",
             WebkitTextFillColor: "transparent",
-            WebkitTextStroke: "0.7px rgba(255,255,255,0.85)",
-            textShadow:
-              "0 0 2px rgba(255,255,255,0.9), 0 0 7px rgba(239,215,150,0.8), 0 2px 10px rgba(212,175,55,0.42)",
-            filter:
-              "drop-shadow(0 0 3px rgba(255,255,255,0.55)) drop-shadow(0 2px 5px rgba(212,175,55,0.38))",
+            filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.85))",
           }}
         >
           {jugador.nombre}
