@@ -1658,21 +1658,53 @@ export default function Estadisticas() {
       lienzo.appendChild(tarjetaClonada);
       document.body.appendChild(lienzo);
 
-      // Esperar carga/decodificación real de las imágenes (incluye fallos de carga).
+      // Next/Image puede clonar las fotos con loading="lazy" y srcset.
+      // En el lienzo fuera de pantalla las forzamos a eager y reutilizamos
+      // la URL ya cargada en la tarjeta visible para evitar esperas infinitas.
+      const imagenesOriginales = Array.from(tarjeta.querySelectorAll("img"));
       const imagenes = Array.from(lienzo.querySelectorAll("img"));
+
+      imagenes.forEach((imagen, indiceImagen) => {
+        const original = imagenesOriginales[indiceImagen];
+        const fuente = original?.currentSrc || original?.src || imagen.currentSrc || imagen.src;
+
+        imagen.loading = "eager";
+        imagen.decoding = "sync";
+        imagen.removeAttribute("srcset");
+        imagen.removeAttribute("sizes");
+        if (fuente) imagen.src = fuente;
+      });
+
       await Promise.all(
         imagenes.map(async (imagen) => {
           if (!imagen.complete) {
-            await new Promise<void>((resolve) => {
-              const terminar = () => resolve();
-              imagen.addEventListener("load", terminar, { once: true });
-              imagen.addEventListener("error", terminar, { once: true });
-              if (imagen.complete) terminar();
+            await new Promise<void>((resolve, reject) => {
+              const terminar = () => {
+                window.clearTimeout(limite);
+                imagen.removeEventListener("load", cargar);
+                imagen.removeEventListener("error", fallar);
+              };
+              const cargar = () => {
+                terminar();
+                resolve();
+              };
+              const fallar = () => {
+                terminar();
+                reject(new Error(`No se pudo cargar la fotografía o el logo: ${imagen.alt || "imagen"}.`));
+              };
+              const limite = window.setTimeout(() => {
+                terminar();
+                reject(new Error(`La imagen tardó demasiado en cargar: ${imagen.alt || "imagen"}.`));
+              }, 12_000);
+
+              imagen.addEventListener("load", cargar, { once: true });
+              imagen.addEventListener("error", fallar, { once: true });
+              if (imagen.complete) cargar();
             });
           }
 
-          if (imagen.complete && imagen.naturalWidth === 0) {
-            throw new Error(`No se pudo cargar una imagen de la tarjeta: ${imagen.alt || "imagen"}.`);
+          if (imagen.naturalWidth === 0) {
+            throw new Error(`No se pudo preparar una imagen de la tarjeta: ${imagen.alt || "imagen"}.`);
           }
 
           if (typeof imagen.decode === "function") {
