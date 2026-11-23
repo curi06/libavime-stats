@@ -1603,6 +1603,7 @@ export default function Estadisticas() {
     setJugadorExportandoId(claveExportacion);
 
     let urlTemporal: string | null = null;
+    const restaurarImagenes: Array<() => void> = [];
 
     try {
       const { toCanvas } = await import("html-to-image");
@@ -1617,8 +1618,9 @@ export default function Estadisticas() {
         throw new Error("La tarjeta no tiene un tamaño válido para exportar.");
       }
 
-      // Capturamos la tarjeta original visible, no un clon fuera de pantalla.
-      // Así html-to-image conserva el contenido real, los estilos y las fotografías.
+      // En Safari móvil, html-to-image puede capturar el contenido HTML y los
+      // textos, pero omitir imágenes remotas o seleccionadas mediante srcset.
+      // Para evitarlo, incrustamos temporalmente cada imagen como data URL.
       const imagenes = Array.from(tarjeta.querySelectorAll("img"));
       if (imagenes.length === 0) {
         throw new Error("La tarjeta no contiene imágenes para exportar.");
@@ -1626,41 +1628,77 @@ export default function Estadisticas() {
 
       await Promise.all(
         imagenes.map(async (imagen) => {
+          const atributosOriginales = {
+            src: imagen.getAttribute("src"),
+            srcset: imagen.getAttribute("srcset"),
+            sizes: imagen.getAttribute("sizes"),
+            crossorigin: imagen.getAttribute("crossorigin"),
+            loading: imagen.getAttribute("loading"),
+          };
+
+          // Guardamos la forma original de cada elemento para restaurarla
+          // incluso si la captura o la descarga falla.
+          restaurarImagenes.push(() => {
+            const restaurarAtributo = (nombre: string, valor: string | null) => {
+              if (valor === null) imagen.removeAttribute(nombre);
+              else imagen.setAttribute(nombre, valor);
+            };
+            restaurarAtributo("src", atributosOriginales.src);
+            restaurarAtributo("srcset", atributosOriginales.srcset);
+            restaurarAtributo("sizes", atributosOriginales.sizes);
+            restaurarAtributo("crossorigin", atributosOriginales.crossorigin);
+            restaurarAtributo("loading", atributosOriginales.loading);
+          });
+
           imagen.loading = "eager";
+          const fuenteOriginal = imagen.currentSrc || imagen.src;
+          if (!fuenteOriginal) {
+            throw new Error(`No se encontró el archivo de ${imagen.alt || "una imagen"}.`);
+          }
 
-          if (!imagen.complete) {
+          const urlImagen = new URL(fuenteOriginal, window.location.href);
+          const mismaOrigen = urlImagen.origin === window.location.origin;
+          const respuesta = await fetch(urlImagen.href, {
+            mode: "cors",
+            credentials: mismaOrigen ? "same-origin" : "omit",
+            cache: "force-cache",
+          });
+
+          if (!respuesta.ok) {
+            throw new Error(
+              `No se pudo preparar ${imagen.alt || "una imagen"} (HTTP ${respuesta.status}).`
+            );
+          }
+
+          const archivoImagen = await respuesta.blob();
+          const imagenDataUrl = await new Promise<string>((resolve, reject) => {
+            const lector = new FileReader();
+            lector.onload = () => {
+              if (typeof lector.result === "string") resolve(lector.result);
+              else reject(new Error("No se pudo incrustar una imagen de la ficha."));
+            };
+            lector.onerror = () => reject(new Error("Error leyendo una imagen de la ficha."));
+            lector.readAsDataURL(archivoImagen);
+          });
+
+          // Quitamos srcset para impedir que Safari seleccione otra variante
+          // de la imagen durante la captura del DOM.
+          imagen.removeAttribute("srcset");
+          imagen.removeAttribute("sizes");
+          imagen.removeAttribute("crossorigin");
+          imagen.src = imagenDataUrl;
+
+          if (typeof imagen.decode === "function") {
+            await imagen.decode();
+          } else if (!imagen.complete) {
             await new Promise<void>((resolve, reject) => {
-              const limite = window.setTimeout(() => {
-                limpiar();
-                reject(new Error(`La imagen tardó demasiado en cargar: ${imagen.alt || "imagen"}.`));
-              }, 15_000);
-
-              const cargar = () => {
-                limpiar();
-                resolve();
-              };
-              const fallar = () => {
-                limpiar();
-                reject(new Error(`No se pudo cargar: ${imagen.alt || "imagen"}.`));
-              };
-              const limpiar = () => {
-                window.clearTimeout(limite);
-                imagen.removeEventListener("load", cargar);
-                imagen.removeEventListener("error", fallar);
-              };
-
-              imagen.addEventListener("load", cargar, { once: true });
-              imagen.addEventListener("error", fallar, { once: true });
-              if (imagen.complete) cargar();
+              imagen.onload = () => resolve();
+              imagen.onerror = () => reject(new Error("No se pudo decodificar una imagen de la ficha."));
             });
           }
 
           if (imagen.naturalWidth === 0 || imagen.naturalHeight === 0) {
-            throw new Error(`No se pudo preparar la imagen: ${imagen.alt || "imagen"}.`);
-          }
-
-          if (typeof imagen.decode === "function") {
-            await imagen.decode();
+            throw new Error(`La imagen ${imagen.alt || "de la ficha"} quedó vacía.`);
           }
         })
       );
@@ -1673,14 +1711,17 @@ export default function Estadisticas() {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
 
-      // Exportar directamente el nodo original permite comprobar que el
-      // archivo de origen contiene la tarjeta completa antes de maquetarla.
+      // Capturamos la tarjeta original con todas sus imágenes ya incrustadas.
       const tarjetaCanvas = await toCanvas(tarjeta, {
-        cacheBust: true,
+        cacheBust: false,
         pixelRatio: 2,
         backgroundColor: "#0f172a",
         skipAutoScale: true,
       });
+
+      // Restauramos los src/srcset originales antes de continuar con la descarga.
+      restaurarImagenes.reverse().forEach((restaurar) => restaurar());
+      restaurarImagenes.length = 0;
 
       if (
         tarjetaCanvas.width < 100 ||
@@ -1791,6 +1832,9 @@ export default function Estadisticas() {
         `No se pudo descargar la tarjeta completa. ${mensaje} Revisa que la fotografía y el logo estén visibles e inténtalo de nuevo.`
       );
     } finally {
+      // Protección adicional: devolver las imágenes originales si ocurrió
+      // algún error antes de que la captura terminara.
+      restaurarImagenes.reverse().forEach((restaurar) => restaurar());
       if (urlTemporal) URL.revokeObjectURL(urlTemporal);
       setJugadorExportandoId(null);
     }
