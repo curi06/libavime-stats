@@ -1549,7 +1549,8 @@ export default function Estadisticas() {
   async function descargarTarjetaDestacada(
     jugador: any,
     equipo: any,
-    indice: number
+    indice: number,
+    formato: "story" | "feed"
   ) {
     const tarjetaId = `${equipo.slug ?? equipo.nombre}-${jugador.id}`;
     const tarjeta = tarjetasDestacadosRef.current[tarjetaId];
@@ -1559,32 +1560,80 @@ export default function Estadisticas() {
       return;
     }
 
-    setJugadorExportandoId(tarjetaId);
+    const claveExportacion = `${tarjetaId}:${formato}`;
+    setJugadorExportandoId(claveExportacion);
+
+    let lienzo: HTMLDivElement | null = null;
 
     try {
       const { toPng } = await import("html-to-image");
+      const esHistoria = formato === "story";
+      // 540×960 a 2x = 1080×1920 (Historia/Reel).
+      // 540×675 a 2x = 1080×1350 (publicación vertical 4:5).
+      const anchoLienzo = 540;
+      const altoLienzo = esHistoria ? 960 : 675;
+      const medidasTarjeta = tarjeta.getBoundingClientRect();
+      const escala = Math.min(
+        esHistoria ? 0.94 : 0.76,
+        (anchoLienzo - 56) / Math.max(medidasTarjeta.width, 1),
+        (altoLienzo - (esHistoria ? 180 : 150)) / Math.max(medidasTarjeta.height, 1)
+      );
 
-      // Esperar a que las fotografías estén listas antes de capturar el diseño.
-      const imagenes = Array.from(tarjeta.querySelectorAll("img"));
+      // Se crea un lienzo vertical, con espacio alrededor para que puedas
+      // añadir textos, GIF, música y stickers desde el editor de Instagram.
+      lienzo = document.createElement("div");
+      lienzo.style.cssText = [
+        `width:${anchoLienzo}px`,
+        `height:${altoLienzo}px`,
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "overflow:hidden",
+        "box-sizing:border-box",
+        "padding:24px",
+        "position:fixed",
+        "left:-12000px",
+        "top:0",
+        "z-index:-1",
+        "pointer-events:none",
+        "background-color:#07182d",
+        "background-image:radial-gradient(circle at 12% 12%, rgba(59,130,246,.28), transparent 34%), radial-gradient(circle at 88% 88%, rgba(234,179,8,.18), transparent 30%), linear-gradient(145deg,#061326 0%,#102b4a 55%,#07182d 100%)"
+      ].join(";");
+
+      const tarjetaClonada = tarjeta.cloneNode(true) as HTMLDivElement;
+      tarjetaClonada.style.width = `${medidasTarjeta.width}px`;
+      tarjetaClonada.style.maxWidth = "none";
+      tarjetaClonada.style.flex = "0 0 auto";
+      tarjetaClonada.style.transform = `scale(${escala})`;
+      tarjetaClonada.style.transformOrigin = "center center";
+      lienzo.appendChild(tarjetaClonada);
+      document.body.appendChild(lienzo);
+
+      // Esperar las fotos del clon y las fuentes antes de generar el PNG.
+      const imagenes = Array.from(lienzo.querySelectorAll("img"));
       await Promise.all(
         imagenes.map(
           (imagen) =>
             new Promise<void>((resolve) => {
-              if (imagen.complete) {
+              if (imagen.complete && imagen.naturalWidth > 0) {
                 resolve();
                 return;
               }
-
               imagen.addEventListener("load", () => resolve(), { once: true });
               imagen.addEventListener("error", () => resolve(), { once: true });
             })
         )
       );
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
 
-      const imagenGenerada = await toPng(tarjeta, {
+      const imagenGenerada = await toPng(lienzo, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: "#0f172a",
+        width: anchoLienzo,
+        height: altoLienzo,
+        backgroundColor: "#07182d",
       });
 
       const limpiarNombre = (valor: string) =>
@@ -1595,7 +1644,7 @@ export default function Estadisticas() {
           .replace(/^_|_$/g, "");
 
       const enlace = document.createElement("a");
-      enlace.download = `LIBAVIME_${limpiarNombre(equipo.nombre)}_${limpiarNombre(jugador.nombre)}.png`;
+      enlace.download = `LIBAVIME_${limpiarNombre(equipo.nombre)}_${limpiarNombre(jugador.nombre)}_${esHistoria ? "Historia_1080x1920" : "Feed_1080x1350"}.png`;
       enlace.href = imagenGenerada;
       enlace.click();
     } catch (error) {
@@ -1604,6 +1653,7 @@ export default function Estadisticas() {
         "No se pudo generar la imagen. Verifica que la fotografía del jugador esté disponible e inténtalo nuevamente."
       );
     } finally {
+      lienzo?.remove();
       setJugadorExportandoId(null);
     }
   }
@@ -1833,20 +1883,35 @@ export default function Estadisticas() {
                                         <p className={`mt-1 text-[9px] font-semibold ${color.textoSuave}`}>
                                           TORNEO LIBAVIME 2026
                                         </p>
+                                        <p className={`mt-2 text-[9px] font-bold tracking-wide ${color.textoSuave}`}>
+                                          Diseñado y desarrollado por Emmi de la Cruz
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => descargarTarjetaDestacada(jugador, equipo, index)}
-                                    disabled={jugadorExportandoId !== null}
-                                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
-                                  >
-                                    {jugadorExportandoId === tarjetaId
-                                      ? "GENERANDO IMAGEN..."
-                                      : "📥 DESCARGAR TARJETA INDIVIDUAL"}
-                                  </button>
+                                  <div className="mt-3 grid grid-cols-1 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, "story")}
+                                      disabled={jugadorExportandoId !== null}
+                                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      {jugadorExportandoId === `${tarjetaId}:story`
+                                        ? "GENERANDO HISTORIA..."
+                                        : "📲 DESCARGAR HISTORIA (1080 × 1920)"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => descargarTarjetaDestacada(jugador, equipo, index, "feed")}
+                                      disabled={jugadorExportandoId !== null}
+                                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-950 bg-white px-5 py-3 text-sm font-black text-blue-950 shadow transition hover:bg-blue-50 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      {jugadorExportandoId === `${tarjetaId}:feed`
+                                        ? "GENERANDO PUBLICACIÓN..."
+                                        : "📸 DESCARGAR FEED (1080 × 1350)"}
+                                    </button>
+                                  </div>
                                 </div>
                               );
                             })}
