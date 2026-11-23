@@ -1595,107 +1595,59 @@ export default function Estadisticas() {
     const tarjeta = tarjetasDestacadosRef.current[tarjetaId];
 
     if (!tarjeta || !tarjeta.isConnected) {
-      alert("No se encontró la tarjeta que deseas descargar. Cambia de jornada y vuelve a intentarlo.");
+      alert("No se encontró la tarjeta que deseas descargar. Vuelve a seleccionar la jornada.");
       return;
     }
 
     const claveExportacion = `${tarjetaId}:${formato}`;
     setJugadorExportandoId(claveExportacion);
 
-    let lienzo: HTMLDivElement | null = null;
     let urlTemporal: string | null = null;
 
     try {
-      const { toBlob } = await import("html-to-image");
+      const { toCanvas } = await import("html-to-image");
       const esHistoria = formato === "story";
 
-      // Salida final exacta: Historia 1080×1920 / Feed 1080×1350.
-      const anchoLienzo = 540;
-      const altoLienzo = esHistoria ? 960 : 675;
-      const medidasTarjeta = tarjeta.getBoundingClientRect();
+      // Dimensiones finales exactas: Historia 1080×1920 / Feed 1080×1350.
+      const anchoFinal = 1080;
+      const altoFinal = esHistoria ? 1920 : 1350;
+      const medidas = tarjeta.getBoundingClientRect();
 
-      if (!medidasTarjeta.width || !medidasTarjeta.height) {
-        throw new Error("La tarjeta no tiene dimensiones visibles para exportar.");
+      if (medidas.width < 80 || medidas.height < 100) {
+        throw new Error("La tarjeta no tiene un tamaño válido para exportar.");
       }
 
-      const escala = Math.min(
-        esHistoria ? 0.94 : 0.76,
-        (anchoLienzo - 56) / medidasTarjeta.width,
-        (altoLienzo - (esHistoria ? 180 : 150)) / medidasTarjeta.height
-      );
-
-      // Se adjunta el lienzo al documento, fuera del área visible.
-      // Evitamos z-index negativo, que puede impedir la captura en algunos navegadores.
-      lienzo = document.createElement("div");
-      lienzo.style.cssText = [
-        `width:${anchoLienzo}px`,
-        `height:${altoLienzo}px`,
-        "display:flex",
-        "align-items:center",
-        "justify-content:center",
-        "overflow:hidden",
-        "box-sizing:border-box",
-        "padding:24px",
-        "position:fixed",
-        "left:0",
-        "top:0",
-        "transform:translateX(-200vw)",
-        "z-index:2147483647",
-        "visibility:visible",
-        "opacity:1",
-        "pointer-events:none",
-        "isolation:isolate",
-        "background-color:#07182d",
-        "background-image:radial-gradient(circle at 12% 12%, rgba(59,130,246,.28), transparent 34%), radial-gradient(circle at 88% 88%, rgba(234,179,8,.18), transparent 30%), linear-gradient(145deg,#061326 0%,#102b4a 55%,#07182d 100%)"
-      ].join(";");
-
-      const tarjetaClonada = tarjeta.cloneNode(true) as HTMLDivElement;
-      tarjetaClonada.style.width = `${medidasTarjeta.width}px`;
-      tarjetaClonada.style.maxWidth = "none";
-      tarjetaClonada.style.flex = "0 0 auto";
-      tarjetaClonada.style.transform = `scale(${escala})`;
-      tarjetaClonada.style.transformOrigin = "center center";
-      lienzo.appendChild(tarjetaClonada);
-      document.body.appendChild(lienzo);
-
-      // Next/Image puede clonar las fotos con loading="lazy" y srcset.
-      // En el lienzo fuera de pantalla las forzamos a eager y reutilizamos
-      // la URL ya cargada en la tarjeta visible para evitar esperas infinitas.
-      const imagenesOriginales = Array.from(tarjeta.querySelectorAll("img"));
-      const imagenes = Array.from(lienzo.querySelectorAll("img"));
-
-      imagenes.forEach((imagen, indiceImagen) => {
-        const original = imagenesOriginales[indiceImagen];
-        const fuente = original?.currentSrc || original?.src || imagen.currentSrc || imagen.src;
-
-        imagen.loading = "eager";
-        imagen.decoding = "sync";
-        imagen.removeAttribute("srcset");
-        imagen.removeAttribute("sizes");
-        if (fuente) imagen.src = fuente;
-      });
+      // Capturamos la tarjeta original visible, no un clon fuera de pantalla.
+      // Así html-to-image conserva el contenido real, los estilos y las fotografías.
+      const imagenes = Array.from(tarjeta.querySelectorAll("img"));
+      if (imagenes.length === 0) {
+        throw new Error("La tarjeta no contiene imágenes para exportar.");
+      }
 
       await Promise.all(
         imagenes.map(async (imagen) => {
+          imagen.loading = "eager";
+
           if (!imagen.complete) {
             await new Promise<void>((resolve, reject) => {
-              const terminar = () => {
+              const limite = window.setTimeout(() => {
+                limpiar();
+                reject(new Error(`La imagen tardó demasiado en cargar: ${imagen.alt || "imagen"}.`));
+              }, 15_000);
+
+              const cargar = () => {
+                limpiar();
+                resolve();
+              };
+              const fallar = () => {
+                limpiar();
+                reject(new Error(`No se pudo cargar: ${imagen.alt || "imagen"}.`));
+              };
+              const limpiar = () => {
                 window.clearTimeout(limite);
                 imagen.removeEventListener("load", cargar);
                 imagen.removeEventListener("error", fallar);
               };
-              const cargar = () => {
-                terminar();
-                resolve();
-              };
-              const fallar = () => {
-                terminar();
-                reject(new Error(`No se pudo cargar la fotografía o el logo: ${imagen.alt || "imagen"}.`));
-              };
-              const limite = window.setTimeout(() => {
-                terminar();
-                reject(new Error(`La imagen tardó demasiado en cargar: ${imagen.alt || "imagen"}.`));
-              }, 12_000);
 
               imagen.addEventListener("load", cargar, { once: true });
               imagen.addEventListener("error", fallar, { once: true });
@@ -1703,12 +1655,12 @@ export default function Estadisticas() {
             });
           }
 
-          if (imagen.naturalWidth === 0) {
-            throw new Error(`No se pudo preparar una imagen de la tarjeta: ${imagen.alt || "imagen"}.`);
+          if (imagen.naturalWidth === 0 || imagen.naturalHeight === 0) {
+            throw new Error(`No se pudo preparar la imagen: ${imagen.alt || "imagen"}.`);
           }
 
           if (typeof imagen.decode === "function") {
-            await imagen.decode().catch(() => undefined);
+            await imagen.decode();
           }
         })
       );
@@ -1717,21 +1669,97 @@ export default function Estadisticas() {
         await document.fonts.ready;
       }
 
-      // Dos cuadros de pintura para que navegador aplique estilos e imágenes al clon.
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
 
-      const archivo = await toBlob(lienzo, {
+      // Exportar directamente el nodo original permite comprobar que el
+      // archivo de origen contiene la tarjeta completa antes de maquetarla.
+      const tarjetaCanvas = await toCanvas(tarjeta, {
         cacheBust: true,
         pixelRatio: 2,
-        width: anchoLienzo,
-        height: altoLienzo,
-        backgroundColor: "#07182d",
+        backgroundColor: "#0f172a",
+        skipAutoScale: true,
       });
 
-      if (!archivo || archivo.size < 1000) {
-        throw new Error("La imagen generada está vacía. Inténtalo nuevamente.");
+      if (
+        tarjetaCanvas.width < 100 ||
+        tarjetaCanvas.height < 100 ||
+        tarjetaCanvas.width / Math.max(tarjetaCanvas.height, 1) < 0.25
+      ) {
+        throw new Error("La captura de la tarjeta salió vacía o incompleta.");
+      }
+
+      // Componer la tarjeta capturada sobre un lienzo de Instagram.
+      const lienzoFinal = document.createElement("canvas");
+      lienzoFinal.width = anchoFinal;
+      lienzoFinal.height = altoFinal;
+
+      const contexto = lienzoFinal.getContext("2d");
+      if (!contexto) {
+        throw new Error("El navegador no pudo crear el lienzo de descarga.");
+      }
+
+      const fondo = contexto.createLinearGradient(0, 0, anchoFinal, altoFinal);
+      fondo.addColorStop(0, "#061326");
+      fondo.addColorStop(0.52, "#102b4a");
+      fondo.addColorStop(1, "#07182d");
+      contexto.fillStyle = fondo;
+      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+
+      const brilloAzul = contexto.createRadialGradient(
+        110, 150, 8, 110, 150, 390
+      );
+      brilloAzul.addColorStop(0, "rgba(59,130,246,0.32)");
+      brilloAzul.addColorStop(1, "rgba(59,130,246,0)");
+      contexto.fillStyle = brilloAzul;
+      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+
+      const brilloDorado = contexto.createRadialGradient(
+        970, altoFinal - 120, 8, 970, altoFinal - 120, 380
+      );
+      brilloDorado.addColorStop(0, "rgba(234,179,8,0.22)");
+      brilloDorado.addColorStop(1, "rgba(234,179,8,0)");
+      contexto.fillStyle = brilloDorado;
+      contexto.fillRect(0, 0, anchoFinal, altoFinal);
+
+      const margenHorizontal = 64;
+      const margenVertical = esHistoria ? 170 : 120;
+      const escalaFinal = Math.min(
+        (anchoFinal - margenHorizontal * 2) / tarjetaCanvas.width,
+        (altoFinal - margenVertical * 2) / tarjetaCanvas.height
+      );
+
+      const anchoTarjeta = tarjetaCanvas.width * escalaFinal;
+      const altoTarjeta = tarjetaCanvas.height * escalaFinal;
+      const xTarjeta = (anchoFinal - anchoTarjeta) / 2;
+      const yTarjeta = (altoFinal - altoTarjeta) / 2;
+
+      contexto.save();
+      contexto.shadowColor = "rgba(0,0,0,0.38)";
+      contexto.shadowBlur = 28;
+      contexto.shadowOffsetY = 10;
+      contexto.drawImage(
+        tarjetaCanvas,
+        xTarjeta,
+        yTarjeta,
+        anchoTarjeta,
+        altoTarjeta
+      );
+      contexto.restore();
+
+      const archivo = await new Promise<Blob>((resolve, reject) => {
+        lienzoFinal.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("No se pudo generar el archivo PNG final."));
+          },
+          "image/png"
+        );
+      });
+
+      if (archivo.size < 10_000) {
+        throw new Error("El archivo final quedó demasiado pequeño; la tarjeta podría no haberse incluido.");
       }
 
       const limpiarNombre = (valor: string) =>
@@ -1743,7 +1771,6 @@ export default function Estadisticas() {
 
       const nombreArchivo = `LIBAVIME_${limpiarNombre(equipo.nombre)}_${limpiarNombre(jugador.nombre)}_${esHistoria ? "Historia_1080x1920" : "Feed_1080x1350"}.png`;
 
-      // Blob URL + anchor conectado al DOM: comportamiento más fiable en Firefox/Safari.
       urlTemporal = URL.createObjectURL(archivo);
       const enlace = document.createElement("a");
       enlace.href = urlTemporal;
@@ -1761,10 +1788,9 @@ export default function Estadisticas() {
       console.error("Error generando tarjeta del jugador:", error);
       const mensaje = error instanceof Error ? error.message : "Error desconocido";
       alert(
-        `No se pudo descargar la tarjeta. ${mensaje} Si la foto proviene de una dirección externa, puede que el servidor de imágenes no permita exportarla.`
+        `No se pudo descargar la tarjeta completa. ${mensaje} Revisa que la fotografía y el logo estén visibles e inténtalo de nuevo.`
       );
     } finally {
-      lienzo?.remove();
       if (urlTemporal) URL.revokeObjectURL(urlTemporal);
       setJugadorExportandoId(null);
     }
