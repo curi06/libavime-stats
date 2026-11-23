@@ -32,7 +32,19 @@ export default function LoginPage() {
       }
 
       await supabase.auth.signInWithPassword({ email, password });
-      router.push("/admin");
+
+      // Si la persona llegó a una sección protegida, regresarla a esa ruta
+      // después de iniciar sesión. Solo se permiten rutas locales.
+      const destinoSolicitado = new URLSearchParams(window.location.search).get("next");
+      const destinoSeguro =
+        destinoSolicitado &&
+        destinoSolicitado.startsWith("/") &&
+        !destinoSolicitado.startsWith("//") &&
+        !destinoSolicitado.includes("\\")
+          ? destinoSolicitado
+          : "/admin";
+
+      router.push(destinoSeguro);
       router.refresh();
     } catch {
       setMensaje("No se pudo iniciar sesión. Inténtalo nuevamente.");
