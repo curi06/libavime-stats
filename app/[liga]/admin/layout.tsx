@@ -44,10 +44,10 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-100 md:flex-row">
       <AdminSidebar esAdministrador={rol === "Administrador"} />
 
-      <main className="flex-1 p-6 md:p-10">
+      <main className="min-w-0 flex-1 p-4 md:p-10">
         {children}
       </main>
     </div>

@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function QuickActions() {
+  const { ruta } = useLiga();
   const acciones = [
     {
       href: "/admin/jugadores",
@@ -44,7 +48,7 @@ export default function QuickActions() {
         {acciones.map((accion) => (
           <Link
             key={accion.href}
-            href={accion.href}
+            href={ruta(accion.href)}
             className="bg-white rounded-2xl shadow-lg p-8 text-center hover:scale-105 hover:shadow-xl transition"
           >
             <h3 className="text-2xl md:text-3xl font-black mb-3 text-blue-950">
