@@ -215,7 +215,7 @@ async function eliminarEquipo(id: number) {
 
           <form
             onSubmit={guardarEquipo}
-            className="grid gap-4"
+            className="grid grid-cols-[minmax(0,1fr)] gap-4"
           >
 
             <input
@@ -243,7 +243,7 @@ async function eliminarEquipo(id: number) {
   type="file"
   accept="image/*"
   onChange={subirLogo}
-  className="border rounded-xl p-3"
+  className="w-full min-w-0 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-900 file:px-3 file:py-2 file:font-bold file:text-white rounded-xl border p-3"
 />
 
 {subiendo && (

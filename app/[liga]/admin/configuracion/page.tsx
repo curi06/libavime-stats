@@ -204,7 +204,7 @@ export default function ConfiguracionLigaPage() {
                 alt="Logo de la liga"
                 className="mt-2 h-28 w-28 rounded-2xl bg-slate-100 object-contain p-2"
               />
-              <input type="file" accept="image/*" className="mt-2 text-sm" onChange={(e) => setLogoNuevo(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*" className="mt-2 w-full min-w-0 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-900 file:px-3 file:py-2 file:font-bold file:text-white" onChange={(e) => setLogoNuevo(e.target.files?.[0] ?? null)} />
             </div>
             <div>
               <p className={etiqueta}>Banner de portada (horizontal, 1536 × 1024 aprox.)</p>
@@ -219,7 +219,7 @@ export default function ConfiguracionLigaPage() {
                   Sin banner: la portada usa tu logo y tus colores.
                 </p>
               )}
-              <input type="file" accept="image/*" className="mt-2 text-sm" onChange={(e) => setBannerNuevo(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*" className="mt-2 w-full min-w-0 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-900 file:px-3 file:py-2 file:font-bold file:text-white" onChange={(e) => setBannerNuevo(e.target.files?.[0] ?? null)} />
             </div>
           </div>
         </section>
