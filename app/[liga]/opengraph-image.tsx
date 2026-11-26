@@ -45,7 +45,9 @@ export default async function ImagenLiga({ params }: { params: Promise<{ liga: s
     : "Plataforma para ligas de baloncesto";
   const primario = liga?.color_primario ?? "#1e3a8a";
   const secundario = liga?.color_secundario ?? "#f97316";
-  const logo = liga ? await logoComoDato(logoLiga(liga)) : null;
+  const logo = liga
+    ? await logoComoDato(liga.configuracion?.logo_compartir || logoLiga(liga))
+    : null;
   const PEQUENAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "a"]);
   const iniciales = nombre
     .split(/\s+/)
@@ -74,7 +76,7 @@ export default async function ImagenLiga({ params }: { params: Promise<{ liga: s
             width: 300,
             height: 300,
             borderRadius: 150,
-            background: "rgba(255,255,255,0.95)",
+            background: "#ffffff",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -84,7 +86,7 @@ export default async function ImagenLiga({ params }: { params: Promise<{ liga: s
         >
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element -- ImageResponse usa <img>
-            <img src={logo} width={250} height={250} style={{ objectFit: "contain" }} alt="" />
+            <img src={logo} width={270} height={270} style={{ objectFit: "contain", borderRadius: 135 }} alt="" />
           ) : (
             <div style={{ fontSize: 110, fontWeight: 900, color: primario }}>{iniciales}</div>
           )}

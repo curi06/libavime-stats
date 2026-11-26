@@ -27,6 +27,7 @@ set configuracion = configuracion || jsonb_build_object(
     'lugar', 'Club San Carlos'
   ),
   'inicio_temporada', '2026-09-05',
+  'logo_compartir', '/logos/libavime-compartir.png',
   'redes', jsonb_build_object(
     'instagram', 'https://www.instagram.com/libavime',
     'youtube', 'https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg'

@@ -39,6 +39,8 @@ export type ConfiguracionLiga = {
   inauguracion?: { fecha: string; lugar?: string };
   inicio_temporada?: string;
   redes?: { instagram?: string; youtube?: string };
+  /** Logo cuadrado y recortado para la imagen al compartir (opcional). */
+  logo_compartir?: string;
 };
 
 export type Liga = {
