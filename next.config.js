@@ -1,15 +1,9 @@
 /** @type {import('next').NextConfig} */
 
-// Imágenes permitidas: el almacenamiento del proyecto de Supabase en uso
-// (producción o pruebas), tomado de la configuración en vez de fijarlo.
-const supabaseHost = (() => {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
-  } catch {
-    return "ialqgoofturuqrsdfwrl.supabase.co";
-  }
-})();
-
+// Imágenes permitidas: el almacenamiento público de cualquier proyecto de
+// Supabase. Así no se cae la página si los datos traen fotos de otro
+// proyecto (p. ej. una copia de producción en el proyecto de pruebas o un
+// cambio de proyecto en el futuro).
 const nextConfig = {
   allowedDevOrigins: ["172.20.10.2"],
 
@@ -17,7 +11,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: supabaseHost,
+        hostname: "**.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
     ],

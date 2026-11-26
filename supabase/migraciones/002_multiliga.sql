@@ -233,6 +233,15 @@ create trigger estadistica_misma_liga
 create or replace function public.partido_misma_liga_temporada()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+  -- El código anterior crea partidos sin temporada: se asigna la activa
+  -- de la liga (o la más reciente) para no bloquear esas altas.
+  if new.temporada_id is null then
+    select id into new.temporada_id
+    from public.admin_temporadas
+    where liga_id = new.liga_id
+    order by activa desc, id desc
+    limit 1;
+  end if;
   if not exists (
     select 1 from public.admin_temporadas where id = new.temporada_id and liga_id = new.liga_id
   ) then
