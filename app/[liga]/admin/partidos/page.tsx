@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
+import CargaMasivaPartidos from "@/app/components/admin/CargaMasivaPartidos";
 
 export default function AdminPartidos() {
   const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
@@ -387,6 +388,11 @@ export default function AdminPartidos() {
             )}
 
           </form>
+
+          <CargaMasivaPartidos
+            existentes={partidos.map((p) => ({ fecha: p.fecha, local: p.equipo_local, visitante: p.equipo_visitante }))}
+            onGuardado={() => void cargarPartidos()}
+          />
 
           <hr className="my-8" />
 
