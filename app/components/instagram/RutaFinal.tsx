@@ -61,7 +61,7 @@ export default function RutaFinal({
       </h2>
 
       {/* Enfrentamiento y marcador de la serie */}
-      <div className={`relative grid w-full grid-cols-[1fr_auto_1fr] items-center ${post ? "mt-2" : "mt-6"}`}>
+      <div className={`relative grid w-full grid-cols-[1fr_auto_1fr] items-center ${post ? "mt-1.5" : "mt-4"}`}>
         {[izquierda, derecha].map((equipo, indice) => (
           <div
             key={equipo}
@@ -69,7 +69,7 @@ export default function RutaFinal({
           >
             <div
               className={`overflow-hidden rounded-full bg-black/30 ${
-                post ? "h-[58px] w-[58px]" : "h-[92px] w-[92px]"
+                post ? "h-[50px] w-[50px]" : "h-[80px] w-[80px]"
               }`}
               style={{ boxShadow: `0 0 22px ${colorEquipo(equipo)}80, inset 0 0 0 2px ${colorEquipo(equipo)}` }}
             >
@@ -86,7 +86,7 @@ export default function RutaFinal({
         ))}
 
         <div className="order-2 flex flex-col items-center px-1">
-          <div className={`flex items-center gap-1.5 font-black tabular-nums leading-none text-white ${post ? "text-[34px]" : "text-[52px]"}`}>
+          <div className={`flex items-center gap-1.5 font-black tabular-nums leading-none text-white ${post ? "text-[30px]" : "text-[50px]"}`}>
             <span>{serie.victorias[izquierda]}</span>
             <span className={`text-amber-300 ${post ? "text-[18px]" : "text-[26px]"}`}>—</span>
             <span>{serie.victorias[derecha]}</span>
@@ -97,101 +97,119 @@ export default function RutaFinal({
         </div>
       </div>
 
-      {/* Calendario: juego por juego */}
-      <ol className={`relative w-full ${post ? "mt-2 space-y-1.5" : "mt-6 space-y-3"}`}>
-        {serie.juegos.map((juego) => {
-          const partes = juego.inicio ? partesFecha(juego.inicio) : null;
-          const esProximo = proximo?.id === juego.id;
-          const destacado = esProximo && serie.decisivo;
+      {/* Calendario: panel central destacado */}
+      <div className={`relative flex w-full flex-1 flex-col justify-center ${post ? "py-1.5" : "py-3"}`}>
+        <div
+          className={`w-full rounded-2xl border-2 border-amber-300/80 bg-[#030712]/85 ${post ? "px-2 pb-2 pt-1.5" : "px-3 pb-3 pt-2.5"}`}
+          style={{ boxShadow: "0 0 28px rgba(251,191,36,0.35), inset 0 0 22px rgba(251,191,36,0.10)" }}
+        >
+          <div className={`flex items-center justify-center gap-2 ${post ? "mb-1.5" : "mb-3"}`}>
+            <span className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-amber-300" />
+            <p className={`font-black uppercase tracking-[0.22em] text-amber-300 ${post ? "text-[9px]" : "text-[13px]"}`}>
+              📅 Calendario de la serie
+            </p>
+            <span className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-amber-300" />
+          </div>
 
-          return (
-            <li
-              key={juego.id}
-              className={`flex items-stretch overflow-hidden rounded-xl border ${
-                esProximo
-                  ? "border-amber-300 bg-gradient-to-r from-amber-500/30 via-[#0b1730]/95 to-amber-500/30"
-                  : "border-white/15 bg-[#050b17]/90"
-              }`}
-              style={esProximo ? { boxShadow: "0 0 18px rgba(251,191,36,0.45)" } : undefined}
-            >
-              {/* Fecha */}
-              <div
-                className={`flex shrink-0 flex-col items-center justify-center font-black leading-none ${
-                  esProximo ? "bg-amber-400 text-slate-950" : "bg-white/10 text-white"
-                } ${post ? "w-[46px] py-1.5" : "w-[64px] py-3"}`}
-              >
-                <span className={post ? "text-[7px]" : "text-[9px]"}>
-                  {partes?.diaSemana.slice(0, 3).toUpperCase()}
-                </span>
-                <span className={post ? "text-[18px]" : "text-[26px]"}>{partes?.dia}</span>
-                <span className={post ? "text-[7px]" : "text-[9px]"}>
-                  {partes?.mes.slice(0, 3).toUpperCase()}
-                </span>
-              </div>
+          <ol className={post ? "space-y-1.5" : "space-y-2.5"}>
+            {serie.juegos.map((juego) => {
+              const partes = juego.inicio ? partesFecha(juego.inicio) : null;
+              const esProximo = proximo?.id === juego.id;
+              const destacado = esProximo && serie.decisivo;
 
-              {/* Detalle */}
-              <div className={`min-w-0 flex-1 ${post ? "px-2 py-1" : "px-3 py-2"}`}>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`font-black tracking-[0.18em] ${esProximo ? "text-amber-300" : "text-slate-300"} ${
-                      post ? "text-[7px]" : "text-[9px]"
-                    }`}
+              return (
+                <li
+                  key={juego.id}
+                  className={`flex items-stretch overflow-hidden rounded-xl border-2 ${
+                    esProximo
+                      ? "border-amber-300 bg-gradient-to-r from-amber-500/35 via-[#0b1730] to-amber-500/35"
+                      : "border-white/20 bg-[#0b1730]"
+                  }`}
+                  style={esProximo ? { boxShadow: "0 0 20px rgba(251,191,36,0.55)" } : undefined}
+                >
+                  {/* Fecha */}
+                  <div
+                    className={`flex shrink-0 flex-col items-center justify-center font-black leading-none ${
+                      esProximo ? "bg-amber-400 text-slate-950" : "bg-white/15 text-white"
+                    } ${post ? "w-[50px] py-1.5" : "w-[64px] py-3"}`}
                   >
-                    JUEGO {juego.numero}
-                  </span>
-                  {juego.finalizado ? (
-                    <span
-                      className={`rounded px-1 font-black text-white ${post ? "text-[6px]" : "text-[8px]"}`}
-                      style={{ backgroundColor: `${colorEquipo(juego.ganador ?? "")}99` }}
-                    >
-                      FINAL
+                    <span className={post ? "text-[8px]" : "text-[11px]"}>
+                      {partes?.diaSemana.slice(0, 3).toUpperCase()}
                     </span>
-                  ) : esProximo ? (
-                    <span className={`rounded bg-red-600 px-1 font-black text-white ${post ? "text-[6px]" : "text-[8px]"}`}>
-                      {destacado ? "¡DECISIVO!" : "PRÓXIMO"}
+                    <span className={post ? "text-[21px]" : "text-[28px]"}>{partes?.dia}</span>
+                    <span className={post ? "text-[8px]" : "text-[11px]"}>
+                      {partes?.mes.slice(0, 3).toUpperCase()}
                     </span>
-                  ) : null}
-                </div>
-
-                {juego.finalizado ? (
-                  <div className={`flex items-center justify-between font-black ${post ? "mt-0.5 text-[11px]" : "mt-1 text-[15px]"}`}>
-                    {[
-                      [juego.local, juego.puntosLocal],
-                      [juego.visitante, juego.puntosVisitante],
-                    ].map(([equipo, puntos], i) => {
-                      const gano = juego.ganador === equipo;
-                      return (
-                        <span key={i} className={`flex items-center gap-1 ${i === 1 ? "flex-row-reverse" : ""}`}>
-                          <span className={gano ? "text-white" : "text-slate-400"}>{String(equipo)}</span>
-                          <span
-                            className="tabular-nums"
-                            style={{ color: gano ? colorEquipo(String(equipo)) : "#94a3b8" }}
-                          >
-                            {puntos}
-                          </span>
-                        </span>
-                      );
-                    })}
                   </div>
-                ) : (
-                  <>
-                    <p className={`font-black text-white ${post ? "mt-0.5 text-[11px]" : "mt-1 text-[15px]"}`}>
-                      {juego.local} <span className="text-amber-300">vs</span> {juego.visitante}
-                    </p>
-                    <p className={`font-bold text-slate-200 ${post ? "text-[8px]" : "text-[11px]"}`}>
-                      🕓 {partes?.hora}
-                      {juego.cancha ? ` · 📍 ${formatearCancha(juego.cancha)}` : ""}
-                    </p>
-                  </>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+
+                  {/* Detalle */}
+                  <div className={`flex min-w-0 flex-1 flex-col justify-center ${post ? "px-2 py-1" : "px-3 py-2"}`}>
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`font-black tracking-[0.18em] ${esProximo ? "text-amber-300" : "text-slate-300"} ${
+                          post ? "text-[8px]" : "text-[11px]"
+                        }`}
+                      >
+                        JUEGO {juego.numero}
+                      </span>
+                      {juego.finalizado ? (
+                        <span
+                          className={`rounded px-1 font-black text-white ${post ? "text-[7px]" : "text-[9px]"}`}
+                          style={{ backgroundColor: `${colorEquipo(juego.ganador ?? "")}99` }}
+                        >
+                          FINAL
+                        </span>
+                      ) : esProximo ? (
+                        <span className={`rounded bg-red-600 px-1 font-black text-white ${post ? "text-[7px]" : "text-[9px]"}`}>
+                          {destacado ? "¡DECISIVO!" : "PRÓXIMO"}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {juego.finalizado ? (
+                      <div className={`grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 font-black ${post ? "mt-0.5 text-[13px]" : "mt-1 text-[14.5px]"}`}>
+                        {[
+                          [juego.local, juego.puntosLocal],
+                          [juego.visitante, juego.puntosVisitante],
+                        ].flatMap(([equipo, puntos], i) => {
+                          const gano = juego.ganador === equipo;
+                          const lado = (
+                            <span key={i} className={`flex items-center gap-1 ${i === 1 ? "flex-row-reverse" : ""}`}>
+                              <span className={gano ? "text-white" : "text-slate-400"}>{String(equipo)}</span>
+                              <span
+                                className="tabular-nums"
+                                style={{ color: gano ? colorEquipo(String(equipo)) : "#94a3b8" }}
+                              >
+                                {puntos}
+                              </span>
+                            </span>
+                          );
+                          return i === 0
+                            ? [lado, <span key="sep" className="text-amber-300/80">–</span>]
+                            : [lado];
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <p className={`font-black text-white ${post ? "mt-0.5 text-[13px]" : "mt-1 text-[16px]"}`}>
+                          {juego.local} <span className="text-amber-300">vs</span> {juego.visitante}
+                        </p>
+                        <p className={`font-bold text-slate-100 ${post ? "text-[9px]" : "text-[12px]"}`}>
+                          🕓 {partes?.hora}
+                          {juego.cancha ? ` · 📍 ${formatearCancha(juego.cancha)}` : ""}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
 
       {/* Cierre */}
-      <div className={`relative mt-auto w-full text-center ${post ? "pb-0.5" : "pb-3"}`}>
+      <div className={`relative w-full text-center ${post ? "pb-0.5" : "pb-4"}`}>
         <div
           className={`mx-auto inline-block rounded-lg font-black uppercase tracking-[0.18em] ${
             campeon ? "bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950" : "bg-red-600 text-white"
@@ -203,9 +221,6 @@ export default function RutaFinal({
               ? `Todo se decide en el Juego ${proximo?.numero ?? ""}`
               : "¡No te lo pierdas!"}
         </div>
-        <p className={`mt-1 font-bold tracking-wider text-slate-300 ${post ? "text-[7px]" : "text-[9px]"}`}>
-          libavime.vercel.app
-        </p>
       </div>
     </div>
   );
