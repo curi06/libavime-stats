@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
+import CargaMasivaJugadores from "@/app/components/admin/CargaMasivaJugadores";
 
 type Jugador = {
   id: string;
@@ -50,8 +51,10 @@ export default function AdminJugadores() {
     }
   }
 
-  async function cargarJugadores() {
-    setCargando(true);
+  // silencioso: actualiza la lista sin la pantalla de "Cargando…" (que
+  // desmontaría la carga rápida y su mensaje).
+  async function cargarJugadores(silencioso = false) {
+    if (!silencioso) setCargando(true);
 
     const { data, error } = await supabase
       .from("jugadores")
@@ -384,6 +387,11 @@ export default function AdminJugadores() {
               </button>
             )}
           </form>
+
+          <CargaMasivaJugadores
+            existentes={jugadores.map((j) => ({ nombre: j.nombre, slug: j.slug }))}
+            onGuardado={() => void cargarJugadores(true)}
+          />
 
           <hr className="my-8" />
 
