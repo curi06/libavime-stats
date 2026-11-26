@@ -36,6 +36,9 @@ export default function Home() {
   const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga } = useLiga();
   const config = liga.configuracion;
   const [jugadores, setJugadores] = useState<any[]>([]);
+  // Todos los jugadores de la liga: los resúmenes de partido y la tabla de
+  // posiciones deben contar TODOS los partidos, no solo los de finalistas.
+  const [todosLosJugadores, setTodosLosJugadores] = useState<any[]>([]);
   // Distingue "cargando" de "cargó pero aún no hay estadísticas"
   // (temporada recién iniciada o liga nueva).
   const [datosCargados, setDatosCargados] = useState(false);
@@ -212,6 +215,7 @@ useEffect(() => {
     );
 
     setJugadores(jugadoresConEstadisticas);
+    setTodosLosJugadores(jugadoresData ?? []);
     setDatosCargados(true);
     setPartidosActuales(partidosConFormato);
     setEstadisticasPartido(
@@ -439,7 +443,7 @@ useEffect(() => {
 
     const porJugador = estadisticas.reduce(
       (acumulado: Record<string, any>, estadistica) => {
-        const jugador = jugadores.find(
+        const jugador = todosLosJugadores.find(
           (item) => String(item.id) === String(estadistica.jugador_id)
         );
 

@@ -315,16 +315,25 @@ export default function AdminJugadores() {
               className="border rounded-xl p-3"
             />
 
-            <input
+            {/* Lista de equipos de la liga: evita nombres mal escritos que
+                dejarían al jugador fuera de su equipo y de las estadísticas. */}
+            <select
               required
-              type="text"
-              placeholder="Equipo"
+              aria-label="Equipo"
               value={equipo}
               onChange={(e) =>
                 setEquipo(e.target.value)
               }
-              className="border rounded-xl p-3"
-            />
+              className="border rounded-xl p-3 bg-white"
+            >
+              <option value="">Selecciona el equipo</option>
+              {equiposLiga.map((e) => (
+                <option key={e.id} value={e.nombre}>{e.nombre}</option>
+              ))}
+              {equipo && !equiposLiga.some((e) => e.nombre === equipo) && (
+                <option value={equipo}>{equipo} (no está en la lista de equipos)</option>
+              )}
+            </select>
 
             <div className="border rounded-xl p-4">
               <label className="font-bold block mb-2">

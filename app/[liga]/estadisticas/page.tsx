@@ -13,6 +13,24 @@ export default function Estadisticas() {
   const prefijoArchivo = `${nombreLiga}_${temporada}`.replace(/[^a-zA-Z0-9]+/g, "_");
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
+
+  // Abre en "Finales" solo si la liga ya jugó partidos de finales;
+  // si no (temporada regular o liga nueva), en "Serie Regular".
+  useEffect(() => {
+    let activo = true;
+    void supabase
+      .from("partidos")
+      .select("id", { count: "exact", head: true })
+      .eq("liga_id", liga.id)
+      .eq("fase", "finales")
+      .eq("estado", "Finalizado")
+      .then(({ count }) => {
+        if (activo && !count) setFaseSeleccionada("serie_regular");
+      });
+    return () => {
+      activo = false;
+    };
+  }, [liga.id]);
   const [vistaSeleccionada, setVistaSeleccionada] = useState<"estadisticas" | "destacados">("estadisticas");
   const [jornadasDestacados, setJornadasDestacados] = useState<any[]>([]);
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState("");

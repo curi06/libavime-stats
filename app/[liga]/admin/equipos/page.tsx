@@ -103,6 +103,7 @@ async function subirLogo(
       setEditandoId(null);
       limpiarFormulario();
       cargarEquipos();
+      router.refresh(); // actualiza la lista de equipos de la liga
 
       return;
     }
@@ -129,6 +130,7 @@ async function subirLogo(
 
     limpiarFormulario();
     cargarEquipos();
+    router.refresh(); // actualiza la lista de equipos de la liga
   }
 
   function limpiarFormulario() {
@@ -163,6 +165,7 @@ async function eliminarEquipo(id: number) {
   limpiarFormulario();
 
   cargarEquipos();
+  router.refresh(); // actualiza la lista de equipos de la liga
 }
 
   function editarEquipo(equipo: any) {
