@@ -96,11 +96,15 @@ export default function TemporadasPage() {
     await supabase
       .from("ligas")
       .update({
-        configuracion: {
-          ...liga.configuracion,
-          temporada: etiqueta,
-          ...(t.fecha_inicio ? { inicio_temporada: t.fecha_inicio } : {}),
-        },
+        // La fecha de inicio se reemplaza siempre: si quedara la de otra
+        // temporada, la portada escondería los partidos de esta.
+        configuracion: JSON.parse(
+          JSON.stringify({
+            ...liga.configuracion,
+            temporada: etiqueta,
+            inicio_temporada: t.fecha_inicio ?? undefined,
+          })
+        ),
       })
       .eq("id", liga.id);
 
