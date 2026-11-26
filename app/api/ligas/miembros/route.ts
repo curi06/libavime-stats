@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verificarAdministrador } from "@/lib/admin-auth";
 import { resolverLiga, supabaseServicio, type LigaApi } from "@/lib/liga-api";
+import { invitarUsuario } from "@/lib/invitaciones";
 
 export const runtime = "nodejs";
 
@@ -72,22 +73,22 @@ export async function POST(request: Request) {
     const { data: existente } = await servicio.rpc("usuario_por_correo", { p_correo: correo });
     let usuarioId = (existente as string | null) ?? null;
     let invitado = false;
+    let enlace: string | undefined;
 
     if (!usuarioId) {
       const origen = new URL(request.url).origin;
-      const { data, error } = await servicio.auth.admin.inviteUserByEmail(correo, {
-        redirectTo: `${origen}/bienvenida?liga=${encodeURIComponent(p.liga.slug)}`,
-        data: { nombre },
-      });
-      if (error || !data.user) {
-        console.error("Error invitando usuario:", error);
-        return NextResponse.json(
-          { error: `No se pudo enviar la invitación${error?.message ? `: ${error.message}` : "."}` },
-          { status: 502 }
-        );
+      const resultado = await invitarUsuario(
+        servicio,
+        correo,
+        nombre,
+        `${origen}/bienvenida?liga=${encodeURIComponent(p.liga.slug)}`
+      );
+      if (resultado.error !== undefined) {
+        return NextResponse.json({ error: `No se pudo invitar: ${resultado.error}` }, { status: 502 });
       }
-      usuarioId = data.user.id;
+      usuarioId = resultado.usuarioId;
       invitado = true;
+      enlace = resultado.enlace; // solo si el correo no se pudo enviar
     }
 
     const { error: errorMiembro } = await servicio.from("miembros_liga").upsert(
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
     );
     if (errorMiembro) throw errorMiembro;
 
-    return NextResponse.json({ ok: true, invitado }, { status: 201 });
+    return NextResponse.json({ ok: true, invitado, enlace }, { status: 201 });
   } catch (error) {
     console.error("Error agregando miembro:", error);
     return NextResponse.json({ error: "No se pudo agregar el miembro." }, { status: 500 });

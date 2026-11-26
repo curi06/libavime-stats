@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verificarAdminPlataforma } from "@/lib/plataforma-auth";
 import { supabaseServicio } from "@/lib/liga-api";
 import { LIGA_HISTORICA } from "@/lib/liga";
+import { invitarUsuario } from "@/lib/invitaciones";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,51 @@ export async function GET() {
     console.error(solicitudes.error ?? ligas.error);
     return NextResponse.json({ error: "No se pudo cargar el panel." }, { status: 500 });
   }
-  return NextResponse.json({ solicitudes: solicitudes.data, ligas: ligas.data });
+  const metricas = Object.fromEntries(
+    await Promise.all((ligas.data ?? []).map(async (l) => [l.id, await metricasDeLiga(servicio, l.id)]))
+  );
+  return NextResponse.json({ solicitudes: solicitudes.data, ligas: ligas.data, metricas });
+}
+
+type Servicio = ReturnType<typeof supabaseServicio>;
+
+/** Conteos de uso de una liga y su última actividad (partido o estadística). */
+async function metricasDeLiga(servicio: Servicio, ligaId: string) {
+  const contar = async (tabla: string, filtro?: [string, string]) => {
+    let consulta = servicio.from(tabla).select("*", { count: "exact", head: true }).eq("liga_id", ligaId);
+    if (filtro) consulta = consulta.eq(filtro[0], filtro[1]);
+    return (await consulta).count ?? 0;
+  };
+  const ultima = async (tabla: string) =>
+    (
+      await servicio
+        .from(tabla)
+        .select("created_at")
+        .eq("liga_id", ligaId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).data?.created_at ?? null;
+
+  const [equipos, jugadores, partidos, finalizados, miembros, ultimoPartido, ultimaEstadistica] =
+    await Promise.all([
+      contar("equipos"),
+      contar("jugadores"),
+      contar("partidos"),
+      contar("partidos", ["estado", "Finalizado"]),
+      contar("miembros_liga"),
+      ultima("partidos"),
+      ultima("estadisticas_partido"),
+    ]);
+  const fechas = [ultimoPartido, ultimaEstadistica].filter(Boolean) as string[];
+  return {
+    equipos,
+    jugadores,
+    partidos,
+    finalizados,
+    miembros,
+    ultima_actividad: fechas.sort().at(-1) ?? null,
+  };
 }
 
 /**
@@ -125,17 +170,20 @@ export async function POST(request: Request) {
     const { data: existente } = await servicio.rpc("usuario_por_correo", { p_correo: correo });
     let usuarioId = (existente as string | null) ?? null;
     let avisoInvitacion = "";
+    let enlace: string | undefined;
     if (!usuarioId) {
       const origen = new URL(request.url).origin;
-      const { data, error } = await servicio.auth.admin.inviteUserByEmail(correo, {
-        redirectTo: `${origen}/bienvenida?liga=${encodeURIComponent(slug)}`,
-        data: { nombre: solicitud.contacto_nombre },
-      });
-      if (error || !data.user) {
-        console.error("Error invitando al administrador:", error);
-        avisoInvitacion = "La liga se creó, pero no se pudo enviar la invitación. Invítalo desde Miembros.";
+      const resultado = await invitarUsuario(
+        servicio,
+        correo,
+        solicitud.contacto_nombre,
+        `${origen}/bienvenida?liga=${encodeURIComponent(slug)}`
+      );
+      if (resultado.error !== undefined) {
+        avisoInvitacion = "La liga se creó, pero no se pudo invitar a su administrador. Invítalo desde Miembros.";
       } else {
-        usuarioId = data.user.id;
+        usuarioId = resultado.usuarioId;
+        enlace = resultado.enlace;
       }
     }
     if (usuarioId) {
@@ -159,7 +207,10 @@ export async function POST(request: Request) {
       .update({ estado: "aprobada", liga_id: liga.id, revisada_en: new Date().toISOString() })
       .eq("id", solicitud.id);
 
-    return NextResponse.json({ ok: true, liga, aviso: avisoInvitacion || undefined }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, liga, aviso: avisoInvitacion || undefined, enlace, correo },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error en el panel de plataforma:", error);
     return NextResponse.json({ error: "La operación no se pudo completar." }, { status: 500 });

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import EnlaceInvitacion from "@/app/components/EnlaceInvitacion";
 
 type Solicitud = {
   id: string;
@@ -26,6 +27,26 @@ type LigaPanel = {
   creada_en: string;
 };
 
+type Metricas = {
+  equipos: number;
+  jugadores: number;
+  partidos: number;
+  finalizados: number;
+  miembros: number;
+  ultima_actividad: string | null;
+};
+
+/** "hoy", "hace 3 días", "sin actividad". */
+function haceCuanto(fecha: string | null) {
+  if (!fecha) return "sin actividad";
+  const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "ayer";
+  if (dias < 30) return `hace ${dias} días`;
+  const meses = Math.floor(dias / 30);
+  return meses === 1 ? "hace 1 mes" : `hace ${meses} meses`;
+}
+
 const sugerirSlug = (texto: string) =>
   texto
     .normalize("NFD")
@@ -38,10 +59,12 @@ const sugerirSlug = (texto: string) =>
 export default function PlataformaPage() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [ligas, setLigas] = useState<LigaPanel[]>([]);
+  const [metricas, setMetricas] = useState<Record<string, Metricas>>({});
   const [slugs, setSlugs] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [enlace, setEnlace] = useState<{ url: string; nombre: string; liga: string; telefono: string | null } | null>(null);
 
   const cargar = useCallback(async () => {
     const respuesta = await fetch("/api/plataforma", { cache: "no-store" });
@@ -49,6 +72,7 @@ export default function PlataformaPage() {
     if (!respuesta.ok) return setError(datos.error ?? "No se pudo cargar el panel.");
     setSolicitudes(datos.solicitudes);
     setLigas(datos.ligas);
+    setMetricas(datos.metricas ?? {});
   }, []);
 
   useEffect(() => {
@@ -56,8 +80,9 @@ export default function PlataformaPage() {
     void cargar();
   }, [cargar]);
 
-  async function accion(cuerpo: object, exito: string) {
+  async function accion(cuerpo: object, exito: string, solicitud?: Solicitud) {
     setOcupado(true);
+    setEnlace(null);
     setError("");
     setMensaje("");
     const respuesta = await fetch("/api/plataforma", {
@@ -69,10 +94,27 @@ export default function PlataformaPage() {
     setOcupado(false);
     if (!respuesta.ok) return setError(datos.error ?? "La operación no se pudo completar.");
     setMensaje(datos.aviso ? `${exito} ⚠️ ${datos.aviso}` : exito);
+    if (datos.enlace && solicitud) {
+      setEnlace({
+        url: datos.enlace,
+        nombre: solicitud.contacto_nombre,
+        liga: solicitud.nombre_liga,
+        telefono: solicitud.contacto_telefono,
+      });
+    }
     void cargar();
   }
 
   const pendientes = solicitudes.filter((s) => s.estado === "pendiente");
+  const suma = (campo: keyof Omit<Metricas, "ultima_actividad">) =>
+    Object.values(metricas).reduce((total, m) => total + m[campo], 0);
+  const resumen = [
+    { valor: ligas.filter((l) => l.estado === "activa").length, texto: "ligas activas" },
+    { valor: pendientes.length, texto: "solicitudes pendientes" },
+    { valor: suma("equipos"), texto: "equipos" },
+    { valor: suma("jugadores"), texto: "jugadores" },
+    { valor: suma("finalizados"), texto: "partidos jugados" },
+  ];
   const revisadas = solicitudes.filter((s) => s.estado !== "pendiente");
 
   return (
@@ -81,8 +123,18 @@ export default function PlataformaPage() {
         <h1 className="text-3xl font-black text-slate-900">🏀 Quinteto Pro · Plataforma</h1>
         <p className="mt-1 text-slate-600">Solicitudes de ligas nuevas y estado de las ligas.</p>
 
+        <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+          {resumen.map((r) => (
+            <div key={r.texto} className="rounded-2xl bg-white p-4 text-center shadow">
+              <p className="text-3xl font-black text-slate-900">{r.valor}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{r.texto}</p>
+            </div>
+          ))}
+        </section>
+
         {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 font-bold text-red-700">{error}</p>}
         {mensaje && <p role="status" className="mt-4 rounded-xl bg-green-50 p-3 font-bold text-green-800">{mensaje}</p>}
+        {enlace && <EnlaceInvitacion enlace={enlace.url} nombre={enlace.nombre} liga={enlace.liga} telefono={enlace.telefono} />}
 
         <section className="mt-8">
           <h2 className="text-xl font-black text-slate-900">Solicitudes pendientes ({pendientes.length})</h2>
@@ -120,7 +172,7 @@ export default function PlataformaPage() {
                     </label>
                     <button
                       disabled={ocupado}
-                      onClick={() => void accion({ accion: "aprobar", solicitud_id: s.id, slug }, `✅ ${s.nombre_liga} creada en /${slug}.`)}
+                      onClick={() => void accion({ accion: "aprobar", solicitud_id: s.id, slug }, `✅ ${s.nombre_liga} creada en /${slug}.`, s)}
                       className="rounded-xl bg-green-600 px-5 py-3 font-black text-white disabled:opacity-50"
                     >
                       Aprobar y crear liga
@@ -150,6 +202,16 @@ export default function PlataformaPage() {
                       {l.nombre_corto ?? l.nombre}
                     </Link>
                     <p className="text-sm text-slate-500">/{l.slug} · {l.ciudad ?? "—"}</p>
+                    {metricas[l.id] && (
+                      <p className="mt-1 text-sm text-slate-600">
+                        {metricas[l.id].equipos} equipos · {metricas[l.id].jugadores} jugadores ·{" "}
+                        {metricas[l.id].finalizados}/{metricas[l.id].partidos} partidos jugados ·{" "}
+                        {metricas[l.id].miembros} miembros ·{" "}
+                        <span className={metricas[l.id].ultima_actividad ? "" : "font-bold text-amber-700"}>
+                          {haceCuanto(metricas[l.id].ultima_actividad)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span

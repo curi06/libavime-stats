@@ -36,8 +36,8 @@ volver a publicar la versión anterior en Vercel (no hay que deshacer la base).
 | 6 | Registrar a la administradora en `administradores_plataforma` (por su correo) | Claude | — |
 | 7 | Integrar la rama `quinteto-pro` en `main`, subir y **promover** el despliegue en Vercel (el dominio no se mueve solo) | Claude | Promover el despliegue anterior en Vercel |
 | 8 | Verificar en vivo: `/` y `/libavime`, redirecciones (`/estadisticas` → `/libavime/estadisticas`), `/ligas`, `/registro`, `/libavime/admin` con su cuenta | Claude + administradora | Volver al despliegue anterior |
-| 9 | Supabase → Authentication → URL Configuration: agregar `https://libavime.vercel.app/bienvenida` a *Redirect URLs* | Administradora (guiada) | Las invitaciones no llevan a crear contraseña |
-| 10 | (Antes de invitar ligas reales) Configurar un SMTP propio (p. ej. Resend) en Authentication → SMTP | Administradora (guiada) | Las invitaciones a correos nuevos no llegan |
+| 9 | Supabase → Authentication → URL Configuration: Site URL y `https://libavime.vercel.app/bienvenida**` en *Redirect URLs* (ver `CORREO_INVITACIONES.md`, paso 4) | Administradora (guiada) | Las invitaciones no llevan a crear contraseña |
+| 10 | (Opcional) SMTP con Gmail para que las invitaciones lleguen por correo (`CORREO_INVITACIONES.md`). Sin esto el panel entrega un enlace para WhatsApp | Administradora (guiada) | Se usa el enlace por WhatsApp |
 | 11 | Revocar el token de producción | Administradora | — |
 
 ## Después

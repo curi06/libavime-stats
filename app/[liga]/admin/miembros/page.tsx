@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLiga } from "@/app/components/LigaContext";
+import EnlaceInvitacion from "@/app/components/EnlaceInvitacion";
 
 type Miembro = {
   usuario_id: string;
@@ -27,6 +28,7 @@ export default function MiembrosPage() {
   const [mensaje, setMensaje] = useState("");
   const [nuevo, setNuevo] = useState({ nombre: "", correo: "", rol: "Planilla" as Miembro["rol"] });
   const [enviando, setEnviando] = useState(false);
+  const [enlace, setEnlace] = useState<{ url: string; nombre: string } | null>(null);
 
   const api = `/api/ligas/miembros?liga=${liga.slug}`;
 
@@ -66,14 +68,20 @@ export default function MiembrosPage() {
   async function invitar(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
+    setEnlace(null);
     const datos = await llamar("POST", nuevo);
     setEnviando(false);
     if (!datos) return;
-    setMensaje(
-      datos.invitado
-        ? `📧 Invitación enviada a ${nuevo.correo}. Recibirá un correo para crear su contraseña.`
-        : `✅ ${nuevo.nombre} ya tenía cuenta: se agregó a ${nombreLiga}.`
-    );
+    if (datos.enlace) {
+      setEnlace({ url: datos.enlace, nombre: nuevo.nombre });
+      setMensaje(`✅ ${nuevo.nombre} fue agregado a ${nombreLiga}. Falta que cree su contraseña.`);
+    } else {
+      setMensaje(
+        datos.invitado
+          ? `📧 Invitación enviada a ${nuevo.correo}. Recibirá un correo para crear su contraseña.`
+          : `✅ ${nuevo.nombre} ya tenía cuenta: se agregó a ${nombreLiga}.`
+      );
+    }
     setNuevo({ nombre: "", correo: "", rol: "Planilla" });
     void cargar();
   }
@@ -126,6 +134,7 @@ export default function MiembrosPage() {
 
       {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 font-bold text-red-700">{error}</p>}
       {mensaje && <p role="status" className="mt-4 rounded-xl bg-green-50 p-3 font-bold text-green-800">{mensaje}</p>}
+      {enlace && <EnlaceInvitacion enlace={enlace.url} nombre={enlace.nombre} liga={nombreLiga} />}
 
       <section className="mt-6 overflow-hidden rounded-3xl bg-white shadow">
         {cargando ? (
