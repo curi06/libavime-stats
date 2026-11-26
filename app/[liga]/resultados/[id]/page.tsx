@@ -1,3 +1,6 @@
+import { headers } from "next/headers";
+import CompartirResultado from "@/app/components/CompartirResultado";
+import { textoResultado } from "@/lib/compartir";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -181,6 +184,11 @@ export default async function PartidoPage({
   }
 
   const partido = partidoData as Partido | null;
+  const cabeceras = await headers();
+  const hostSitio = cabeceras.get("host") ?? "libavime.vercel.app";
+  const protocoloSitio =
+    cabeceras.get("x-forwarded-proto") ?? (hostSitio.startsWith("localhost") ? "http" : "https");
+  const origenSitio = `${protocoloSitio}://${hostSitio}`;
 
   if (!partido) {
     return (
@@ -661,6 +669,27 @@ export default async function PartidoPage({
             </div>
 
           </div>
+
+          {String(partido.estado ?? "").toLowerCase() === "finalizado" && (
+            <div className="-mt-4 mb-8">
+              <CompartirResultado
+                titulo={`${partido.equipo_local} vs ${partido.equipo_visitante}`}
+                texto={textoResultado({
+                  liga: nombreLiga,
+                  local: partido.equipo_local ?? "",
+                  visitante: partido.equipo_visitante ?? "",
+                  puntosLocal: Number(partido.puntos_local ?? 0),
+                  puntosVisitante: Number(partido.puntos_visitante ?? 0),
+                  fecha: partido.fecha,
+                  lideres: [
+                    localJugadores[0] && { nombre: localJugadores[0].nombre, equipo: partido.equipo_local ?? "", puntos: localJugadores[0].puntos },
+                    visitanteJugadores[0] && { nombre: visitanteJugadores[0].nombre, equipo: partido.equipo_visitante ?? "", puntos: visitanteJugadores[0].puntos },
+                  ].filter((l): l is { nombre: string; equipo: string; puntos: number } => Boolean(l)),
+                  url: `${origenSitio}${rutaLiga(liga.slug, `/resultados/${partido.id}`)}`,
+                })}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 

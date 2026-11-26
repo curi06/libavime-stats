@@ -11,6 +11,8 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
+import CompartirResultado from "@/app/components/CompartirResultado";
+import { lideresPorEquipo, textoResultado } from "@/lib/compartir";
 
 type Jugador = {
   id: number;
@@ -91,6 +93,7 @@ export default function PlanillaPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [finalizando, setFinalizando] = useState(false);
+  const [resultadoFinal, setResultadoFinal] = useState<{ partidoId: number; puntosLocal: number; puntosVisitante: number } | null>(null);
   const [mensaje, setMensaje] = useState("Listo para comenzar.");
   const [error, setError] = useState("");
   const colasGuardado = useRef<Record<number, Promise<void>>>({});
@@ -545,7 +548,7 @@ export default function PlanillaPage() {
     setMensaje("⏳ Cerrando partido...");
 
     try {
-      await sincronizarMarcadorPartido(partido.id);
+      const marcador = await sincronizarMarcadorPartido(partido.id);
 
       const { error: updateError } = await supabase
         .from("partidos")
@@ -556,6 +559,7 @@ export default function PlanillaPage() {
       if (updateError) throw updateError;
 
 
+      setResultadoFinal({ partidoId: partido.id, ...marcador });
       setMensaje(`🏁 Partido finalizado y sincronizado con las estadísticas de ${nombreLiga}.`);
     } catch (err: any) {
       console.error("Error finalizando partido:", err);
@@ -1494,6 +1498,35 @@ export default function PlanillaPage() {
                       : "🏁 FINALIZAR PARTIDO Y ACTUALIZAR CLASIFICACIÓN"}
                   </button>
                 )}
+
+                {/* Compartir el resultado al terminar (o al abrir un partido terminado). */}
+                {partido &&
+                  (resultadoFinal?.partidoId === partido.id ||
+                    String(partido.estado ?? "").toLowerCase() === "finalizado") && (
+                    <div className="mt-2">
+                      <CompartirResultado
+                        oscuro
+                        titulo={`${partido.equipo_local} vs ${partido.equipo_visitante}`}
+                        texto={textoResultado({
+                          liga: nombreLiga,
+                          local: partido.equipo_local ?? "",
+                          visitante: partido.equipo_visitante ?? "",
+                          puntosLocal: (resultadoFinal?.partidoId === partido.id ? resultadoFinal.puntosLocal : null) ?? Number(partido.puntos_local ?? 0),
+                          puntosVisitante: (resultadoFinal?.partidoId === partido.id ? resultadoFinal.puntosVisitante : null) ?? Number(partido.puntos_visitante ?? 0),
+                          fecha: partido.fecha,
+                          lideres: lideresPorEquipo(
+                            jugadores.map((j) => ({
+                              nombre: j.nombre,
+                              equipo: j.equipo,
+                              puntos: estadisticas[j.id]?.estado === "jugó" ? estadisticas[j.id]?.puntos ?? 0 : 0,
+                            })),
+                            [partido.equipo_local ?? "", partido.equipo_visitante ?? ""]
+                          ),
+                          url: `${typeof window !== "undefined" ? window.location.origin : ""}${ruta(`/resultados/${partido.id}`)}`,
+                        })}
+                      />
+                    </div>
+                  )}
               </div>
             </footer>
           </div>
