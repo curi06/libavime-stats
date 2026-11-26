@@ -124,11 +124,28 @@ export default function AdminPartidos() {
       return;
     }
 
+    // Cada partido pertenece a la temporada activa de esta liga
+    // (si no hay ninguna marcada como activa, a la más reciente).
+    const { data: temporadaActual } = await supabase
+      .from("admin_temporadas")
+      .select("id")
+      .eq("liga_id", liga.id)
+      .order("activa", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!temporadaActual) {
+      alert("Esta liga todavía no tiene una temporada creada. Pide a la plataforma que la configure.");
+      return;
+    }
+
     const { error } = await supabase
       .from("partidos")
       .insert([
         {
           liga_id: liga.id,
+          temporada_id: temporadaActual.id,
           equipo_local: equipoLocal,
           equipo_visitante: equipoVisitante,
           fecha,

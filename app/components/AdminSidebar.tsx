@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  esAdministrador = false,
+}: {
+  esAdministrador?: boolean;
+}) {
   const router = useRouter();
   const { ruta, nombre } = useLiga();
 
@@ -64,6 +68,24 @@ export default function AdminSidebar() {
         >
           📊 Estadísticas
         </Link>
+
+        {esAdministrador && (
+          <>
+            <Link
+              href={ruta("/admin/miembros")}
+              className="hover:bg-blue-800 rounded-xl p-3 transition"
+            >
+              👥 Miembros
+            </Link>
+
+            <Link
+              href={ruta("/admin/configuracion")}
+              className="hover:bg-blue-800 rounded-xl p-3 transition"
+            >
+              ⚙️ Configuración de la liga
+            </Link>
+          </>
+        )}
 
       </nav>
 

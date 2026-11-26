@@ -24,8 +24,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(destino);
   }
 
-  // Administración de cualquier liga: exige sesión.
-  if (segundo === "admin") {
+  // Administración de cualquier liga y panel de la plataforma: exigen sesión.
+  if (segundo === "admin" || primero === "plataforma") {
     return protegerSesionAdmin(request);
   }
 
