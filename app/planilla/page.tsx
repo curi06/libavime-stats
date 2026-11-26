@@ -526,7 +526,7 @@ export default function PlanillaPage() {
     if (!partido) return;
 
     const confirmar = window.confirm(
-      "¿Seguro que deseas FINALIZAR este partido?\\n\\nDespués de finalizarlo, /app/page.tsx lo tomará como partido oficial para la clasificación y los jugadores destacados."
+      "¿Seguro que deseas FINALIZAR este partido?\n\nDespués de finalizarlo, contará como partido oficial para la clasificación y los jugadores destacados."
     );
 
     if (!confirmar) return;

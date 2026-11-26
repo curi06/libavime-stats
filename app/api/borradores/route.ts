@@ -1,41 +1,14 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { crearSupabaseServidor } from "@/lib/supabase-server";
+import { verificarAdministrador } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const supabaseAuth = await crearSupabaseServidor();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Debes iniciar sesión para ver los borradores." },
-        { status: 401 }
-      );
-    }
-
-    const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
-      ?.trim()
-      .toLowerCase();
-
-    const correoUsuario = user.email?.trim().toLowerCase();
-
-    if (
-      !correoAdministrador ||
-      !correoUsuario ||
-      correoUsuario !== correoAdministrador
-    ) {
-      return NextResponse.json(
-        { error: "No tienes permiso para ver los borradores." },
-        { status: 403 }
-      );
-    }
+    const acceso = await verificarAdministrador("ver los borradores");
+    if (acceso.respuesta) return acceso.respuesta;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

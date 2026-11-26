@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
+import { verificarAdministrador } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -96,18 +97,8 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const supabaseAuth = await crearSupabaseServidor();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "No autorizado. Inicia sesión nuevamente." },
-        { status: 401 }
-      );
-    }
+    const acceso = await verificarAdministrador("guardar encuadres");
+    if (acceso.respuesta) return acceso.respuesta;
 
     const datos = await request.json();
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { crearSupabaseServidor } from "@/lib/supabase-server";
+import { verificarAdministrador } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -63,19 +63,10 @@ const medir = (paso: string) => {
   let archivoSubido: string | null = null;
 
   try {
-    const supabaseAuth = await crearSupabaseServidor();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
+    const acceso = await verificarAdministrador("publicar diseños");
+    if (acceso.respuesta) return acceso.respuesta;
+    medir("Sesión verificada");
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Debes iniciar sesión para publicar diseños." },
-        { status: 401 }
-      );
-      medir("Sesión verificada");
-    }
 const body = await request.json();
 
 const titulo =
@@ -218,37 +209,8 @@ medir("Registro en la base de datos terminado");
 
 export async function DELETE(request: Request) {
   try {
-    const supabaseAuth = await crearSupabaseServidor();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-
-
-if (authError || !user) {
-  return NextResponse.json(
-    { error: "Debes iniciar sesión para eliminar diseños." },
-    { status: 401 }
-  );
-}
-
-const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
-  ?.trim()
-  .toLowerCase();
-
-const correoUsuario = user.email?.trim().toLowerCase();
-
-if (
-  !correoAdministrador ||
-  !correoUsuario ||
-  correoUsuario !== correoAdministrador
-) {
-  return NextResponse.json(
-    { error: "No tienes permisos para eliminar publicaciones." },
-    { status: 403 }
-  );
-}
-
+    const acceso = await verificarAdministrador("eliminar publicaciones");
+    if (acceso.respuesta) return acceso.respuesta;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -332,36 +294,8 @@ if (
 
 export async function PATCH(request: Request) {
   try {
-    const supabaseAuth = await crearSupabaseServidor();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Debes iniciar sesión para publicar borradores." },
-        { status: 401 }
-      );
-    }
-
-    const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
-      ?.trim()
-      .toLowerCase();
-
-    const correoUsuario = user.email?.trim().toLowerCase();
-
-    if (
-      !correoAdministrador ||
-      !correoUsuario ||
-      correoUsuario !== correoAdministrador
-    ) {
-      return NextResponse.json(
-        { error: "No tienes permisos para publicar borradores." },
-        { status: 403 }
-      );
-    }
+    const acceso = await verificarAdministrador("publicar borradores");
+    if (acceso.respuesta) return acceso.respuesta;
 
     const body = await request.json();
     const id = typeof body.id === "string" ? body.id : "";
