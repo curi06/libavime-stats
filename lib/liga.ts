@@ -23,6 +23,7 @@ export type ConfiguracionLiga = {
   campeon_defensor?: { equipo: string; temporada: string };
   inauguracion?: { fecha: string; lugar?: string };
   inicio_temporada?: string;
+  redes?: { instagram?: string; youtube?: string };
 };
 
 export type Liga = {

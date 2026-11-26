@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useLiga } from "@/app/components/LigaContext";
 import {
   MEJOR_DE,
   colorEquipo,
@@ -32,6 +33,7 @@ export default function PortadaFinales({
   partidos: (PartidoFinalEntrada & { fase?: string | null })[];
   ahora: Date;
 }) {
+  const { ruta, nombre: nombreLiga, temporada, equipos: equiposLiga } = useLiga();
   const serie = construirSerieFinal(
     partidos.filter((p) => String(p.fase ?? "").trim().toLowerCase() === "finales")
   );
@@ -65,8 +67,8 @@ export default function PortadaFinales({
         className="pointer-events-none absolute inset-0"
         style={{
           background: `
-            radial-gradient(circle at 12% 30%, ${colorEquipo(izquierda)}55, transparent 42%),
-            radial-gradient(circle at 88% 30%, ${colorEquipo(derecha)}55, transparent 42%),
+            radial-gradient(circle at 12% 30%, ${colorEquipo(izquierda, equiposLiga)}55, transparent 42%),
+            radial-gradient(circle at 88% 30%, ${colorEquipo(derecha, equiposLiga)}55, transparent 42%),
             radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.25), transparent 55%),
             linear-gradient(180deg, #0b1730 0%, #020617 100%)
           `,
@@ -84,7 +86,7 @@ export default function PortadaFinales({
       <div className="relative px-4 py-7 sm:px-8 md:px-12 md:py-10">
         <div className="text-center">
           <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black tracking-[0.12em] text-amber-200 sm:px-4 sm:text-xs sm:tracking-[0.22em]">
-            🏆 LIBAVIME 2026 · SERIE AL MEJOR DE {MEJOR_DE}
+            🏆 {nombreLiga} {temporada} · SERIE AL MEJOR DE {MEJOR_DE}
           </p>
           <h2
             id="titulo-gran-final"
@@ -103,10 +105,10 @@ export default function PortadaFinales({
             >
               <div
                 className="relative h-20 w-20 rounded-full bg-white/5 sm:h-36 sm:w-36 md:h-44 md:w-44"
-                style={{ boxShadow: `0 0 50px ${colorEquipo(equipo)}66, inset 0 0 0 3px ${colorEquipo(equipo)}` }}
+                style={{ boxShadow: `0 0 50px ${colorEquipo(equipo, equiposLiga)}66, inset 0 0 0 3px ${colorEquipo(equipo, equiposLiga)}` }}
               >
                 <Image
-                  src={logoEquipo(equipo)}
+                  src={logoEquipo(equipo, equiposLiga)}
                   alt={equipo}
                   width={176}
                   height={176}
@@ -120,7 +122,7 @@ export default function PortadaFinales({
               </div>
               <p
                 className="mt-3 text-sm font-black uppercase sm:text-2xl sm:tracking-wider"
-                style={{ color: colorEquipo(equipo) }}
+                style={{ color: colorEquipo(equipo, equiposLiga) }}
               >
                 {equipo}
               </p>
@@ -217,12 +219,12 @@ export default function PortadaFinales({
                           juego.finalizado && !gano ? "text-slate-400" : "text-white"
                         }`}
                       >
-                        <Image src={logoEquipo(String(equipo))} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+                        <Image src={logoEquipo(String(equipo), equiposLiga)} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
                         {String(equipo)}
                       </span>
                       <span
                         className={`text-xl font-black tabular-nums ${gano ? "" : "text-slate-400"}`}
-                        style={gano ? { color: colorEquipo(String(equipo)) } : undefined}
+                        style={gano ? { color: colorEquipo(String(equipo), equiposLiga) } : undefined}
                       >
                         {juego.finalizado ? puntos : ""}
                       </span>
@@ -249,7 +251,7 @@ export default function PortadaFinales({
             return (
               <li key={juego.id}>
                 {juego.finalizado ? (
-                  <Link href={`/resultados/${juego.id}`} className={`${clase} hover:bg-white/10`}>
+                  <Link href={ruta(`/resultados/${juego.id}`)} className={`${clase} hover:bg-white/10`}>
                     {contenido}
                   </Link>
                 ) : (
@@ -262,13 +264,13 @@ export default function PortadaFinales({
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
-            href="/calendario"
+            href={ruta("/calendario")}
             className="rounded-xl bg-amber-400 px-5 py-3 text-sm font-black text-slate-950 shadow-lg transition hover:bg-amber-300"
           >
             📅 Ver calendario
           </Link>
           <Link
-            href="/estadisticas"
+            href={ruta("/estadisticas")}
             className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20"
           >
             📊 Estadísticas de la final

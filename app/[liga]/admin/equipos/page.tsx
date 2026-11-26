@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function AdminEquipos() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [slug, setSlug] = useState("");
@@ -35,6 +37,7 @@ async function verificarSesion() {
     const { data, error } = await supabase
       .from("equipos")
       .select("*")
+      .eq("liga_id", liga.id)
       .order("nombre");
 
     if (!error && data) {
@@ -50,8 +53,10 @@ async function subirLogo(
 
   setSubiendo(true);
 
+  // Carpeta por liga: las políticas de Storage solo permiten subir
+  // a la carpeta de la liga que uno administra.
   const nombreArchivo =
-    Date.now() + "-" + archivo.name;
+    `${liga.id}/${Date.now()}-${archivo.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
 
   const { error } = await supabase.storage
     .from("Equipos")
@@ -85,6 +90,7 @@ async function subirLogo(
           color_principal: colorPrincipal,
           color_secundario: colorSecundario,
         })
+      .eq("liga_id", liga.id)
         .eq("id", editandoId);
 
       if (error) {
@@ -105,6 +111,7 @@ async function subirLogo(
       .from("equipos")
       .insert([
         {
+          liga_id: liga.id,
           nombre,
           slug,
           logo,
@@ -141,6 +148,7 @@ async function eliminarEquipo(id: number) {
   const { error } = await supabase
     .from("equipos")
     .delete()
+      .eq("liga_id", liga.id)
     .eq("id", id);
 
   if (error) {
@@ -187,7 +195,7 @@ async function eliminarEquipo(id: number) {
       <div className="max-w-4xl mx-auto">
 
         <h1 className="text-4xl font-black text-blue-900 text-center mb-2">
-          ⚙️ Panel Administrativo LIBAVIME
+          ⚙️ Panel Administrativo {nombreLiga}
         </h1>
 
         <h2 className="text-2xl font-bold text-center mb-8">

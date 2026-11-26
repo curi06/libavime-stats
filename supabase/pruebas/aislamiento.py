@@ -90,4 +90,15 @@ s,r=req('PATCH',f'/rest/v1/equipos?liga_id=eq.{DEMO}',{'nombre':'X'},tok['admin_
 s,r=req('GET','/rest/v1/equipos?select=nombre&slug=eq.oculto',None,tok['plataforma']); check('Administradora de plataforma SÍ ve ligas pendientes', s==200 and len(r)==1)
 # Vistas
 s,r=req('GET',f'/rest/v1/estadisticas_jugadores?select=jugador_id,liga_id&liga_id=eq.{DEMO}'); check('Vista de promedios filtra por liga', s==200 and len(r)==1)
+# Storage por liga (migración 004)
+def subir(bucket, ruta, token):
+    r=urllib.request.Request(f"{URL}/storage/v1/object/{bucket}/{ruta}", data=b'\x89PNG prueba', method='POST',
+        headers={'apikey':PUB,'Authorization':'Bearer '+token,'Content-Type':'image/png','x-upsert':'true'})
+    try: return urllib.request.urlopen(r, timeout=60).status
+    except urllib.error.HTTPError as e: return e.code
+check('Admin demo sube foto a la carpeta de su liga', subir('Jugadores', f'{DEMO}/prueba.png', tok['admin_demo']) == 200)
+check('Admin demo NO sube a la carpeta de LIBAVIME', subir('Jugadores', f'{LIB}/intruso.png', tok['admin_demo']) >= 400)
+check('Admin demo NO sube a la raíz (archivos antiguos de LIBAVIME)', subir('Jugadores', 'intruso.png', tok['admin_demo']) >= 400)
+check('Planilla demo NO sube fotos', subir('Jugadores', f'{DEMO}/planilla.png', tok['planilla_demo']) >= 400)
+check('Admin LIBAVIME sube a la carpeta de LIBAVIME', subir('Equipos', f'{LIB}/prueba.png', tok['admin_lib']) == 200)
 print(f"\nResultado: {sum(res)}/{len(res)} pruebas superadas")

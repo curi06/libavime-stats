@@ -10,6 +10,7 @@ import {
   type FormEvent,
 } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Jugador = {
   id: number;
@@ -78,6 +79,7 @@ function fechaPartido(fecha: string | null, hora: string | null) {
 }
 
 export default function PlanillaPage() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidoId, setPartidoId] = useState("");
@@ -120,7 +122,7 @@ export default function PlanillaPage() {
       const {
         data,
         error: rpcError,
-      } = await supabase.rpc("usuario_puede_planilla");
+      } = await supabase.rpc("puede_planilla_liga", { p_liga: liga.id });
 
       if (!activo) return;
 
@@ -188,7 +190,7 @@ export default function PlanillaPage() {
     const {
       data,
       error: rpcError,
-    } = await supabase.rpc("usuario_puede_planilla");
+    } = await supabase.rpc("puede_planilla_liga", { p_liga: liga.id });
 
     if (rpcError || !data) {
       await supabase.auth.signOut();
@@ -227,12 +229,14 @@ export default function PlanillaPage() {
           .select(
             "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
           )
+      .eq("liga_id", liga.id)
           .order("fecha", { ascending: false })
           .order("hora", { ascending: false }),
 
         supabase
           .from("jugadores")
           .select("id, nombre, numero, equipo")
+      .eq("liga_id", liga.id)
           .order("equipo", { ascending: true })
           .order("numero", { ascending: true }),
       ]);
@@ -332,6 +336,7 @@ export default function PlanillaPage() {
       .select(
         "jugador_id, puntos, rebotes, asistencias, faltas, flagrantes, tiros_encestados, tiros_fallados, estado"
       )
+      .eq("liga_id", liga.id)
       .eq("partido_id", Number(id));
 
     if (statsError) {
@@ -390,6 +395,7 @@ export default function PlanillaPage() {
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
+      .eq("liga_id", liga.id)
     .eq("id", id)
     .single();
 
@@ -412,6 +418,7 @@ export default function PlanillaPage() {
   } = await supabase
     .from("jugadores")
     .select("id, equipo")
+      .eq("liga_id", liga.id)
     .in("equipo", [
       partidoData.equipo_local,
       partidoData.equipo_visitante,
@@ -438,6 +445,7 @@ export default function PlanillaPage() {
   } = await supabase
     .from("estadisticas_partido")
     .select("jugador_id, puntos, estado")
+      .eq("liga_id", liga.id)
     .eq("partido_id", id);
 
   if (estadisticasError) {
@@ -485,6 +493,7 @@ export default function PlanillaPage() {
       puntos_local: puntosLocal,
       puntos_visitante: puntosVisitante,
     })
+      .eq("liga_id", liga.id)
     .eq("id", id)
     .select(
       "id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado"
@@ -541,12 +550,13 @@ export default function PlanillaPage() {
       const { error: updateError } = await supabase
         .from("partidos")
         .update({ estado: "Finalizado" })
+      .eq("liga_id", liga.id)
         .eq("id", partido.id);
 
       if (updateError) throw updateError;
 
 
-      setMensaje("🏁 Partido finalizado y sincronizado con LIBAVIME Stats.");
+      setMensaje(`🏁 Partido finalizado y sincronizado con las estadísticas de ${nombreLiga}.`);
     } catch (err: any) {
       console.error("Error finalizando partido:", err);
       setError(err?.message ?? "No se pudo finalizar el partido.");
@@ -856,7 +866,7 @@ export default function PlanillaPage() {
             <div className="text-5xl">🏀</div>
 
             <p className="mt-3 text-sm font-black tracking-[0.25em] text-blue-400">
-              LIBAVIME
+              {nombreLiga}
             </p>
 
             <h1 className="mt-2 text-2xl font-black">
@@ -972,7 +982,7 @@ export default function PlanillaPage() {
                 </span>
 
                 <p className="text-[9px] font-black tracking-[0.18em] text-blue-400">
-                  LIBAVIME
+                  {nombreLiga}
                 </p>
 
                 <span className="rounded-full bg-red-600 px-2 py-0.5 text-[8px] font-black">

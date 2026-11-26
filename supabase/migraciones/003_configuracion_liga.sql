@@ -26,7 +26,11 @@ set configuracion = configuracion || jsonb_build_object(
     'fecha', '2026-09-18T18:00:00-04:00',
     'lugar', 'Club San Carlos'
   ),
-  'inicio_temporada', '2026-09-05'
+  'inicio_temporada', '2026-09-05',
+  'redes', jsonb_build_object(
+    'instagram', 'https://www.instagram.com/libavime',
+    'youtube', 'https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg'
+  )
 )
 where id = '00000000-0000-0000-0000-00000000a001';
 

@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { equipos } from "../data/equipos";
 import GaleriaDisenos from "@/app/components/GaleriaDisenos";
 import PortadaFinales from "@/app/components/PortadaFinales";
+import { partesFecha } from "@/lib/finales";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Partido = {
   id: number;
@@ -32,7 +33,12 @@ type EstadisticaPartido = {
 };
 
 export default function Home() {
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga } = useLiga();
+  const config = liga.configuracion;
   const [jugadores, setJugadores] = useState<any[]>([]);
+  // Distingue "cargando" de "cargó pero aún no hay estadísticas"
+  // (temporada recién iniciada o liga nueva).
+  const [datosCargados, setDatosCargados] = useState(false);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -49,12 +55,14 @@ useEffect(() => {
       { data: estadisticasData, error: estadisticasError },
       { data: partidosData, error: partidosError },
     ] = await Promise.all([
-      supabase.from("jugadores").select("*"),
+      supabase.from("jugadores").select("*")
+      .eq("liga_id", liga.id),
       supabase
         .from("estadisticas_partido")
         .select(
           "jugador_id, partido_id, puntos, rebotes, asistencias, estado"
-        ),
+        )
+      .eq("liga_id", liga.id),
       supabase
         .from("partidos")
         .select(`
@@ -70,6 +78,7 @@ useEffect(() => {
           fase,
           temporada_id
         `)
+      .eq("liga_id", liga.id)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
     ]);
@@ -87,14 +96,20 @@ useEffect(() => {
 
     // LIDERATOS OFICIALES: misma lógica que /estadisticas.
     // Se calculan sumando las estadísticas de cada partido finalizado.
+    const normalizarNombre = (v: unknown) => String(v ?? "").trim().toLowerCase();
+    const finalistas = new Set<string>(
+      (partidosData ?? [])
+        .filter((p: any) => normalizarNombre(p.fase) === "finales")
+        .flatMap((p: any) => [normalizarNombre(p.equipo_local), normalizarNombre(p.equipo_visitante)])
+    );
     const partidosFinalizados = new Set(
       (partidosData ?? [])
         .filter(
           (partido: any) =>
             String(partido.estado ?? "").trim().toLowerCase() === "finalizado" &&
             String(partido.fase ?? "").trim().toLowerCase() === "finales" &&
-            ["gladiadores", "espartanos"].includes(String(partido.equipo_local ?? "").trim().toLowerCase()) &&
-            ["gladiadores", "espartanos"].includes(String(partido.equipo_visitante ?? "").trim().toLowerCase())
+            finalistas.has(normalizarNombre(partido.equipo_local)) &&
+            finalistas.has(normalizarNombre(partido.equipo_visitante))
         )
         .map((partido: any) => Number(partido.id))
     );
@@ -141,7 +156,7 @@ useEffect(() => {
 
     const jugadoresConEstadisticas = (jugadoresData ?? [])
       .filter((jugador: any) => acumuladosPorJugador.has(Number(jugador.id)))
-      .filter((jugador: any) => ["gladiadores", "espartanos"].includes(String(jugador.equipo ?? "").trim().toLowerCase()))
+      .filter((jugador: any) => finalistas.has(normalizarNombre(jugador.equipo)))
       .map((jugador: any) => {
         const acumulado = acumuladosPorJugador.get(Number(jugador.id));
 
@@ -197,6 +212,7 @@ useEffect(() => {
     );
 
     setJugadores(jugadoresConEstadisticas);
+    setDatosCargados(true);
     setPartidosActuales(partidosConFormato);
     setEstadisticasPartido(
       (estadisticasData ?? []).map((estadistica: any) => ({
@@ -235,8 +251,13 @@ useEffect(() => {
     return () => window.clearInterval(intervalo);
   }, []);
 
-  const inicioTorneo = new Date("2026-09-05T18:00:00-04:00");
-  const inauguracionOficial = new Date("2026-09-18T18:00:00-04:00");
+  // Fechas propias de la liga (ligas.configuracion). Sin configurar, no
+  // se muestran la cuenta regresiva ni la inauguración.
+  const inicioTorneo = new Date(
+    config.inicio_temporada ? `${config.inicio_temporada}T18:00:00-04:00` : 0
+  );
+  const inauguracionOficial = new Date(config.inauguracion?.fecha ?? 0);
+  const partesInauguracion = partesFecha(inauguracionOficial);
 
   const obtenerTiempo = (fechaObjetivo: Date) => {
     const diferencia = Math.max(
@@ -341,7 +362,7 @@ useEffect(() => {
     ).getTime();
   };
 
-  const FECHA_INICIO_SERIE_REGULAR = "2026-09-05";
+  const FECHA_INICIO_SERIE_REGULAR = config.inicio_temporada ?? "0000-01-01";
 
   // La fase guardada en Supabase es la fuente oficial. Los partidos
   // de finales nunca se mezclan con la Serie Regular, aunque sean posteriores.
@@ -602,7 +623,7 @@ useEffect(() => {
 
   if (!fechaPartido) return 0;
 
-  const inicio = new Date("2026-09-05T00:00:00");
+  const inicio = new Date(`${config.inicio_temporada ?? "1970-01-01"}T00:00:00`);
   const fecha = new Date(`${fechaPartido}T00:00:00`);
 
   const diferenciaDias = Math.floor(
@@ -616,7 +637,7 @@ useEffect(() => {
     jugador?.foto &&
     (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
       ? jugador.foto
-      : "/logos/LIBAVIME.png";
+      : logoDeLiga;
 
 
 
@@ -626,8 +647,13 @@ useEffect(() => {
   // Cada equipo utiliza su PARTIDO MÁS RECIENTE con estadísticas.
   // Así se muestran siempre los 4 equipos, aunque el último partido
   // general solo haya enfrentado a 2 de ellos.
+  const nombresFinalistas = new Set(
+    partidosActuales
+      .filter((p) => normalizarEstado(p.fase) === "finales")
+      .flatMap((p) => [normalizarEquipo(p.local), normalizarEquipo(p.visitante)])
+  );
   const equiposFinalistas = equipos.filter((equipo) =>
-    ["gladiadores", "espartanos"].includes(normalizarEquipo(equipo.nombre))
+    nombresFinalistas.has(normalizarEquipo(equipo.nombre))
   );
 
   const jugadoresDestacadosPorEquipo = equiposFinalistas.map((equipo) => {
@@ -665,7 +691,7 @@ useEffect(() => {
     };
   });
 
-  if (jugadores.length === 0) {
+  if (!datosCargados) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-xl font-bold text-blue-900">
@@ -847,57 +873,57 @@ const resultadosFinales = resumenesPartidosFinales
 <div className="hidden md:flex items-center justify-center gap-6 text-white font-semibold py-4">
 
   <Image
-    src="/logos/LIBAVIME.png"
-    alt="LIBAVIME"
+    src={logoDeLiga}
+    alt={nombreLiga}
     width={42}
     height={42}
     className="object-contain"
   />
 
   <a
-    href="/"
+    href={ruta("/")}
     className="transition hover:text-red-400"
   >
     🏠 Inicio
   </a>
 
   <a
-    href="/equipos"
+    href={ruta("/equipos")}
     className="transition hover:text-red-400"
   >
     🏀 Equipos
   </a>
 
   <a
-    href="/jugadores"
+    href={ruta("/jugadores")}
     className="transition hover:text-red-400"
   >
     👤 Jugadores
   </a>
 
   <a
-    href="/calendario"
+    href={ruta("/calendario")}
     className="transition hover:text-red-400"
   >
     📅 Calendario
   </a>
 
   <a
-    href="/resultados"
+    href={ruta("/resultados")}
     className="transition hover:text-red-400"
   >
     🏆 Resultados
   </a>
 
   <a
-    href="/estadisticas"
+    href={ruta("/estadisticas")}
     className="transition hover:text-red-400"
   >
     📊 Estadísticas
   </a>
 
   <a
-    href="/mvp"
+    href={ruta("/mvp")}
     className="transition hover:text-red-400"
   >
     🏆 MVP
@@ -926,7 +952,7 @@ const resultadosFinales = resumenesPartidosFinales
       <div className="absolute right-0 top-full z-50 mt-3 w-48 overflow-hidden rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur">
 
         <a
-          href="/planilla"
+          href={ruta("/planilla")}
           className="flex items-center gap-2 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-600"
         >
           📝 Planilla
@@ -949,15 +975,15 @@ const resultadosFinales = resumenesPartidosFinales
     <div className="flex-1 flex justify-center items-center gap-3">
 
       <Image
-        src="/logos/LIBAVIME.png"
-        alt="LIBAVIME"
+        src={logoDeLiga}
+        alt={nombreLiga}
         width={40}
         height={40}
         className="object-contain"
       />
 
       <span className="font-black text-lg">
-        LIBAVIME
+        {nombreLiga}
       </span>
 
     </div>
@@ -970,14 +996,14 @@ const resultadosFinales = resumenesPartidosFinales
         {menuAbierto && (
           <div className="flex flex-col text-center text-white pb-4 gap-3">
 
-            <a href="/">🏠 Inicio</a>
-            <a href="/equipos">🏀 Equipos</a>
-            <a href="/jugadores">👤 Jugadores</a>
-            <a href="/calendario">📅 Calendario</a>
-            <a href="/resultados">🏆 Resultados</a>
-<a href="/clasificacion">🏆 Posiciones</a>
-<a href="/estadisticas">📊 Estadísticas</a>
-<a href="/mvp">🏆 MVP</a>
+            <a href={ruta("/")}>🏠 Inicio</a>
+            <a href={ruta("/equipos")}>🏀 Equipos</a>
+            <a href={ruta("/jugadores")}>👤 Jugadores</a>
+            <a href={ruta("/calendario")}>📅 Calendario</a>
+            <a href={ruta("/resultados")}>🏆 Resultados</a>
+<a href={ruta("/clasificacion")}>🏆 Posiciones</a>
+<a href={ruta("/estadisticas")}>📊 Estadísticas</a>
+<a href={ruta("/mvp")}>🏆 MVP</a>
           <div className="mx-4 mt-1 overflow-hidden rounded-xl border border-red-500/30 bg-slate-900/70">
 
             <button
@@ -1002,7 +1028,7 @@ const resultadosFinales = resumenesPartidosFinales
               <div className="border-t border-white/10 py-2">
 
                 <a
-                  href="/planilla"
+                  href={ruta("/planilla")}
                   className="flex items-center justify-center gap-2 px-4 py-3 font-black text-blue-300 transition hover:bg-blue-600 hover:text-white"
                 >
                   📝 Planilla
@@ -1033,14 +1059,25 @@ const resultadosFinales = resumenesPartidosFinales
 
   {/* BANNER COMPLETO */}
   <div className="relative h-[32vh] md:h-[70vh] w-full pt-15 md:pt-0">
-    <Image
-      src="/banners/libavime-banner-2026.png"
-      alt="LIBAVIME"
-      width={1536}
-      height={1024}
-      priority
-      className="block h-auto w-full object-contain"
-    />
+    {liga.banner_url ? (
+      <Image
+        src={liga.banner_url}
+        alt={nombreLiga}
+        width={1536}
+        height={1024}
+        priority
+        className="block h-auto w-full object-contain"
+      />
+    ) : (
+      <div
+        className="flex h-full w-full flex-col items-center justify-center gap-4 px-4 text-center text-white"
+        style={{ background: `linear-gradient(135deg, ${liga.color_primario}, #020617 70%, ${liga.color_secundario})` }}
+      >
+        <Image src={logoDeLiga} alt={nombreLiga} width={140} height={140} unoptimized className="h-24 w-24 object-contain md:h-36 md:w-36" />
+        <h1 className="text-3xl font-black md:text-6xl">{liga.nombre}</h1>
+        {liga.ciudad && <p className="font-bold tracking-[0.25em] text-white/80">{liga.ciudad.toUpperCase()}</p>}
+      </div>
+    )}
 
     <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
   </div>
@@ -1069,7 +1106,7 @@ const resultadosFinales = resumenesPartidosFinales
           <div className="relative rounded-[22px] bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-5 py-7 text-white md:px-10 md:py-10">
             <div className="mx-auto max-w-5xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/60 bg-yellow-400/15 px-4 py-2 text-xs font-black tracking-[0.18em] text-yellow-200 backdrop-blur sm:text-sm">
-                ✨ EVENTO ESPECIAL · LIBAVIME 2026 ✨
+                ✨ EVENTO ESPECIAL · {nombreLiga} {temporada} ✨
               </div>
 
               <div className="mt-5 text-5xl drop-shadow-lg sm:text-6xl">🏆</div>
@@ -1083,21 +1120,21 @@ const resultadosFinales = resumenesPartidosFinales
               </h2>
 
               <p className="mt-3 text-lg font-black text-yellow-300 sm:text-2xl">
-                TORNEO LIBAVIME 2026
+                TORNEO {nombreLiga} {temporada}
               </p>
 
               <div className="mx-auto mt-6 grid max-w-4xl grid-cols-1 gap-3 text-center sm:grid-cols-3">
                 <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
                   <p className="text-xs font-black tracking-widest text-blue-200">FECHA</p>
-                  <p className="mt-1 font-black sm:text-lg">📅 Viernes 18 de septiembre</p>
+                  <p className="mt-1 font-black sm:text-lg">📅 {partesInauguracion.diaSemana} {partesInauguracion.dia} de {partesInauguracion.mes}</p>
                 </div>
                 <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
                   <p className="text-xs font-black tracking-widest text-blue-200">HORA</p>
-                  <p className="mt-1 font-black sm:text-lg">🕕 6:00 PM</p>
+                  <p className="mt-1 font-black sm:text-lg">🕕 {partesInauguracion.hora}</p>
                 </div>
                 <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
                   <p className="text-xs font-black tracking-widest text-blue-200">LUGAR</p>
-                  <p className="mt-1 font-black sm:text-lg">📍 Club San Carlos</p>
+                  <p className="mt-1 font-black sm:text-lg">📍 {config.inauguracion?.lugar ?? "Por anunciar"}</p>
                 </div>
               </div>
 
@@ -1135,6 +1172,7 @@ const resultadosFinales = resumenesPartidosFinales
 
 
 
+{config.campeon_defensor && (
 <div className="mt-8 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-3xl p-6 shadow-xl text-center">
 
   <h2 className="text-2xl md:text-3xl font-black">
@@ -1142,17 +1180,26 @@ const resultadosFinales = resumenesPartidosFinales
   </h2>
 
   <p className="text-2xl mt-4 font-bold">
-    Vikingos
+    {config.campeon_defensor.equipo}
   </p>
 
   <p className="mt-2">
-    Campeón LIBAVIME 2025
+    Campeón {nombreLiga} {config.campeon_defensor.temporada}
   </p>
 
 </div>
+)}
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mt-35">
-  {["Gladiadores", "Vikingos", "Titanes", "Espartanos"].map((nombreEquipo) => {
+  {[...equipos]
+    .map((e) => e.nombre)
+    .sort((a, b) => {
+      const orden = ["Gladiadores", "Vikingos", "Titanes", "Espartanos"];
+      const ia = orden.indexOf(a) === -1 ? orden.length : orden.indexOf(a);
+      const ib = orden.indexOf(b) === -1 ? orden.length : orden.indexOf(b);
+      return ia - ib || a.localeCompare(b);
+    })
+    .map((nombreEquipo) => {
     const equipo = posicionesOrdenadas.find(
       (item) => item.nombre === nombreEquipo
     );
@@ -1182,12 +1229,15 @@ const resultadosFinales = resumenesPartidosFinales
   },
 
 };
-    const estilo = estilos[equipo.nombre];
+    const estilo = estilos[equipo.nombre] ?? {
+      fondo: "from-slate-600 via-slate-700 to-slate-900",
+      texto: "text-white",
+    };
 
     return (
       <Link
         key={equipo.nombre}
-        href={`/equipos/${equipo.slug}`}
+        href={ruta(`/equipos/${equipo.slug}`)}
         className={`bg-gradient-to-br ${estilo.fondo} rounded-3xl shadow-xl text-center p-5 md:p-6 transition hover:scale-[1.03]`}
       >
         <div className="flex h-28 items-center justify-center md:h-36">
@@ -1222,7 +1272,7 @@ const resultadosFinales = resumenesPartidosFinales
 </h2>
       <p className="mt-3 text-sm sm:text-base md:text-lg font-bold text-slate-500">
   {resultadosFinales.length > 0
-    ? "Finales · Protagonistas de Gladiadores y Espartanos"
+    ? `Finales · Protagonistas de ${equiposFinalistas.map((e) => e.nombre).join(" y ")}`
     : "Finales · Pendiente de estadísticas"}
 </p>
     </div>
@@ -1370,7 +1420,7 @@ const resultadosFinales = resumenesPartidosFinales
   )}
 
   <Link
-    href="/estadisticas"
+    href={ruta("/estadisticas")}
     className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-950 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-800 hover:-translate-y-0.5"
   >
     📊 VER ESTADÍSTICAS COMPLETAS
@@ -1470,9 +1520,9 @@ const resultadosFinales = resumenesPartidosFinales
 {resultadosFinales.length > 0 && (
   <section className="mt-8 rounded-2xl border border-amber-300 bg-slate-950 p-5 text-white shadow-xl">
     <div className="mb-5 text-center">
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">LIBAVIME 2026</p>
+      <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">{nombreLiga} {temporada}</p>
       <h2 className="mt-1 text-2xl font-black md:text-3xl">🏆 RESULTADOS DE LAS FINALES</h2>
-      <p className="mt-1 text-sm font-semibold text-slate-300">Serie final · Gladiadores vs. Espartanos</p>
+      <p className="mt-1 text-sm font-semibold text-slate-300">Serie final · {equiposFinalistas.map((e) => e.nombre).join(" vs. ")}</p>
     </div>
     <div className="grid gap-3 md:grid-cols-2">
       {resultadosFinales.map((partido) => (
@@ -1741,7 +1791,7 @@ const resultadosFinales = resumenesPartidosFinales
                       jugador.foto.startsWith("/")
                     )
                       ? jugador.foto
-                      : "/logos/LIBAVIME.png";
+                      : logoDeLiga;
 
                   const primero = index === 0;
 
@@ -1826,7 +1876,7 @@ const resultadosFinales = resumenesPartidosFinales
   unoptimized
   alt={
     jugador.nombre ||
-    "Jugador LIBAVIME"
+    `Jugador ${nombreLiga}`
   }
   fill
   sizes="192px"
@@ -2132,7 +2182,7 @@ const resultadosFinales = resumenesPartidosFinales
             <div className="flex flex-col items-center">
 
               <span className="text-xs font-bold text-gray-500">
-                LIBAVIME
+                {nombreLiga}
               </span>
 
               <span className="text-2xl font-black text-blue-700">
@@ -2192,7 +2242,7 @@ const resultadosFinales = resumenesPartidosFinales
         {lideresPuntos.map((jugador, index) => (
           <Link
             key={jugador.slug}
-            href={`/jugadores/${jugador.slug}`}
+            href={ruta(`/jugadores/${jugador.slug}`)}
             className="block"
           >
             <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
@@ -2239,7 +2289,7 @@ const resultadosFinales = resumenesPartidosFinales
         {lideresRebotes.map((jugador, index) => (
           <Link
             key={jugador.slug}
-            href={`/jugadores/${jugador.slug}`}
+            href={ruta(`/jugadores/${jugador.slug}`)}
             className="block"
           >
             <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
@@ -2286,7 +2336,7 @@ const resultadosFinales = resumenesPartidosFinales
         {lideresAsistencias.map((jugador, index) => (
           <Link
             key={jugador.slug}
-            href={`/jugadores/${jugador.slug}`}
+            href={ruta(`/jugadores/${jugador.slug}`)}
             className="block"
           >
             <div className="bg-white p-3 rounded-xl shadow grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
@@ -2334,29 +2384,30 @@ const resultadosFinales = resumenesPartidosFinales
 
     <p className="flex items-center justify-center gap-2 text-lg font-black tracking-wide text-slate-700 sm:text-xl">
       <span className="text-xl sm:text-2xl">🏀</span>
-      <span>LIBAVIME</span>
+      <span>{nombreLiga}</span>
     </p>
 
     <p className="mt-3 max-w-2xl text-center text-sm font-medium leading-relaxed text-slate-500 sm:text-base">
-      © 2026 LIBAVIME · Diseñado y desarrollado por{" "}
+      © {temporada} {nombreLiga} · Diseñado y desarrollado por{" "}
       <span className="font-black text-blue-900">
         Emmi De La Cruz
       </span>
     </p>
 
     <p className="mt-2 text-center text-xs font-medium text-slate-400 sm:text-sm">
-      Creado para LIBAVIME
+      Creado para {nombreLiga}
     </p>
 
     {/* REDES SOCIALES */}
     <div className="mt-5 flex items-center justify-center gap-4">
 
       {/* INSTAGRAM */}
+      {config.redes?.instagram && (
       <a
-        href="https://www.instagram.com/libavime?igsi=aHgyMHkzN2tweHpr"
+        href={config.redes.instagram}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Instagram de LIBAVIME"
+        aria-label={`Instagram de ${nombreLiga}`}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white shadow-md transition hover:scale-110"
       >
         <svg
@@ -2375,13 +2426,15 @@ const resultadosFinales = resumenesPartidosFinales
           <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
         </svg>
       </a>
+      )}
 
       {/* YOUTUBE */}
+      {config.redes?.youtube && (
       <a
-        href="https://www.youtube.com/channel/UCUkCUSmljiIn-gO1KFJNVeg"
+        href={config.redes.youtube}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="YouTube de LIBAVIME"
+        aria-label={`YouTube de ${nombreLiga}`}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white shadow-md transition hover:scale-110"
       >
         <svg
@@ -2394,6 +2447,7 @@ const resultadosFinales = resumenesPartidosFinales
           <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.5v-7l6.2 3.5-6.2 3.5Z" />
         </svg>
       </a>
+      )}
 
     </div>
 

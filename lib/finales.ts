@@ -2,6 +2,8 @@
 // Lo usan la portada (app/components/PortadaFinales) y la plantilla
 // "Ruta a la final" del editor de Instagram.
 
+import { LOGO_POR_DEFECTO } from "@/lib/liga";
+
 export const MEJOR_DE = 3;
 export const VICTORIAS_PARA_CAMPEON = Math.ceil(MEJOR_DE / 2);
 
@@ -64,15 +66,27 @@ export function nombreEquipo(valor: unknown) {
   return conocido ?? String(valor ?? "").trim();
 }
 
-export function logoEquipo(nombre: string) {
+type EquipoConEstilo = { nombre: string; logo?: string | null; color?: string | null };
+
+const buscarEquipo = (nombre: string, equipos?: EquipoConEstilo[]) =>
+  equipos?.find((e) => normalizar(e.nombre) === normalizar(nombre));
+
+/** Logo del equipo: primero el de la liga; si no, el de respaldo. */
+export function logoEquipo(nombre: string, equipos?: EquipoConEstilo[]) {
   return (
-    EQUIPOS_FINAL[nombreEquipo(nombre) as EquipoFinal]?.logo ??
-    "/logos/LIBAVIME.png"
+    buscarEquipo(nombre, equipos)?.logo ||
+    EQUIPOS_FINAL[nombreEquipo(nombre) as EquipoFinal]?.logo ||
+    LOGO_POR_DEFECTO
   );
 }
 
-export function colorEquipo(nombre: string) {
-  return EQUIPOS_FINAL[nombreEquipo(nombre) as EquipoFinal]?.color ?? "#94a3b8";
+/** Color del equipo: primero el registrado en la liga. */
+export function colorEquipo(nombre: string, equipos?: EquipoConEstilo[]) {
+  return (
+    buscarEquipo(nombre, equipos)?.color ||
+    EQUIPOS_FINAL[nombreEquipo(nombre) as EquipoFinal]?.color ||
+    "#94a3b8"
+  );
 }
 
 /**

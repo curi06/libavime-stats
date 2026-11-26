@@ -6,6 +6,8 @@ import { toJpeg, toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 import { construirSerieFinal, type SerieFinal } from "@/lib/finales";
 import RutaFinal from "@/app/components/instagram/RutaFinal";
+import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Tipo =
   | "jugador"
@@ -61,13 +63,6 @@ type Encuadre = {
   historia?: AjusteFormato;
 };
 
-const LOGO = "/logos/LIBAVIME.png";
-const NOMBRES_EQUIPOS = [
-  "Espartanos",
-  "Vikingos",
-  "Gladiadores",
-  "Titanes",
-];
 
 const FOTOS_LOCALES: Record<string, string> = {
   "albert heredia": "Albert heredia_noBackground.png",
@@ -125,7 +120,9 @@ const FOTOS_LOCALES: Record<string, string> = {
   "manuel heredia": "manuel heredia_noBackground.png"
 };
 
-function obtenerRutaFotoInstagram(nombreJugador: string) {
+// Fotos recortadas propias de la liga principal (public/backgrounds).
+function obtenerRutaFotoInstagram(nombreJugador: string, slugLiga: string) {
+  if (slugLiga !== LIGA_PRINCIPAL) return "";
   const nombre = nombreJugador
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -158,6 +155,8 @@ function fotoValida(foto?: string | null) {
 }
 
 export default function InstagramPage() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada, logo: LOGO } = useLiga();
+  const NOMBRES_EQUIPOS = useMemo(() => equiposLiga.map((e) => e.nombre), [equiposLiga]);
   const [tipo, setTipo] = useState<Tipo>("jugador");
   const [modoIndividualDestacado, setModoIndividualDestacado] = useState(false);
   const arrastreFotoRef = useRef<{ pointerId: number; startX: number; startY: number; x: number; y: number; factor: number } | null>(null);
@@ -167,7 +166,7 @@ export default function InstagramPage() {
   const arteRef = useRef<HTMLDivElement>(null);
   const copiaVistaRef = useRef<HTMLDivElement>(null);
 useEffect(() => {
-  fetch("/api/encuadres")
+  fetch(`/api/encuadres?liga=${liga.slug}`)
     .then((respuesta) => {
       if (!respuesta.ok) {
         throw new Error("No se pudieron cargar los encuadres");
@@ -235,7 +234,9 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
       .select(
         "id, fecha, hora, cancha, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
       )
+      .eq("liga_id", liga.id)
       .eq("fase", "finales")
+      .eq("liga_id", liga.id)
       .then(({ data, error: errorFinales }) => {
         if (!activo) return;
         if (errorFinales) {
@@ -300,15 +301,18 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
         partidosResp,
       ] = await Promise.all([
 
-        supabase.from("jugadores").select("*").order("nombre"),
+        supabase.from("jugadores").select("*")
+      .eq("liga_id", liga.id).order("nombre"),
         supabase
           .from("estadisticas_partido")
-          .select("jugador_id, partido_id, puntos, rebotes, asistencias, estado"),
+          .select("jugador_id, partido_id, puntos, rebotes, asistencias, estado")
+      .eq("liga_id", liga.id),
         supabase
   .from("partidos")
   .select(
     "id, fecha, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
   )
+      .eq("liga_id", liga.id)
   .eq("estado", "Finalizado"),
       ]);
 console.log("Resultado de carga:", {
@@ -1168,7 +1172,7 @@ let marca = tiempoInicio;
 const medir = (paso: string) => {
   const ahora = performance.now();
   console.log(
-    `[LIBAVIME] ${paso}: ${((ahora - marca) / 1000).toFixed(2)} s`
+    `[editor] ${paso}: ${((ahora - marca) / 1000).toFixed(2)} s`
   );
   marca = ahora;
 };
@@ -1220,7 +1224,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
             ? "Líder en rebotes"
             : "Líder en asistencias"
         : "";
-      const titulo = `LIBAVIME ${
+      const titulo = `${nombreLiga} ${
         tipo === "finales"
           ? "Gran Final 1-1"
           : tipo === "ruta_final"
@@ -1236,7 +1240,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
               : ""
       }`;
 
-      const respuesta = await fetch("/api/disenos", {
+      const respuesta = await fetch(`/api/disenos?liga=${liga.slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1261,7 +1265,7 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
       });
       medir(`Respuesta del servidor: HTTP ${respuesta.status}`);
 console.log(
-  `[LIBAVIME] Tiempo total hasta respuesta: ${(
+  `[editor] Tiempo total hasta respuesta: ${(
     (performance.now() - tiempoInicio) / 1000
   ).toFixed(2)} s`
 );
@@ -1289,7 +1293,7 @@ if (!respuesta.ok) {
     resultado.error || `No se pudo publicar el diseño (HTTP ${respuesta.status}).`
   );
 }
-      setMensajeGaleria("¡Diseño publicado correctamente en la galería de LIBAVIME!");
+      setMensajeGaleria(`¡Diseño publicado correctamente en la galería de ${nombreLiga}!`);
     } catch (err) {
       console.error(err);
       setError(
@@ -1307,7 +1311,7 @@ if (!respuesta.ok) {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8">
           <p className="text-sm font-black uppercase tracking-[0.25em] text-red-600">
-            LIBAVIME 2026
+            {nombreLiga} {temporada}
           </p>
           <h1 className="mt-2 text-3xl font-black text-blue-950 md:text-4xl">
             Generador de contenido para Instagram
@@ -1412,7 +1416,7 @@ if (!respuesta.ok) {
       <option value="">Selecciona un jugador</option>
       {jugadores.map((j) => (
         <option key={j.id} value={String(j.id)}>
-          {j.nombre} — {j.equipo || "LIBAVIME"}
+          {j.nombre} — {j.equipo || nombreLiga}
         </option>
       ))}
     </select>
@@ -1512,7 +1516,7 @@ if (!respuesta.ok) {
               setGuardandoEncuadre(true);
 
               try {
-                const respuesta = await fetch("/api/encuadres", {
+                const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
                   method: "PUT",
                   headers: {
                     "Content-Type": "application/json",
@@ -1567,7 +1571,7 @@ if (!respuesta.ok) {
       <option value="">Selecciona un líder</option>
       {lideres.map((j) => (
         <option key={j.id} value={`lider-${j.id}`}>
-          {j.nombre} — {j.equipo || "LIBAVIME"}
+          {j.nombre} — {j.equipo || nombreLiga}
         </option>
       ))}
     </select>
@@ -1616,7 +1620,7 @@ if (!respuesta.ok) {
             onClick={async () => {
               setGuardandoEncuadre(true);
               try {
-                const respuesta = await fetch("/api/encuadres", {
+                const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ jugadores: encuadres }),
@@ -1824,7 +1828,7 @@ if (!respuesta.ok) {
               setGuardandoEncuadre(true);
 
               try {
-                const respuesta = await fetch("/api/encuadres", {
+                const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
                   method: "PUT",
                   headers: {
                     "Content-Type": "application/json",
@@ -1988,7 +1992,7 @@ if (!respuesta.ok) {
             onClick={async () => {
               setGuardandoEncuadre(true);
               try {
-                const respuesta = await fetch("/api/encuadres", {
+                const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
                   method: "PUT",
                   headers: {
                     "Content-Type": "application/json",
@@ -2151,7 +2155,7 @@ if (!respuesta.ok) {
           setGuardandoEncuadre(true);
 
           try {
-            const respuesta = await fetch("/api/encuadres", {
+            const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
@@ -2438,7 +2442,7 @@ if (!respuesta.ok) {
 <header className="relative -mt-5 flex shrink-0 items-center justify-center gap-0 border-b-2 border-red-600/70 pb-2">
   <img
     src={LOGO}
-    alt="Logo LIBAVIME"
+    alt={`Logo ${nombreLiga}`}
     className="h-16 w-16 shrink-0 object-contain"
   />
 
@@ -2448,7 +2452,7 @@ if (!respuesta.ok) {
     </p>
 
     <h1 className="text-2xl font-black italic leading-none tracking-tight text-white">
-  LIBAVIME <span className="text-red-500">2026</span>
+  {nombreLiga} <span className="text-red-500">{temporada}</span>
 </h1>
 
     <div className="mt-1 h-1 w-full rounded-full bg-red-600" />
@@ -2479,7 +2483,7 @@ if (!respuesta.ok) {
     </h2>
 
     <p className="mt-0 text-center text-sm font-bold text-slate-300">
-      {jugador.equipo || "LIBAVIME"}
+      {jugador.equipo || nombreLiga}
     </p>
 
 
@@ -2492,10 +2496,10 @@ if (!respuesta.ok) {
 
 
 
-{obtenerRutaFotoInstagram(jugador.nombre) ? (
+{obtenerRutaFotoInstagram(jugador.nombre, liga.slug) ? (
 
 <img
-  src={obtenerRutaFotoInstagram(jugador.nombre)}
+  src={obtenerRutaFotoInstagram(jugador.nombre, liga.slug)}
   alt={jugador.nombre}
   onError={(e) => {
     console.error(
@@ -2622,7 +2626,7 @@ if (!respuesta.ok) {
                     y: guardado?.y ?? 0,
                     zoom: guardado?.zoom ?? 1,
                   };
-                  const foto = obtenerRutaFotoInstagram(ganador.nombre);
+                  const foto = obtenerRutaFotoInstagram(ganador.nombre, liga.slug);
 
                   return (
                     <div className="relative z-10 -mt-1 flex min-h-0 flex-1 flex-col items-center gap-0">
@@ -2652,7 +2656,7 @@ if (!respuesta.ok) {
                         style={{ borderColor: `${configuracion.color}99`, background: "linear-gradient(90deg, #172b4d, #263957, #172b4d)" }}
                       >
                         <p className="text-center text-[10px] font-black uppercase tracking-[0.22em] text-slate-100">
-                          {ganador.equipo || "LIBAVIME"}
+                          {ganador.equipo || nombreLiga}
                         </p>
                       </div>
 
@@ -2752,7 +2756,7 @@ if (!respuesta.ok) {
                       <p className={`mt-auto pt-2 text-center font-bold tracking-widest text-slate-300 ${
                         formato === "post" ? "text-[7px]" : "text-[10px]"
                       }`}>
-                        ESTADÍSTICAS DE PARTIDOS FINALIZADOS · LIBAVIME
+                        ESTADÍSTICAS DE PARTIDOS FINALIZADOS · {nombreLiga}
                       </p>
                     </div>
                   );
@@ -2838,20 +2842,20 @@ i === 0
                     </div>
 
                     <p className="mt-auto pt-5 text-center text-[10px] font-bold tracking-widest text-slate-300">
-                      CLASIFICACIÓN · LIBAVIME
+                      CLASIFICACIÓN · {nombreLiga}
                     </p>
                   </div>
                 )}
 
 
-{tipo === "ruta_final" && <RutaFinal serie={serieFinal} formato={formato} />}
+{tipo === "ruta_final" && <RutaFinal serie={serieFinal} formato={formato} equipos={equiposLiga} />}
 
 {tipo === "finales" && (
   <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center">
     <p className={`mt-0 text-center font-black tracking-[0.24em] text-red-400 ${
       formato === "post" ? "text-[8px]" : "text-xs"
     }`}>
-      CAMPEONATO LIBAVIME 2026
+      CAMPEONATO {nombreLiga} {temporada}
     </p>
 
     <h2 className={`mt-1 text-center font-black uppercase leading-none tracking-[0.12em] text-white ${
@@ -2963,7 +2967,7 @@ i === 0
 
   const equipo = NOMBRES_EQUIPOS.find(
     (nombre) => normalizar(nombre) === normalizar(jugador.equipo)
-  ) ?? jugador.equipo ?? "LIBAVIME";
+  ) ?? jugador.equipo ?? nombreLiga;
   const jugadoresEquipo = destacadosPorEquipo.find(
     (grupo) => normalizar(grupo.equipo) === normalizar(equipo)
   )?.jugadores ?? [];
@@ -2977,12 +2981,12 @@ i === 0
     Titanes: { fondo: "#7f1d1d", borde: "#fca5a5", acento: "#fecaca", texto: "#ffffff" },
     Espartanos: { fondo: "#eab308", borde: "#fde047", acento: "#422006", texto: "#1c1917" },
   };
-  const color = colores[equipo] ?? colores.Gladiadores;
+  const color = colores[equipo] ?? { fondo: "#1e293b", borde: "#94a3b8", acento: "#e2e8f0", texto: "#ffffff" };
   const guardado = encuadres[String(jugador.id)];
   const ajusteFoto = formato === "post"
     ? guardado?.post ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 }
     : guardado?.historia ?? { x: guardado?.x ?? 0, y: guardado?.y ?? 0, zoom: guardado?.zoom ?? 1 };
-  const foto = obtenerRutaFotoInstagram(jugador.nombre) || fotoValida(jugador.foto);
+  const foto = obtenerRutaFotoInstagram(jugador.nombre, liga.slug) || fotoValida(jugador.foto);
 
   return (
     <div
@@ -3137,7 +3141,7 @@ const ajusteFoto =
         zoom: encuadreGuardado?.zoom ?? 1,
       };
 
-          const fotoRecortada = obtenerRutaFotoInstagram(j.nombre);
+          const fotoRecortada = obtenerRutaFotoInstagram(j.nombre, liga.slug);
 
           return (
             <div
@@ -3149,7 +3153,7 @@ const ajusteFoto =
     formato === "historia" ? "h-[125px]" : "h-[140px]"
   }`}
 >
-  {obtenerRutaFotoInstagram(j.nombre) ? (
+  {obtenerRutaFotoInstagram(j.nombre, liga.slug) ? (
     <img
       src={fotoRecortada}
       alt={j.nombre}
@@ -3178,7 +3182,7 @@ const ajusteFoto =
               </p>
 
               <p className="mt-0.5 truncate text-center text-[8px] font-black uppercase tracking-wider text-red-400">
-                {j.equipo || "LIBAVIME"}
+                {j.equipo || nombreLiga}
               </p>
 
              <div
@@ -3265,7 +3269,7 @@ const ajusteFoto =
 </h3>
     <div className="mx-auto mt-0 mb-1 inline-flex items-center justify-center rounded-full border border-amber-400/60 bg-gradient-to-r from-[#172b4d] via-[#243653] to-[#172b4d] px-5 py-1 shadow-[0_0_12px_rgba(245,158,11,0.18)]">
   <p className="text-center text-[11px] font-black uppercase tracking-[0.22em] text-amber-200">
-    {candidatosMVP[candidatoMVPIndex]?.equipo ?? "LIBAVIME"}
+    {candidatosMVP[candidatoMVPIndex]?.equipo ?? nombreLiga}
   </p>
 </div>
 
@@ -3283,7 +3287,7 @@ const ajusteFoto =
     zoom: guardado?.zoom ?? 1,
   };
 
-  const foto = obtenerRutaFotoInstagram(candidato.nombre);
+  const foto = obtenerRutaFotoInstagram(candidato.nombre, liga.slug);
 
   return (
     <div

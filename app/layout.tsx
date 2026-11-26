@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LIBAVIME",
-  description: "Liga de Baloncesto de Visitadores Médicos",
+  title: "Quinteto Pro",
+  description: "Plataforma de estadísticas para ligas de baloncesto",
   icons: {
     icon: [
       {

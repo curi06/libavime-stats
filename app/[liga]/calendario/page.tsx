@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/app/components/Navbar";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Partido = {
   id: number;
@@ -26,17 +27,6 @@ function formatearFecha(fecha: string) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
-function obtenerLogoEquipo(nombre: string) {
-  const equipo = nombre.toLowerCase().trim();
-
-  if (equipo.includes("gladiadores")) return "/logos/gladiadores.png";
-  if (equipo.includes("espartanos")) return "/logos/espartanos.png";
-  if (equipo.includes("titanes")) return "/logos/titanes.jpg";
-  if (equipo.includes("vikingos")) return "/logos/vikingos.jpg";
-
-  return null;
-}
-
 function obtenerDia(fecha: string) {
   if (!fecha) return "";
 
@@ -51,6 +41,7 @@ function obtenerDia(fecha: string) {
 }
 
 export default function Calendario() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada, equipo: equipoLiga } = useLiga();
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -73,6 +64,7 @@ export default function Calendario() {
           estado
         `
         )
+      .eq("liga_id", liga.id)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true });
 
@@ -135,7 +127,7 @@ export default function Calendario() {
             <div className="mx-auto mb-5 flex max-w-fit items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 shadow-2xl backdrop-blur">
               <span className="text-xl">🏀</span>
               <span className="text-xs font-black tracking-[0.18em] text-white sm:text-sm">
-                LIBAVIME 2026
+                {nombreLiga} {temporada}
               </span>
             </div>
 
@@ -168,8 +160,8 @@ export default function Calendario() {
           ) : (
             <div className="grid gap-7 lg:grid-cols-2">
               {proximosPartidos.map((partido) => {
-                const logoLocal = obtenerLogoEquipo(partido.local);
-                const logoVisitante = obtenerLogoEquipo(partido.visitante);
+                const logoLocal = equipoLiga(partido.local)?.logo ?? null;
+                const logoVisitante = equipoLiga(partido.visitante)?.logo ?? null;
 
                 return (
                   <article
@@ -190,7 +182,7 @@ export default function Calendario() {
                       </div>
 
                       <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-300">
-                        LIBAVIME
+                        {nombreLiga}
                       </span>
                     </div>
 

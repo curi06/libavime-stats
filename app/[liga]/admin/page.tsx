@@ -7,7 +7,9 @@ import DashboardStats from "@/app/components/admin/DashboardStats";
 import NextGameCard from "@/app/components/admin/NextGameCard";
 import QuickActions from "@/app/components/admin/QuickActions";
 import LatestResults from "@/app/components/admin/LatestResults";
+import { useLiga } from "@/app/components/LigaContext";
 export default function AdminPage() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
 const router = useRouter();
 const [totalJugadores, setTotalJugadores] = useState(0);
 const [totalEquipos, setTotalEquipos] = useState(0);
@@ -33,15 +35,18 @@ async function verificarSesion() {
 async function cargarDashboard() {
   const { count: jugadores } = await supabase
     .from("jugadores")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+      .eq("liga_id", liga.id);
 
   const { count: equipos } = await supabase
     .from("equipos")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+      .eq("liga_id", liga.id);
 
   const { count: partidos } = await supabase
     .from("partidos")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+      .eq("liga_id", liga.id);
 
   setTotalJugadores(jugadores || 0);
   setTotalEquipos(equipos || 0);
@@ -50,6 +55,7 @@ async function cargarDashboard() {
   const { data: proximo } = await supabase
   .from("partidos")
   .select("*")
+      .eq("liga_id", liga.id)
   .eq("estado", "Programado")
   .order("fecha", { ascending: true })
   .limit(1)
@@ -61,6 +67,7 @@ async function cargarDashboard() {
   const { data: resultados } = await supabase
     .from("partidos")
     .select("*")
+      .eq("liga_id", liga.id)
     .eq("estado", "Finalizado")
     .order("fecha", { ascending: false })
     .limit(5);
@@ -85,7 +92,7 @@ async function cargarDashboard() {
       </div>
 
       <h1 className="text-4xl md:text-5xl font-black text-center text-blue-900 mb-10">
-        ⚙️ Panel de Administración LIBAVIME
+        ⚙️ Panel de Administración {nombreLiga}
       </h1>
 
       {/* Tarjetas de estadísticas */}

@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Jugador = {
   id: string | number;
@@ -100,6 +101,7 @@ function obtenerRutaFoto(jugador: Jugador) {
 }
 
 export default function EncuadresPage() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [jugadorId, setJugadorId] = useState("");
   const [formato, setFormato] = useState<"post" | "historia">("post");
@@ -138,8 +140,8 @@ const encuadre = {
     async function cargar() {
       try {
         const [respuestaJugadores, respuestaEncuadres] = await Promise.all([
-          fetch("/api/jugadores", { cache: "no-store" }),
-          fetch("/api/encuadres", { cache: "no-store" }),
+          fetch(`/api/jugadores?liga=${liga.slug}`, { cache: "no-store" }),
+          fetch(`/api/encuadres?liga=${liga.slug}`, { cache: "no-store" }),
         ]);
 
         if (!respuestaJugadores.ok) {
@@ -249,7 +251,7 @@ const encuadre = {
     setMensaje("");
 
     try {
-      const respuesta = await fetch("/api/encuadres", {
+      const respuesta = await fetch(`/api/encuadres?liga=${liga.slug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

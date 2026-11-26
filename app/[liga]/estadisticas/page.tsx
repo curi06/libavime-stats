@@ -5,9 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { equipos } from "../../data/equipos";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function Estadisticas() {
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga } = useLiga();
+  // Prefijo para nombres de archivos exportados (PDF / imágenes).
+  const prefijoArchivo = `${nombreLiga}_${temporada}`.replace(/[^a-zA-Z0-9]+/g, "_");
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [faseSeleccionada, setFaseSeleccionada] = useState<"serie_regular" | "finales">("finales");
   const [vistaSeleccionada, setVistaSeleccionada] = useState<"estadisticas" | "destacados">("estadisticas");
@@ -74,6 +77,7 @@ export default function Estadisticas() {
       supabase
         .from("jugadores")
         .select("*")
+      .eq("liga_id", liga.id)
         .order("nombre"),
 
       supabase
@@ -85,11 +89,13 @@ export default function Estadisticas() {
     rebotes,
     asistencias,
     estado
-  `),
+  `)
+      .eq("liga_id", liga.id),
 
       supabase
         .from("partidos")
         .select("*")
+      .eq("liga_id", liga.id)
         .eq("estado", "Finalizado")
         .eq("fase", faseSeleccionada),
     ]);
@@ -448,7 +454,7 @@ export default function Estadisticas() {
       let logoData: string | null = null;
 
       try {
-        const respuesta = await fetch("/logos/LIBAVIME.png");
+        const respuesta = await fetch(logoDeLiga);
 
         if (respuesta.ok) {
           const blob = await respuesta.blob();
@@ -472,7 +478,7 @@ export default function Estadisticas() {
           });
         }
       } catch (error) {
-        console.error("No se pudo cargar el logo de LIBAVIME:", error);
+        console.error(`No se pudo cargar el logo de ${nombreLiga}:`, error);
       }
 
       const dibujarEncabezadoLideratos = (
@@ -503,7 +509,7 @@ export default function Estadisticas() {
             );
           } catch (error) {
             console.error(
-              "No se pudo insertar el logo de LIBAVIME en el PDF:",
+              `No se pudo insertar el logo de ${nombreLiga} en el PDF:`,
               error
             );
           }
@@ -526,7 +532,7 @@ export default function Estadisticas() {
         doc.setFontSize(9);
         doc.setTextColor(75, 80, 90);
         doc.text(
-          "LIBAVIME · TORNEO 2026 · RANKING OFICIAL",
+          `${nombreLiga} · TORNEO ${temporada} · RANKING OFICIAL`,
           pageWidth / 2,
           29,
           { align: "center" }
@@ -748,7 +754,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Lideratos_LIBAVIME_2026_${new Date()
+        `Lideratos_${prefijoArchivo}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -848,7 +854,7 @@ export default function Estadisticas() {
 
       try {
         const respuesta = await fetch(
-          "/logos/LIBAVIME.png"
+          logoDeLiga
         );
 
         if (respuesta.ok) {
@@ -886,7 +892,7 @@ export default function Estadisticas() {
         }
       } catch (error) {
         console.error(
-          "No se pudo cargar el logo de LIBAVIME:",
+          `No se pudo cargar el logo de ${nombreLiga}:`,
           error
         );
       }
@@ -938,7 +944,7 @@ export default function Estadisticas() {
             );
           } catch (error) {
             console.error(
-              "No se pudo insertar el logo de LIBAVIME en el PDF:",
+              `No se pudo insertar el logo de ${nombreLiga} en el PDF:`,
               error
             );
           }
@@ -992,7 +998,7 @@ export default function Estadisticas() {
 
         doc.text(
           subtitulo ||
-            "TORNEO 2026 · LIBAVIME",
+            `TORNEO ${temporada} · ${nombreLiga}`,
           centro,
           31,
           {
@@ -1499,7 +1505,7 @@ export default function Estadisticas() {
       // =========================
       // Incluye encabezado oficial, logo LIBAVIME, resumen y posiciones 1–15.
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · RANKING OFICIAL"
+        `TORNEO ${temporada} · ${nombreLiga} · RANKING OFICIAL`
       );
 
       dibujarResumen();
@@ -1520,7 +1526,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 16–30"
+        `TORNEO ${temporada} · ${nombreLiga} · CONTINUACIÓN · POSICIONES 16–30`
       );
 
       autoTable(
@@ -1538,7 +1544,7 @@ export default function Estadisticas() {
       doc.addPage();
 
       dibujarEncabezado(
-        "TORNEO 2026 · LIBAVIME · CONTINUACIÓN · POSICIONES 31–44"
+        `TORNEO ${temporada} · ${nombreLiga} · CONTINUACIÓN · POSICIONES 31–44`
       );
 
       autoTable(
@@ -1567,7 +1573,7 @@ export default function Estadisticas() {
       }
 
       doc.save(
-        `Estadisticas_LIBAVIME_2026_${new Date()
+        `Estadisticas_${prefijoArchivo}_${new Date()
           .toISOString()
           .slice(0, 10)}.pdf`
       );
@@ -1660,7 +1666,7 @@ export default function Estadisticas() {
         jugador.foto &&
         (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
           ? jugador.foto
-          : "/logos/LIBAVIME.png";
+          : logoDeLiga;
 
       const [logo, foto] = await Promise.all([
         cargarImagen(equipo.logo, "el escudo de " + equipo.nombre),
@@ -1701,7 +1707,11 @@ export default function Estadisticas() {
           texto: "#0f172a", textoSuave: "#1e293b",
         },
       };
-      const estilo = equipoEstilos[equipo.nombre] ?? equipoEstilos.Gladiadores;
+      const estilo = equipoEstilos[equipo.nombre] ?? {
+        inicio: "#0f172a", medio: "#1e293b", final: "#334155",
+        borde: "#94a3b8", brillo: "rgba(148,163,184,0.18)",
+        texto: "#ffffff", textoSuave: "#e2e8f0",
+      };
       const primero = indice === 0;
 
       const redondear = (
@@ -1863,7 +1873,7 @@ export default function Estadisticas() {
       ficha.textBaseline = "middle";
       ficha.fillStyle = estilo.textoSuave;
       ficha.font = "900 28px Arial, Helvetica, sans-serif";
-      ficha.fillText("LIBAVIME 2026", 220, 91);
+      ficha.fillText(`${nombreLiga} ${temporada}`, 220, 91);
       ficha.fillStyle = estilo.texto;
       ficha.font = "900 38px Arial, Helvetica, sans-serif";
       ficha.fillText(String(equipo.nombre || "").toUpperCase(), 220, 145, 390);
@@ -1953,7 +1963,7 @@ export default function Estadisticas() {
       ficha.font = "900 20px Arial, Helvetica, sans-serif";
       ficha.fillText("LIGA DE BALONCESTO DE VISITADORES MÉDICOS", 450, 1245);
       ficha.font = "700 19px Arial, Helvetica, sans-serif";
-      ficha.fillText("TORNEO LIBAVIME 2026", 450, 1290);
+      ficha.fillText(`TORNEO ${nombreLiga} ${temporada}`, 450, 1290);
       ficha.font = "700 18px Arial, Helvetica, sans-serif";
       ficha.fillText("Diseñado y desarrollado por Emmi de la Cruz", 450, 1345);
 
@@ -1992,9 +2002,9 @@ export default function Estadisticas() {
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-zA-Z0-9]+/g, "_")
-          .replace(/^_|_$/g, "") || "LIBAVIME";
+          .replace(/^_|_$/g, "") || "liga";
 
-      const nombreArchivo = "LIBAVIME_" + limpiarNombre(equipo.nombre) + "_" +
+      const nombreArchivo = prefijoArchivo + "_" + limpiarNombre(equipo.nombre) + "_" +
         limpiarNombre(jugador.nombre) + "_" +
         (esHistoria ? "Historia_1080x1920" : "Feed_1080x1350") + ".png";
 
@@ -2044,7 +2054,7 @@ export default function Estadisticas() {
           {/* TÍTULO */}
 
           <h1 className="text-3xl md:text-4xl font-black text-center text-blue-900 mb-4">
-            📊 Estadísticas LIBAVIME
+            📊 Estadísticas {nombreLiga}
           </h1>
 
           <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -2151,7 +2161,13 @@ export default function Estadisticas() {
                           textoSuave: "text-slate-800",
                         },
                       };
-                      const color = colores[equipo.nombre] ?? colores.Gladiadores;
+                      const color = colores[equipo.nombre] ?? {
+                        fondo: "from-slate-950 via-slate-800 to-slate-600",
+                        borde: "border-slate-400",
+                        brillo: "bg-slate-300/25",
+                        texto: "text-white",
+                        textoSuave: "text-slate-100",
+                      };
 
                       return (
                         <section key={equipo.nombre}>
@@ -2181,7 +2197,7 @@ export default function Estadisticas() {
                                 jugador.foto &&
                                 (jugador.foto.startsWith("http") || jugador.foto.startsWith("/"))
                                   ? jugador.foto
-                                  : "/logos/LIBAVIME.png";
+                                  : logoDeLiga;
                               const primero = index === 0;
                               const tarjetaId = `${jornadaActual.fecha}-${equipo.slug ?? equipo.nombre}-${jugador.id}`;
 
@@ -2211,7 +2227,7 @@ export default function Estadisticas() {
                                           </div>
                                           <div>
                                             <p className={`text-[10px] font-black uppercase tracking-[0.25em] ${color.textoSuave}`}>
-                                              LIBAVIME 2026
+                                              {nombreLiga} {temporada}
                                             </p>
                                             <p className={`mt-1 text-sm font-black uppercase tracking-wider ${color.texto}`}>
                                               {equipo.nombre}
@@ -2230,7 +2246,7 @@ export default function Estadisticas() {
                                             src={fotoJugador}
                                             unoptimized
                                             crossOrigin="anonymous"
-                                            alt={jugador.nombre || "Jugador LIBAVIME"}
+                                            alt={jugador.nombre || `Jugador ${nombreLiga}`}
                                             fill
                                             sizes="208px"
                                             className={`object-cover ${primero ? "scale-[1.38] object-[center_38%]" : "scale-[1.32] object-[center_38%]"}`}
@@ -2270,7 +2286,7 @@ export default function Estadisticas() {
                                           LIGA DE BALONCESTO DE VISITADORES MÉDICOS
                                         </p>
                                         <p className={`mt-1 text-[9px] font-semibold ${color.textoSuave}`}>
-                                          TORNEO LIBAVIME 2026
+                                          TORNEO {nombreLiga} {temporada}
                                         </p>
                                         <p className={`mt-2 text-[9px] font-bold tracking-wide ${color.textoSuave}`}>
                                           Diseñado y desarrollado por Emmi de la Cruz
@@ -2302,7 +2318,7 @@ export default function Estadisticas() {
                                     </button>
                                     {usuarioAutenticado && (
                                       <Link
-                                        href={`/admin/instagram?tipo=destacados&fecha=${encodeURIComponent(jornadaActual.fecha)}&jugador=${encodeURIComponent(String(jugador.id))}&individual=1&formato=post`}
+                                        href={ruta(`/admin/instagram?tipo=destacados&fecha=${encodeURIComponent(jornadaActual.fecha)}&jugador=${encodeURIComponent(String(jugador.id))}&individual=1&formato=post`)}
                                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400 bg-amber-50 px-5 py-3 text-sm font-black text-amber-950 shadow transition hover:bg-amber-100"
                                       >
                                         🎨 EDITAR FOTO Y ENCUADRE
@@ -2372,7 +2388,7 @@ export default function Estadisticas() {
               <p className="text-slate-600 mt-2">
                 Ranking completo de{" "}
                 {jugadoresOrdenados.length} jugadores
-                {" "}de LIBAVIME
+                {" "}de {nombreLiga}
               </p>
 
               <p className="text-sm text-slate-500 mt-1">
@@ -2453,7 +2469,7 @@ export default function Estadisticas() {
                               jugador.foto.startsWith("/")
                             )
                               ? jugador.foto
-                              : "/logos/LIBAVIME.png";
+                              : logoDeLiga;
 
                           const hrefJugador =
                             jugador.slug
@@ -2529,7 +2545,7 @@ export default function Estadisticas() {
     unoptimized
     alt={
       jugador.nombre ??
-      "Jugador LIBAVIME"
+      `Jugador ${nombreLiga}`
     }
     fill
     sizes="80px"
@@ -2582,7 +2598,7 @@ export default function Estadisticas() {
     unoptimized
     alt={
       jugador.nombre ??
-      "Jugador LIBAVIME"
+      `Jugador ${nombreLiga}`
     }
     fill
     sizes="80px"
@@ -2798,7 +2814,7 @@ export default function Estadisticas() {
                       (jugador.foto.startsWith("http") ||
                         jugador.foto.startsWith("/"))
                         ? jugador.foto
-                        : "/logos/LIBAVIME.png";
+                        : logoDeLiga;
 
                     const contenido = (
                       <>
@@ -2816,7 +2832,7 @@ export default function Estadisticas() {
                           <Image
                             src={foto}
                             unoptimized
-                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            alt={jugador.nombre ?? `Jugador ${nombreLiga}`}
                             fill
                             sizes="48px"
                             className="object-cover"
@@ -2851,7 +2867,7 @@ export default function Estadisticas() {
                     return jugador.slug ? (
                       <Link
                         key={jugador.id ?? index}
-                        href={`/jugadores/${jugador.slug}`}
+                        href={ruta(`/jugadores/${jugador.slug}`)}
                         className="flex items-center gap-3 px-4 py-3 border-b hover:bg-red-50 transition"
                       >
                         {contenido}
@@ -2886,7 +2902,7 @@ export default function Estadisticas() {
                       (jugador.foto.startsWith("http") ||
                         jugador.foto.startsWith("/"))
                         ? jugador.foto
-                        : "/logos/LIBAVIME.png";
+                        : logoDeLiga;
 
                     const contenido = (
                       <>
@@ -2904,7 +2920,7 @@ export default function Estadisticas() {
                           <Image
                             src={foto}
                             unoptimized
-                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            alt={jugador.nombre ?? `Jugador ${nombreLiga}`}
                             fill
                             sizes="48px"
                             className="object-cover"
@@ -2939,7 +2955,7 @@ export default function Estadisticas() {
                     return jugador.slug ? (
                       <Link
                         key={jugador.id ?? index}
-                        href={`/jugadores/${jugador.slug}`}
+                        href={ruta(`/jugadores/${jugador.slug}`)}
                         className="flex items-center gap-3 px-4 py-3 border-b hover:bg-purple-50 transition"
                       >
                         {contenido}
@@ -2974,7 +2990,7 @@ export default function Estadisticas() {
                       (jugador.foto.startsWith("http") ||
                         jugador.foto.startsWith("/"))
                         ? jugador.foto
-                        : "/logos/LIBAVIME.png";
+                        : logoDeLiga;
 
                     const contenido = (
                       <>
@@ -2992,7 +3008,7 @@ export default function Estadisticas() {
                           <Image
                             src={foto}
                             unoptimized
-                            alt={jugador.nombre ?? "Jugador LIBAVIME"}
+                            alt={jugador.nombre ?? `Jugador ${nombreLiga}`}
                             fill
                             sizes="48px"
                             className="object-cover"
@@ -3027,7 +3043,7 @@ export default function Estadisticas() {
                     return jugador.slug ? (
                       <Link
                         key={jugador.id ?? index}
-                        href={`/jugadores/${jugador.slug}`}
+                        href={ruta(`/jugadores/${jugador.slug}`)}
                         className="flex items-center gap-3 px-4 py-3 border-b hover:bg-yellow-50 transition"
                       >
                         {contenido}

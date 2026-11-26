@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
 import { verificarAdministrador } from "@/lib/admin-auth";
+import { resolverLiga, type LigaApi } from "@/lib/liga-api";
+import { LIGA_PRINCIPAL } from "@/lib/liga";
 
 export const runtime = "nodejs";
 
@@ -12,6 +14,11 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const CLAVE = "encuadres_jugadores";
+
+// La liga principal conserva la clave histórica; las demás usan una
+// clave propia mientras libavime_configuracion tenga "clave" como llave.
+const claveDe = (liga: LigaApi) =>
+  liga.slug === LIGA_PRINCIPAL ? CLAVE : `${CLAVE}:${liga.id}`;
 
 function obtenerSupabaseServidor() {
   if (!supabaseUrl || !serviceRoleKey) {
@@ -42,7 +49,7 @@ async function leerRespaldo() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Los encuadres solo se consultan desde el editor administrativo.
     const supabaseAuth = await crearSupabaseServidor();
@@ -61,12 +68,22 @@ export async function GET() {
       );
     }
 
+    const ligaRes = await resolverLiga(new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
+    const { data: esMiembro } = await supabaseAuth.rpc("es_miembro_liga", {
+      p_liga: ligaRes.liga.id,
+    });
+    if (esMiembro !== true) {
+      return NextResponse.json({ error: "No tienes acceso a esta liga." }, { status: 403 });
+    }
+
     const supabase = obtenerSupabaseServidor();
 
     const { data, error } = await supabase
       .from("libavime_configuracion")
       .select("datos")
-      .eq("clave", CLAVE)
+      .eq("clave", claveDe(ligaRes.liga))
+      .eq("liga_id", ligaRes.liga.id)
       .maybeSingle();
 
     if (error) {
@@ -83,7 +100,12 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(await leerRespaldo(), {
+    // El archivo de respaldo solo contiene encuadres de la liga principal.
+    const respaldo =
+      ligaRes.liga.slug === LIGA_PRINCIPAL
+        ? await leerRespaldo()
+        : { version: 1, jugadores: {} };
+    return NextResponse.json(respaldo, {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
@@ -97,10 +119,12 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const acceso = await verificarAdministrador("guardar encuadres");
-    if (acceso.respuesta) return acceso.respuesta;
-
     const datos = await request.json();
+    const ligaRes = await resolverLiga(datos?.liga ?? new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
+
+    const acceso = await verificarAdministrador("guardar encuadres", ligaRes.liga);
+    if (acceso.respuesta) return acceso.respuesta;
 
     if (
       !datos ||
@@ -126,7 +150,8 @@ export async function PUT(request: Request) {
       .from("libavime_configuracion")
       .upsert(
         {
-          clave: CLAVE,
+          clave: claveDe(ligaRes.liga),
+          liga_id: ligaRes.liga.id,
           datos: documento,
           actualizado_en: new Date().toISOString(),
         },

@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
+import { LIGA_PRINCIPAL } from "@/lib/liga";
+import type { LigaApi } from "@/lib/liga-api";
 
 type ResultadoVerificacion =
   | { user: User; respuesta?: undefined }
   | { user?: undefined; respuesta: NextResponse };
 
 /**
- * Verifica que la petición venga de una cuenta administradora de LIBAVIME.
- * "Tener sesión" no basta para autorizar escrituras.
+ * Verifica que la petición venga de una cuenta administradora de la liga
+ * indicada (o de la plataforma). "Tener sesión" no basta para escribir.
  */
 export async function verificarAdministrador(
-  accion = "realizar esta acción"
+  accion: string,
+  liga: LigaApi
 ): Promise<ResultadoVerificacion> {
   const supabaseAuth = await crearSupabaseServidor();
   const {
@@ -28,18 +31,18 @@ export async function verificarAdministrador(
     };
   }
 
-  // Rol 'Administrador' activo en admin_usuarios (misma regla que las
-  // políticas RLS). LIBAVIME_ADMIN_EMAIL queda como respaldo.
-  const { data: esAdministrador } = await supabaseAuth.rpc(
-    "es_administrador"
-  );
+  // Misma regla que las políticas RLS: administrador activo de esa liga
+  // o administradora de la plataforma.
+  const { data: esAdministrador } = await supabaseAuth.rpc("es_admin_liga", {
+    p_liga: liga.id,
+  });
 
-  const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
-    ?.trim()
-    .toLowerCase();
-  const correoUsuario = user.email?.trim().toLowerCase();
+  // Respaldo histórico solo para la liga principal (LIBAVIME).
+  const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL?.trim().toLowerCase();
   const esCorreoAdministrador =
-    Boolean(correoAdministrador) && correoUsuario === correoAdministrador;
+    liga.slug === LIGA_PRINCIPAL &&
+    Boolean(correoAdministrador) &&
+    user.email?.trim().toLowerCase() === correoAdministrador;
 
   if (esAdministrador !== true && !esCorreoAdministrador) {
     return {

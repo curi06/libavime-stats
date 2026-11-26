@@ -24,7 +24,7 @@ export default function QuickActions() {
       href: "/admin/encuadres",
       icono: "🎨",
       titulo: "Editor de encuadres",
-      descripcion: "Crear y administrar encuadres para diseños de LIBAVIME.",
+      descripcion: "Crear y administrar encuadres para diseños de la liga.",
     },
     {
       href: "/admin/instagram",

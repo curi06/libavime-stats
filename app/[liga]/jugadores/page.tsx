@@ -5,8 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function Jugadores() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
+  const { logo: logoDeLiga } = useLiga();
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -20,12 +23,14 @@ export default function Jugadores() {
     const { data: jugadoresData, error: jugadoresError } = await supabase
       .from("jugadores")
       .select("*")
+      .eq("liga_id", liga.id)
       .order("nombre");
 
     const { data: estadisticasData, error: estadisticasError } =
       await supabase
         .from("estadisticas_jugadores")
-        .select("*");
+        .select("*")
+      .eq("liga_id", liga.id);
 
     console.log("JUGADORES:", jugadoresData);
     console.log("ERROR JUGADORES:", jugadoresError);
@@ -76,7 +81,7 @@ export default function Jugadores() {
         <div className="max-w-6xl mx-auto">
 
           <h1 className="text-4xl font-black text-center text-blue-900 mb-10">
-            👤 Jugadores LIBAVIME
+            👤 Jugadores {nombreLiga}
           </h1>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -84,7 +89,7 @@ export default function Jugadores() {
             {jugadores.map((jugador) => (
               <Link
                 key={jugador.id}
-                href={`/jugadores/${jugador.slug}`}
+                href={ruta(`/jugadores/${jugador.slug}`)}
                 className="bg-white p-6 rounded-2xl shadow-lg text-center hover:scale-105 transition block"
               >
 
@@ -95,7 +100,7 @@ export default function Jugadores() {
                     src={
                       jugador.foto
                         ? jugador.foto
-                        : "/logos/LIBAVIME.png"
+                        : logoDeLiga
                     }
                     alt={jugador.nombre}
                     width={192}
@@ -109,16 +114,16 @@ export default function Jugadores() {
                         jugador.foto
                       );
 
-                      e.currentTarget.src = "/logos/LIBAVIME.png";
+                      e.currentTarget.src = logoDeLiga;
                     }}
                   />
 
                 </div>
 
-                {/* LOGO LIBAVIME */}
+                {/* LOGO DE LA LIGA */}
                 <Image
-                  src="/logos/LIBAVIME.png"
-                  alt="LIBAVIME"
+                  src={logoDeLiga}
+                  alt={nombreLiga}
                   width={60}
                   height={60}
                   className="mx-auto mb-2"

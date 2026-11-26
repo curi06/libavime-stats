@@ -60,6 +60,9 @@ export default async function ResultadosPage({
   const partidos = (data ?? []) as Partido[];
 
   const partidosFinales = partidos.filter((partido) => partido.fase === "finales");
+  const finalistas = Array.from(
+    new Set(partidosFinales.flatMap((p) => [p.equipo_local, p.equipo_visitante]).filter(Boolean))
+  ).join(" vs. ");
   const partidosSerieRegular = partidos.filter((partido) => partido.fase === "serie_regular" || !partido.fase);
 
   const renderPartidos = (lista: Partido[]) => (
@@ -118,7 +121,7 @@ export default async function ResultadosPage({
 
           <section className="mb-12">
             <div className="mb-5 text-center">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-600">Gladiadores vs. Espartanos</p>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-600">{finalistas}</p>
               <h2 className="mt-1 text-2xl font-black text-blue-950 md:text-3xl">🏆 RESULTADOS DE LAS FINALES</h2>
               <p className="mt-2 text-sm text-slate-500">Marcadores de la serie final, separados de la temporada regular.</p>
             </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Jugador = {
   id: number;
@@ -25,6 +26,7 @@ type Estadistica = {
 };
 
 export default function AdminEstadisticasPage() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidoSeleccionado, setPartidoSeleccionado] =
@@ -52,12 +54,14 @@ export default function AdminEstadisticasPage() {
         .select(
           "id, equipo_local, equipo_visitante, fecha"
         )
+      .eq("liga_id", liga.id)
         .order("fecha", { ascending: false });
 
     const { data: jugadoresData, error: jugadoresError } =
       await supabase
         .from("jugadores")
         .select("id, nombre, equipo")
+      .eq("liga_id", liga.id)
         .order("nombre");
 
     console.log("PARTIDOS:", partidosData);
@@ -108,6 +112,7 @@ export default function AdminEstadisticasPage() {
       .select(
   "jugador_id, puntos, rebotes, asistencias, estado"
 )
+      .eq("liga_id", liga.id)
       .eq("partido_id", Number(partidoId));
 
     if (error) {
@@ -287,6 +292,7 @@ export default function AdminEstadisticasPage() {
         await supabase
           .from("estadisticas_partido")
           .select("jugador_id, puntos, rebotes, asistencias, estado")
+      .eq("liga_id", liga.id)
           .eq("partido_id", partidoId);
 
       if (errorVerificacion) {

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function AdminPartidos() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const router = useRouter();
 
   const [equipoLocal, setEquipoLocal] = useState("");
@@ -37,6 +39,7 @@ export default function AdminPartidos() {
     const { data, error } = await supabase
       .from("equipos")
       .select("*")
+      .eq("liga_id", liga.id)
       .order("nombre");
 
     if (error) {
@@ -53,6 +56,7 @@ export default function AdminPartidos() {
     const { data, error } = await supabase
       .from("partidos")
       .select("*")
+      .eq("liga_id", liga.id)
       .order("fecha", { ascending: true });
 
     if (error) {
@@ -103,6 +107,7 @@ export default function AdminPartidos() {
           hora,
           cancha,
         })
+      .eq("liga_id", liga.id)
         .eq("id", editandoId);
 
       if (error) {
@@ -123,6 +128,7 @@ export default function AdminPartidos() {
       .from("partidos")
       .insert([
         {
+          liga_id: liga.id,
           equipo_local: equipoLocal,
           equipo_visitante: equipoVisitante,
           fecha,
@@ -168,6 +174,7 @@ export default function AdminPartidos() {
     const { error } = await supabase
       .from("partidos")
       .delete()
+      .eq("liga_id", liga.id)
       .eq("id", id);
 
     if (error) {
@@ -217,6 +224,7 @@ export default function AdminPartidos() {
         puntos_visitante: puntosVisitante,
         estado: "Finalizado",
       })
+      .eq("liga_id", liga.id)
       .eq("id", partido.id);
 
     if (error) {
@@ -247,7 +255,7 @@ export default function AdminPartidos() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-black text-blue-900 text-center mb-2">
-          ⚙️ Panel Administrativo LIBAVIME
+          ⚙️ Panel Administrativo {nombreLiga}
         </h1>
 
         <h2 className="text-xl md:text-2xl font-bold text-center mb-8">

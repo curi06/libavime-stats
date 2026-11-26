@@ -5,6 +5,7 @@ import {
   logoLiga,
   nombreCortoLiga,
   rutaLiga,
+  temporadaLiga,
   type EquipoLiga,
   type Liga,
 } from "@/lib/liga";
@@ -13,6 +14,7 @@ type ValorLiga = {
   liga: Liga;
   equipos: EquipoLiga[];
   nombre: string;
+  temporada: string;
   logo: string;
   /** Arma una dirección dentro de la liga: ruta("/estadisticas"). */
   ruta: (ruta?: string) => string;
@@ -48,6 +50,7 @@ export function LigaProvider({
       liga,
       equipos,
       nombre: nombreCortoLiga(liga),
+      temporada: temporadaLiga(liga),
       logo: logoLiga(liga),
       ruta: (ruta = "/") => rutaLiga(liga.slug, ruta),
       equipo: (nombreOSlug) => indice.get(clave(nombreOSlug)),

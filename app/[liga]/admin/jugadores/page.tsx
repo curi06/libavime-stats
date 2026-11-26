@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Jugador = {
   id: string;
@@ -15,6 +16,7 @@ type Jugador = {
 };
 
 export default function AdminJugadores() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
   const router = useRouter();
 
   const [nombre, setNombre] = useState("");
@@ -62,6 +64,7 @@ export default function AdminJugadores() {
         equipo,
         foto
       `)
+      .eq("liga_id", liga.id)
       .order("nombre", { ascending: true });
 
     if (error) {
@@ -96,8 +99,9 @@ export default function AdminJugadores() {
 
     const extension = archivo.name.split(".").pop();
 
+    // Carpeta por liga (ver políticas de Storage).
     const nombreArchivo =
-      `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+      `${liga.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("Jugadores")
@@ -152,6 +156,7 @@ export default function AdminJugadores() {
     }
 
     const datosJugador = {
+      liga_id: liga.id,
       nombre,
       slug,
       numero: numero ? Number(numero) : null,
@@ -164,6 +169,7 @@ export default function AdminJugadores() {
       const { error } = await supabase
         .from("jugadores")
         .update(datosJugador)
+      .eq("liga_id", liga.id)
         .eq("id", editandoId);
 
       if (error) {
@@ -206,6 +212,7 @@ export default function AdminJugadores() {
     const { error } = await supabase
       .from("jugadores")
       .delete()
+      .eq("liga_id", liga.id)
       .eq("id", id);
 
     if (error) {
@@ -247,7 +254,7 @@ export default function AdminJugadores() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-black text-blue-900 mb-2 text-center">
-          ⚙️ Panel Administrativo LIBAVIME
+          ⚙️ Panel Administrativo {nombreLiga}
         </h1>
 
         <h2 className="text-xl md:text-2xl font-bold text-center mb-8 text-gray-700">

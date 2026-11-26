@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { supabase } from "@/lib/supabase";
-import { equipos } from "../../data/equipos";
 import Navbar from "@/app/components/Navbar";
+import { useLiga } from "@/app/components/LigaContext";
 
 type EquipoPosicion = {
   nombre: string;
@@ -59,6 +59,7 @@ const ESTILOS_EQUIPOS: Record<
 };
 
 export default function Equipos() {
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada } = useLiga();
   const [posiciones, setPosiciones] = useState<
     EquipoPosicion[]
   >([]);
@@ -74,6 +75,7 @@ export default function Equipos() {
           await supabase
             .from("partidos")
             .select("*")
+      .eq("liga_id", liga.id)
             .eq("estado", "Finalizado");
 
         if (error) {
@@ -238,13 +240,16 @@ export default function Equipos() {
     );
   }
 
-  const equiposOrdenados = ORDEN_EQUIPOS
-    .map((nombre) =>
-      posiciones.find(
-        (equipo) => equipo.nombre === nombre
-      )
-    )
-    .filter(Boolean) as EquipoPosicion[];
+  // Orden propio de LIBAVIME; el resto de equipos, en orden alfabético.
+  const posicionOrden = (nombre: string) => {
+    const i = ORDEN_EQUIPOS.indexOf(nombre);
+    return i === -1 ? ORDEN_EQUIPOS.length : i;
+  };
+  const equiposOrdenados = [...posiciones].sort(
+    (a, b) =>
+      posicionOrden(a.nombre) - posicionOrden(b.nombre) ||
+      a.nombre.localeCompare(b.nombre)
+  );
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -253,7 +258,7 @@ export default function Equipos() {
 
         <section className="mt-20 mb-10 text-center">
           <p className="text-sm md:text-base font-bold tracking-[0.25em] text-blue-700 uppercase">
-            LIBAVIME STATS
+            {nombreLiga}
           </p>
 
           <h1 className="text-4xl md:text-5xl font-black text-blue-950 mt-2">
@@ -261,21 +266,24 @@ export default function Equipos() {
           </h1>
 
           <p className="text-gray-600 mt-3 text-base md:text-lg">
-            Conoce las cuatro franquicias que compiten
-            en LIBAVIME 2026
+            Conoce los {equiposOrdenados.length} equipos que compiten
+            en {nombreLiga} {temporada}
           </p>
         </section>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {equiposOrdenados.map((equipo) => {
             const estilo =
-              ESTILOS_EQUIPOS[equipo.nombre] ??
-              ESTILOS_EQUIPOS.Gladiadores;
+              ESTILOS_EQUIPOS[equipo.nombre] ?? {
+                fondo: "from-slate-700 via-slate-800 to-slate-950",
+                texto: "text-white",
+                borde: "border-slate-400",
+              };
 
             return (
               <Link
                 key={equipo.nombre}
-                href={`/equipos/${equipo.slug}`}
+                href={ruta(`/equipos/${equipo.slug}`)}
                 className={`
                   group
                   relative

@@ -1,14 +1,19 @@
 
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { resolverLiga } from "@/lib/liga-api";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ligaRes = await resolverLiga(new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
+
     const { data, error } = await supabase
       .from("jugadores")
       .select("id, nombre, foto")
+      .eq("liga_id", ligaRes.liga.id)
       .order("nombre");
 
     if (error) {

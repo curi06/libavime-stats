@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verificarAdministrador } from "@/lib/admin-auth";
+import { ligaDeDiseno, resolverLiga } from "@/lib/liga-api";
 
 export const runtime = "nodejs";
 
@@ -21,14 +22,17 @@ function obtenerSupabaseAdmin() {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ligaRes = await resolverLiga(new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
     const supabase = obtenerSupabaseAdmin();
 
     const { data, error } = await supabase
       .from("libavime_disenos")
       .select("id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada")
       .eq("publicado", true)
+      .eq("liga_id", ligaRes.liga.id)
       .order("creado_en", { ascending: false });
 
     if (error) {
@@ -63,11 +67,15 @@ const medir = (paso: string) => {
   let archivoSubido: string | null = null;
 
   try {
-    const acceso = await verificarAdministrador("publicar diseños");
+    const body = await request.json();
+    const ligaRes = await resolverLiga(body?.liga ?? new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
+    const liga = ligaRes.liga;
+
+    const acceso = await verificarAdministrador("publicar diseños", liga);
     if (acceso.respuesta) return acceso.respuesta;
     medir("Sesión verificada");
 
-const body = await request.json();
 
 const titulo =
   typeof body.titulo === "string" ? body.titulo.trim() : "";
@@ -139,7 +147,7 @@ if (!coincidencia) {
 
     
 const id = crypto.randomUUID();
-archivoSubido = `${id}.jpg`;
+archivoSubido = `${liga.id}/${id}.jpg`;
 
 const supabase = obtenerSupabaseAdmin();
 
@@ -167,6 +175,7 @@ const { error: uploadError } = await supabase.storage
     const { data, error: insertError } = await supabase
       .from("libavime_disenos")
       .insert({
+  liga_id: liga.id,
   titulo,
   tipo,
   jugador,
@@ -209,9 +218,6 @@ medir("Registro en la base de datos terminado");
 
 export async function DELETE(request: Request) {
   try {
-    const acceso = await verificarAdministrador("eliminar publicaciones");
-    if (acceso.respuesta) return acceso.respuesta;
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -244,6 +250,13 @@ export async function DELETE(request: Request) {
         { status: 404 }
       );
     }
+
+    const ligaDelDiseno = await ligaDeDiseno(id);
+    if (!ligaDelDiseno) {
+      return NextResponse.json({ error: "No se encontró la liga del diseño." }, { status: 404 });
+    }
+    const acceso = await verificarAdministrador("eliminar publicaciones", ligaDelDiseno);
+    if (acceso.respuesta) return acceso.respuesta;
 
 
 
@@ -294,9 +307,6 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const acceso = await verificarAdministrador("publicar borradores");
-    if (acceso.respuesta) return acceso.respuesta;
-
     const body = await request.json();
     const id = typeof body.id === "string" ? body.id : "";
 
@@ -308,6 +318,13 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
+
+    const ligaDelDiseno = await ligaDeDiseno(id);
+    if (!ligaDelDiseno) {
+      return NextResponse.json({ error: "El borrador no existe." }, { status: 404 });
+    }
+    const acceso = await verificarAdministrador("publicar borradores", ligaDelDiseno);
+    if (acceso.respuesta) return acceso.respuesta;
 
     const supabase = obtenerSupabaseAdmin();
 

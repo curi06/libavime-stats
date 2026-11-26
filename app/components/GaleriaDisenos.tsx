@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLiga } from "@/app/components/LigaContext";
 
 type Diseno = {
   id: string;
@@ -16,6 +17,7 @@ type Diseno = {
 };
 
 export default function GaleriaDisenos() {
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
 const [esAdministrador, setEsAdministrador] = useState(false);
   const [disenos, setDisenos] = useState<Diseno[]>([]);
   const [borradores, setBorradores] = useState<Diseno[]>([]);
@@ -75,7 +77,7 @@ const [publicandoBorrador, setPublicandoBorrador] = useState<string | null>(null
 
     async function cargarDisenos() {
       try {
-        const respuesta = await fetch("/api/disenos");
+        const respuesta = await fetch(`/api/disenos?liga=${liga.slug}`);
         const resultado = await respuesta.json();
 
         if (!respuesta.ok) {
@@ -120,7 +122,7 @@ const [publicandoBorrador, setPublicandoBorrador] = useState<string | null>(null
       setErrorBorradores("");
 
       try {
-        const respuesta = await fetch("/api/borradores");
+        const respuesta = await fetch(`/api/borradores?liga=${liga.slug}`);
         const resultado = await respuesta.json();
 
         if (!respuesta.ok) {
@@ -158,7 +160,7 @@ useEffect(() => {
 
   async function cargarJugadores() {
     try {
-      const respuesta = await fetch("/api/jugadores");
+      const respuesta = await fetch(`/api/jugadores?liga=${liga.slug}`);
       const resultado = await respuesta.json();
 
       if (!respuesta.ok) {
@@ -311,7 +313,7 @@ const borradoresFiltrados = useMemo(
 
 async function publicarBorrador(diseno: Diseno) {
   const confirmado = window.confirm(
-    `¿Deseas publicar "${diseno.titulo}" en la galería de LIBAVIME?`
+    `¿Deseas publicar "${diseno.titulo}" en la galería de ${nombreLiga}?`
   );
 
   if (!confirmado) return;
@@ -321,7 +323,7 @@ async function publicarBorrador(diseno: Diseno) {
   setErrorBorradores("");
 
   try {
-    const respuesta = await fetch("/api/disenos", {
+    const respuesta = await fetch(`/api/disenos?liga=${liga.slug}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -412,7 +414,7 @@ async function publicarBorrador(diseno: Diseno) {
         </p>
 
         <h2 className="mt-2 text-3xl font-black text-blue-950 md:text-4xl">
-          Galería de diseños LIBAVIME
+          Galería de diseños {nombreLiga}
         </h2>
 
         <p className="mx-auto mt-3 max-w-2xl text-slate-600">

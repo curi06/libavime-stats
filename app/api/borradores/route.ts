@@ -2,12 +2,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verificarAdministrador } from "@/lib/admin-auth";
+import { resolverLiga } from "@/lib/liga-api";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const acceso = await verificarAdministrador("ver los borradores");
+    const ligaRes = await resolverLiga(new URL(request.url).searchParams.get("liga"));
+    if (ligaRes.respuesta) return ligaRes.respuesta;
+    const acceso = await verificarAdministrador("ver los borradores", ligaRes.liga);
     if (acceso.respuesta) return acceso.respuesta;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,6 +33,7 @@ export async function GET() {
         "id, titulo, tipo, archivo, url, creado_en, jugador, categoria, jornada"
       )
       .eq("publicado", false)
+      .eq("liga_id", ligaRes.liga.id)
       .order("creado_en", { ascending: false });
 
     if (error) {

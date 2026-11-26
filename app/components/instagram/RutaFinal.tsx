@@ -18,9 +18,11 @@ type Formato = "historia" | "post";
 export default function RutaFinal({
   serie,
   formato,
+  equipos,
 }: {
   serie: SerieFinal | null;
   formato: Formato;
+  equipos?: { nombre: string; logo?: string | null; color?: string | null }[];
 }) {
   const post = formato === "post";
 
@@ -42,8 +44,8 @@ export default function RutaFinal({
         className="pointer-events-none absolute -inset-x-4 inset-y-0"
         style={{
           background: `
-            radial-gradient(circle at 0% 22%, ${colorEquipo(izquierda)}40, transparent 38%),
-            radial-gradient(circle at 100% 22%, ${colorEquipo(derecha)}40, transparent 38%)
+            radial-gradient(circle at 0% 22%, ${colorEquipo(izquierda, equipos)}40, transparent 38%),
+            radial-gradient(circle at 100% 22%, ${colorEquipo(derecha, equipos)}40, transparent 38%)
           `,
         }}
       />
@@ -71,13 +73,13 @@ export default function RutaFinal({
               className={`overflow-hidden rounded-full bg-black/30 ${
                 post ? "h-[50px] w-[50px]" : "h-[80px] w-[80px]"
               }`}
-              style={{ boxShadow: `0 0 22px ${colorEquipo(equipo)}80, inset 0 0 0 2px ${colorEquipo(equipo)}` }}
+              style={{ boxShadow: `0 0 22px ${colorEquipo(equipo, equipos)}80, inset 0 0 0 2px ${colorEquipo(equipo, equipos)}` }}
             >
-              <img src={logoEquipo(equipo)} alt={equipo} className="h-full w-full object-cover" />
+              <img src={logoEquipo(equipo, equipos)} alt={equipo} className="h-full w-full object-cover" />
             </div>
             <p
               className={`mt-1 font-black uppercase tracking-wider ${post ? "text-[9px]" : "text-[12px]"}`}
-              style={{ color: colorEquipo(equipo) }}
+              style={{ color: colorEquipo(equipo, equipos) }}
             >
               {equipo}
               {campeon === equipo ? " 👑" : ""}
@@ -155,7 +157,7 @@ export default function RutaFinal({
                       {juego.finalizado ? (
                         <span
                           className={`rounded px-1 font-black text-white ${post ? "text-[7px]" : "text-[9px]"}`}
-                          style={{ backgroundColor: `${colorEquipo(juego.ganador ?? "")}99` }}
+                          style={{ backgroundColor: `${colorEquipo(juego.ganador ?? "", equipos)}99` }}
                         >
                           FINAL
                         </span>
@@ -178,7 +180,7 @@ export default function RutaFinal({
                               <span className={gano ? "text-white" : "text-slate-400"}>{String(equipo)}</span>
                               <span
                                 className="tabular-nums"
-                                style={{ color: gano ? colorEquipo(String(equipo)) : "#94a3b8" }}
+                                style={{ color: gano ? colorEquipo(String(equipo), equipos) : "#94a3b8" }}
                               >
                                 {puntos}
                               </span>
