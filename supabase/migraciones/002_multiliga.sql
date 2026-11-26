@@ -399,12 +399,12 @@ with (security_invoker = true) as
 select
   e.jugador_id,
   count(*)::bigint as partidos_jugados,
-  sum(e.puntos)::bigint as puntos_totales,
-  sum(e.rebotes)::bigint as rebotes_totales,
-  sum(e.asistencias)::bigint as asistencias_totales,
-  round(avg(e.puntos)::numeric, 1) as ppg,
-  round(avg(e.rebotes)::numeric, 1) as rpg,
-  round(avg(e.asistencias)::numeric, 1) as apg,
+  coalesce(sum(e.puntos), 0)::bigint as puntos_totales,
+  coalesce(sum(e.rebotes), 0)::bigint as rebotes_totales,
+  coalesce(sum(e.asistencias), 0)::bigint as asistencias_totales,
+  round(avg(e.puntos), 1) as ppg,
+  round(avg(e.rebotes), 1) as rpg,
+  round(avg(e.asistencias), 1) as apg,
   e.liga_id
 from public.estadisticas_partido e
 group by e.jugador_id, e.liga_id;
@@ -413,13 +413,12 @@ create or replace view public.estadisticas_jugadores
 with (security_invoker = true) as
 select
   e.jugador_id,
-  round(avg(e.puntos)::numeric, 1) as ppg,
-  round(avg(e.rebotes)::numeric, 1) as rpg,
-  round(avg(e.asistencias)::numeric, 1) as apg,
-  count(*)::bigint as partidos_jugados,
+  round(avg(e.puntos) filter (where (coalesce(e.puntos, 0) <> 0 or coalesce(e.rebotes, 0) <> 0 or coalesce(e.asistencias, 0) <> 0)), 1) as ppg,
+  round(avg(e.rebotes) filter (where (coalesce(e.puntos, 0) <> 0 or coalesce(e.rebotes, 0) <> 0 or coalesce(e.asistencias, 0) <> 0)), 1) as rpg,
+  round(avg(e.asistencias) filter (where (coalesce(e.puntos, 0) <> 0 or coalesce(e.rebotes, 0) <> 0 or coalesce(e.asistencias, 0) <> 0)), 1) as apg,
+  count(*) filter (where (coalesce(e.puntos, 0) <> 0 or coalesce(e.rebotes, 0) <> 0 or coalesce(e.asistencias, 0) <> 0))::bigint as partidos_jugados,
   e.liga_id
 from public.estadisticas_partido e
-where e.puntos > 0 or e.rebotes > 0 or e.asistencias > 0
 group by e.jugador_id, e.liga_id;
 
 commit;
