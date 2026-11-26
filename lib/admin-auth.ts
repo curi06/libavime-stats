@@ -7,9 +7,8 @@ type ResultadoVerificacion =
   | { user?: undefined; respuesta: NextResponse };
 
 /**
- * Verifica que la petición venga de la cuenta administradora de LIBAVIME
- * (LIBAVIME_ADMIN_EMAIL). Como el registro público de Supabase está
- * habilitado, "tener sesión" no basta para autorizar escrituras.
+ * Verifica que la petición venga de una cuenta administradora de LIBAVIME.
+ * "Tener sesión" no basta para autorizar escrituras.
  */
 export async function verificarAdministrador(
   accion = "realizar esta acción"
@@ -29,16 +28,20 @@ export async function verificarAdministrador(
     };
   }
 
+  // Rol 'Administrador' activo en admin_usuarios (misma regla que las
+  // políticas RLS). LIBAVIME_ADMIN_EMAIL queda como respaldo.
+  const { data: esAdministrador } = await supabaseAuth.rpc(
+    "es_administrador"
+  );
+
   const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL
     ?.trim()
     .toLowerCase();
   const correoUsuario = user.email?.trim().toLowerCase();
+  const esCorreoAdministrador =
+    Boolean(correoAdministrador) && correoUsuario === correoAdministrador;
 
-  if (
-    !correoAdministrador ||
-    !correoUsuario ||
-    correoUsuario !== correoAdministrador
-  ) {
+  if (esAdministrador !== true && !esCorreoAdministrador) {
     return {
       respuesta: NextResponse.json(
         { error: `No tienes permiso para ${accion}.` },
