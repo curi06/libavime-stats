@@ -4,6 +4,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toJpeg, toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
+import { construirSerieFinal, type SerieFinal } from "@/lib/finales";
+import RutaFinal from "@/app/components/instagram/RutaFinal";
 
 type Tipo =
   | "jugador"
@@ -12,7 +14,8 @@ type Tipo =
   | "destacados"
   | "destacado_individual"
   | "mvp"
-  | "finales";
+  | "finales"
+  | "ruta_final";
 type Formato = "historia" | "post";
 type Categoria = "puntos" | "rebotes" | "asistencias";
 
@@ -222,6 +225,43 @@ const [partidosJornada, setPartidosJornada] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState("");
+  const [serieFinal, setSerieFinal] = useState<SerieFinal | null>(null);
+
+  // Partidos de la serie final (incluye los programados) para "Ruta a la final".
+  useEffect(() => {
+    let activo = true;
+    supabase
+      .from("partidos")
+      .select(
+        "id, fecha, hora, cancha, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
+      )
+      .eq("fase", "finales")
+      .then(({ data, error: errorFinales }) => {
+        if (!activo) return;
+        if (errorFinales) {
+          console.error("Error cargando la serie final:", errorFinales);
+          return;
+        }
+        setSerieFinal(
+          construirSerieFinal(
+            (data ?? []).map((p) => ({
+              id: p.id,
+              local: p.equipo_local,
+              visitante: p.equipo_visitante,
+              fecha: p.fecha,
+              hora: p.hora,
+              cancha: p.cancha,
+              puntosLocal: p.puntos_local,
+              puntosVisitante: p.puntos_visitante,
+              estado: p.estado,
+            }))
+          )
+        );
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // Permite abrir el editor directamente desde una tarjeta de Estadísticas.
   useEffect(() => {
@@ -1180,7 +1220,13 @@ medir(`JPEG generado (${(imagen.length / 1024 / 1024).toFixed(2)} MB en Base64)`
             ? "Líder en rebotes"
             : "Líder en asistencias"
         : "";
-      const titulo = `LIBAVIME ${tipo === "finales" ? "Gran Final 1-1" : tipo} - ${esHistoria ? "Historia" : "Post"}${
+      const titulo = `LIBAVIME ${
+        tipo === "finales"
+          ? "Gran Final 1-1"
+          : tipo === "ruta_final"
+            ? `Ruta a la Final ${serieFinal ? Object.values(serieFinal.victorias).join("-") : ""}`.trim()
+            : tipo
+      } -${esHistoria ? "Historia" : "Post"}${
         tipo === "jugador" && jugador
           ? ` - ${jugador.nombre}`
           : tipo === "lideres" && liderSeleccionado?.jugador
@@ -1286,6 +1332,7 @@ if (!respuesta.ok) {
   ["destacado_individual", "Destacado de la jornada individual"],
   ["mvp", "Candidatos MVP"],
   ["finales", "Finales"],
+  ["ruta_final", "Ruta a la final (calendario)"],
 ] as [Tipo, string][]).map(([valor, texto]) => (
                   <button
                     key={valor}
@@ -2796,6 +2843,8 @@ i === 0
                   </div>
                 )}
 
+
+{tipo === "ruta_final" && <RutaFinal serie={serieFinal} formato={formato} />}
 
 {tipo === "finales" && (
   <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center">

@@ -1,0 +1,212 @@
+/* eslint-disable @next/next/no-img-element -- html-to-image necesita <img> simples para exportar */
+import {
+  MEJOR_DE,
+  colorEquipo,
+  formatearCancha,
+  logoEquipo,
+  partesFecha,
+  type SerieFinal,
+} from "@/lib/finales";
+
+type Formato = "historia" | "post";
+
+/**
+ * Plantilla "Ruta a la final" (calendario de la serie final) para el
+ * editor de Instagram. Se dibuja sobre un lienzo de 360 px de ancho que
+ * se exporta a 1080 × 1350 (post) o 1080 × 1920 (historia).
+ */
+export default function RutaFinal({
+  serie,
+  formato,
+}: {
+  serie: SerieFinal | null;
+  formato: Formato;
+}) {
+  const post = formato === "post";
+
+  if (!serie) {
+    return (
+      <div className="relative z-10 flex flex-1 items-center justify-center text-center text-sm font-bold text-slate-300">
+        No hay partidos de finales registrados.
+      </div>
+    );
+  }
+
+  const [izquierda, derecha] = serie.equipos;
+  const { campeon, proximo } = serie;
+
+  return (
+    <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center">
+      {/* Luces de los equipos */}
+      <div
+        className="pointer-events-none absolute -inset-x-4 inset-y-0"
+        style={{
+          background: `
+            radial-gradient(circle at 0% 22%, ${colorEquipo(izquierda)}40, transparent 38%),
+            radial-gradient(circle at 100% 22%, ${colorEquipo(derecha)}40, transparent 38%)
+          `,
+        }}
+      />
+
+      <p className={`relative mt-1 font-black tracking-[0.26em] text-amber-300 ${post ? "text-[7px]" : "text-[9px]"}`}>
+        SERIE FINAL · AL MEJOR DE {MEJOR_DE}
+      </p>
+      <h2
+        className={`relative mt-0.5 text-center font-black uppercase italic leading-none tracking-tight text-white ${
+          post ? "text-[26px]" : "text-[38px]"
+        }`}
+        style={{ textShadow: "0 3px 0 #b45309, 0 0 24px rgba(251,191,36,0.45)" }}
+      >
+        Ruta a la Final
+      </h2>
+
+      {/* Enfrentamiento y marcador de la serie */}
+      <div className={`relative grid w-full grid-cols-[1fr_auto_1fr] items-center ${post ? "mt-2" : "mt-6"}`}>
+        {[izquierda, derecha].map((equipo, indice) => (
+          <div
+            key={equipo}
+            className={`flex flex-col items-center ${indice === 1 ? "order-3" : ""}`}
+          >
+            <div
+              className={`overflow-hidden rounded-full bg-black/30 ${
+                post ? "h-[58px] w-[58px]" : "h-[92px] w-[92px]"
+              }`}
+              style={{ boxShadow: `0 0 22px ${colorEquipo(equipo)}80, inset 0 0 0 2px ${colorEquipo(equipo)}` }}
+            >
+              <img src={logoEquipo(equipo)} alt={equipo} className="h-full w-full object-cover" />
+            </div>
+            <p
+              className={`mt-1 font-black uppercase tracking-wider ${post ? "text-[9px]" : "text-[12px]"}`}
+              style={{ color: colorEquipo(equipo) }}
+            >
+              {equipo}
+              {campeon === equipo ? " 👑" : ""}
+            </p>
+          </div>
+        ))}
+
+        <div className="order-2 flex flex-col items-center px-1">
+          <div className={`flex items-center gap-1.5 font-black tabular-nums leading-none text-white ${post ? "text-[34px]" : "text-[52px]"}`}>
+            <span>{serie.victorias[izquierda]}</span>
+            <span className={`text-amber-300 ${post ? "text-[18px]" : "text-[26px]"}`}>—</span>
+            <span>{serie.victorias[derecha]}</span>
+          </div>
+          <p className={`mt-0.5 font-black tracking-[0.22em] text-slate-300 ${post ? "text-[6px]" : "text-[8px]"}`}>
+            SERIE
+          </p>
+        </div>
+      </div>
+
+      {/* Calendario: juego por juego */}
+      <ol className={`relative w-full ${post ? "mt-2 space-y-1.5" : "mt-6 space-y-3"}`}>
+        {serie.juegos.map((juego) => {
+          const partes = juego.inicio ? partesFecha(juego.inicio) : null;
+          const esProximo = proximo?.id === juego.id;
+          const destacado = esProximo && serie.decisivo;
+
+          return (
+            <li
+              key={juego.id}
+              className={`flex items-stretch overflow-hidden rounded-xl border ${
+                esProximo
+                  ? "border-amber-300 bg-gradient-to-r from-amber-500/30 via-[#0b1730]/95 to-amber-500/30"
+                  : "border-white/15 bg-[#050b17]/90"
+              }`}
+              style={esProximo ? { boxShadow: "0 0 18px rgba(251,191,36,0.45)" } : undefined}
+            >
+              {/* Fecha */}
+              <div
+                className={`flex shrink-0 flex-col items-center justify-center font-black leading-none ${
+                  esProximo ? "bg-amber-400 text-slate-950" : "bg-white/10 text-white"
+                } ${post ? "w-[46px] py-1.5" : "w-[64px] py-3"}`}
+              >
+                <span className={post ? "text-[7px]" : "text-[9px]"}>
+                  {partes?.diaSemana.slice(0, 3).toUpperCase()}
+                </span>
+                <span className={post ? "text-[18px]" : "text-[26px]"}>{partes?.dia}</span>
+                <span className={post ? "text-[7px]" : "text-[9px]"}>
+                  {partes?.mes.slice(0, 3).toUpperCase()}
+                </span>
+              </div>
+
+              {/* Detalle */}
+              <div className={`min-w-0 flex-1 ${post ? "px-2 py-1" : "px-3 py-2"}`}>
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`font-black tracking-[0.18em] ${esProximo ? "text-amber-300" : "text-slate-300"} ${
+                      post ? "text-[7px]" : "text-[9px]"
+                    }`}
+                  >
+                    JUEGO {juego.numero}
+                  </span>
+                  {juego.finalizado ? (
+                    <span
+                      className={`rounded px-1 font-black text-white ${post ? "text-[6px]" : "text-[8px]"}`}
+                      style={{ backgroundColor: `${colorEquipo(juego.ganador ?? "")}99` }}
+                    >
+                      FINAL
+                    </span>
+                  ) : esProximo ? (
+                    <span className={`rounded bg-red-600 px-1 font-black text-white ${post ? "text-[6px]" : "text-[8px]"}`}>
+                      {destacado ? "¡DECISIVO!" : "PRÓXIMO"}
+                    </span>
+                  ) : null}
+                </div>
+
+                {juego.finalizado ? (
+                  <div className={`flex items-center justify-between font-black ${post ? "mt-0.5 text-[11px]" : "mt-1 text-[15px]"}`}>
+                    {[
+                      [juego.local, juego.puntosLocal],
+                      [juego.visitante, juego.puntosVisitante],
+                    ].map(([equipo, puntos], i) => {
+                      const gano = juego.ganador === equipo;
+                      return (
+                        <span key={i} className={`flex items-center gap-1 ${i === 1 ? "flex-row-reverse" : ""}`}>
+                          <span className={gano ? "text-white" : "text-slate-400"}>{String(equipo)}</span>
+                          <span
+                            className="tabular-nums"
+                            style={{ color: gano ? colorEquipo(String(equipo)) : "#94a3b8" }}
+                          >
+                            {puntos}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <>
+                    <p className={`font-black text-white ${post ? "mt-0.5 text-[11px]" : "mt-1 text-[15px]"}`}>
+                      {juego.local} <span className="text-amber-300">vs</span> {juego.visitante}
+                    </p>
+                    <p className={`font-bold text-slate-200 ${post ? "text-[8px]" : "text-[11px]"}`}>
+                      🕓 {partes?.hora}
+                      {juego.cancha ? ` · 📍 ${formatearCancha(juego.cancha)}` : ""}
+                    </p>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Cierre */}
+      <div className={`relative mt-auto w-full text-center ${post ? "pb-0.5" : "pb-3"}`}>
+        <div
+          className={`mx-auto inline-block rounded-lg font-black uppercase tracking-[0.18em] ${
+            campeon ? "bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950" : "bg-red-600 text-white"
+          } ${post ? "px-3 py-1 text-[9px]" : "px-4 py-2 text-[13px]"}`}
+        >
+          {campeon
+            ? `🏆 ${campeon} campeón 2026`
+            : serie.decisivo
+              ? `Todo se decide en el Juego ${proximo?.numero ?? ""}`
+              : "¡No te lo pierdas!"}
+        </div>
+        <p className={`mt-1 font-bold tracking-wider text-slate-300 ${post ? "text-[7px]" : "text-[9px]"}`}>
+          libavime.vercel.app
+        </p>
+      </div>
+    </div>
+  );
+}

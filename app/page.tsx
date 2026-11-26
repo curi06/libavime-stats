@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../data/equipos";
 import GaleriaDisenos from "./components/GaleriaDisenos";
+import PortadaFinales from "./components/PortadaFinales";
 
 type Partido = {
   id: number;
@@ -1057,6 +1058,8 @@ const resultadosFinales = resumenesPartidosFinales
 >
   
   <div className="max-w-5xl mx-auto">
+
+  <PortadaFinales partidos={partidosActuales} ahora={ahora} />
 
   {inauguracionPendiente && (
   <div className="relative mt-0 overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 p-1 shadow-2xl md:mt-90">
