@@ -7,6 +7,7 @@ import DashboardStats from "@/app/components/admin/DashboardStats";
 import NextGameCard from "@/app/components/admin/NextGameCard";
 import QuickActions from "@/app/components/admin/QuickActions";
 import LatestResults from "@/app/components/admin/LatestResults";
+import PrimerosPasos from "@/app/components/admin/PrimerosPasos";
 import { useLiga } from "@/app/components/LigaContext";
 export default function AdminPage() {
   const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
@@ -78,6 +79,8 @@ async function cargarDashboard() {
  return (
   <>
     <div className="max-w-6xl mx-auto">
+
+      <PrimerosPasos />
 
       <div className="flex justify-end mb-4">
         <button

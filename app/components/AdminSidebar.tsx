@@ -79,6 +79,13 @@ export default function AdminSidebar({
             </Link>
 
             <Link
+              href={ruta("/admin/temporadas")}
+              className="hover:bg-blue-800 rounded-xl p-3 transition"
+            >
+              🗓️ Temporadas
+            </Link>
+
+            <Link
               href={ruta("/admin/configuracion")}
               className="hover:bg-blue-800 rounded-xl p-3 transition"
             >
