@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { obtenerLiga } from "@/lib/liga-servidor";
-import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga, idTemporada, resolverTemporada, temporadaActivaDe } from "@/lib/liga";
 import Navbar from "@/app/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
@@ -120,15 +120,22 @@ export default async function EquipoPage({
   searchParams,
 }: {
   params: Promise<{ liga: string; slug: string }>;
-  searchParams: Promise<{ partido?: string }>;
+  searchParams: Promise<{ partido?: string; temporada?: string }>;
 }) {
   const { slug, liga: slugLiga } = await params;
   const datosLiga = await obtenerLiga(slugLiga);
   if (!datosLiga) notFound();
   const { liga, equipos } = datosLiga;
-  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  // Temporada que se está viendo (?temporada= o la activa).
+  const temporadaVista = resolverTemporada(datosLiga.temporadas, (await searchParams).temporada);
+  const temporadaId = idTemporada(temporadaVista);
+  const enlaceTemporada =
+    temporadaVista && temporadaVista.id !== temporadaActivaDe(datosLiga.temporadas)?.id ? temporadaVista.id : null;
+  const ruta = (r: string) => rutaLiga(liga.slug, r, enlaceTemporada);
   const nombreLiga = nombreCortoLiga(liga);
-  const temporada = temporadaLiga(liga);
+  const temporada = enlaceTemporada && temporadaVista
+    ? temporadaVista.nombre.replace(/^temporada\s+/i, "").trim() || temporadaVista.nombre
+    : temporadaLiga(liga);
   void ruta; void nombreLiga; void temporada; void equipos;
   const { partido: partidoSeleccionadoParam } = await searchParams;
 
@@ -197,6 +204,7 @@ export default async function EquipoPage({
     .select(
       "jugador_id, ppg, rpg, apg, partidos_jugados"
     )
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id);
 
   /* =========================================
@@ -209,6 +217,7 @@ export default async function EquipoPage({
   } = await supabase
     .from("estadisticas_partido")
     .select("jugador_id, partido_id, puntos, rebotes, asistencias")
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id);
 
   /* =========================================
@@ -223,6 +232,7 @@ export default async function EquipoPage({
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
     .eq("estado", "Finalizado");
 

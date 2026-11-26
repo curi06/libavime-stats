@@ -4,7 +4,7 @@ import Navbar from "@/app/components/Navbar";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { obtenerLiga } from "@/lib/liga-servidor";
-import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga, idTemporada, resolverTemporada, temporadaActivaDe } from "@/lib/liga";
 export const dynamic = "force-dynamic";
 
 type Partido = {
@@ -22,22 +22,32 @@ function normalizar(valor: string | null | undefined) {
 
 export default async function ClasificacionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ liga: string }>;
+  searchParams: Promise<{ temporada?: string }>;
 }) {
   const { liga: slugLiga } = await params;
   const datosLiga = await obtenerLiga(slugLiga);
   if (!datosLiga) notFound();
   const { liga, equipos } = datosLiga;
-  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  // Temporada que se está viendo (?temporada= o la activa).
+  const temporadaVista = resolverTemporada(datosLiga.temporadas, (await searchParams).temporada);
+  const temporadaId = idTemporada(temporadaVista);
+  const enlaceTemporada =
+    temporadaVista && temporadaVista.id !== temporadaActivaDe(datosLiga.temporadas)?.id ? temporadaVista.id : null;
+  const ruta = (r: string) => rutaLiga(liga.slug, r, enlaceTemporada);
   const nombreLiga = nombreCortoLiga(liga);
-  const temporada = temporadaLiga(liga);
+  const temporada = enlaceTemporada && temporadaVista
+    ? temporadaVista.nombre.replace(/^temporada\s+/i, "").trim() || temporadaVista.nombre
+    : temporadaLiga(liga);
   void ruta; void nombreLiga; void temporada; void equipos;
   const { data, error } = await supabase
     .from("partidos")
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
     .eq("estado", "Finalizado")
     .eq("fase", "serie_regular");

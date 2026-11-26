@@ -41,7 +41,7 @@ function obtenerDia(fecha: string) {
 }
 
 export default function Calendario() {
-  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada, equipo: equipoLiga } = useLiga();
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada, equipo: equipoLiga, temporadaId } = useLiga();
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -64,6 +64,7 @@ export default function Calendario() {
           estado
         `
         )
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true });

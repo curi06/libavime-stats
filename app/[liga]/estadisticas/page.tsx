@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
 
 export default function Estadisticas() {
-  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga } = useLiga();
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga, temporadaId } = useLiga();
   // Prefijo para nombres de archivos exportados (PDF / imágenes).
   const prefijoArchivo = `${nombreLiga}_${temporada}`.replace(/[^a-zA-Z0-9]+/g, "_");
   const [jugadores, setJugadores] = useState<any[]>([]);
@@ -21,6 +21,7 @@ export default function Estadisticas() {
     void supabase
       .from("partidos")
       .select("id", { count: "exact", head: true })
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
       .eq("fase", "finales")
       .eq("estado", "Finalizado")
@@ -108,11 +109,13 @@ export default function Estadisticas() {
     asistencias,
     estado
   `)
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id),
 
       supabase
         .from("partidos")
         .select("*")
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
         .eq("estado", "Finalizado")
         .eq("fase", faseSeleccionada),

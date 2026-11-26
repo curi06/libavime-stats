@@ -26,7 +26,7 @@ export default async function LayoutLiga({ children, params }: Props) {
   if (!datos) notFound();
 
   return (
-    <LigaProvider liga={datos.liga} equipos={datos.equipos}>
+    <LigaProvider liga={datos.liga} equipos={datos.equipos} temporadas={datos.temporadas}>
       {children}
     </LigaProvider>
   );

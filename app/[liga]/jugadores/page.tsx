@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useLiga } from "@/app/components/LigaContext";
 
 export default function Jugadores() {
-  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada } = useLiga();
+  const { liga, equipos: equiposLiga, ruta, nombre: nombreLiga, temporada, temporadaId } = useLiga();
   const { logo: logoDeLiga } = useLiga();
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -30,6 +30,7 @@ export default function Jugadores() {
       await supabase
         .from("estadisticas_jugadores")
         .select("*")
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id);
 
     console.log("JUGADORES:", jugadoresData);

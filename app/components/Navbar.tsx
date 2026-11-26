@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useLiga } from "@/app/components/LigaContext";
+import SelectorTemporada from "@/app/components/SelectorTemporada";
 
 export default function Navbar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -34,6 +35,7 @@ export default function Navbar() {
             <a href={ruta("/clasificacion")}>🏆 Clasificación</a>
             <a href={ruta("/estadisticas")}>📊 Estadísticas</a>
             <a href={ruta("/mvp")}>🥇 MVP</a>
+            <SelectorTemporada claro />
 
           </div>
 
@@ -76,6 +78,7 @@ export default function Navbar() {
                 <a href={ruta("/clasificacion")}>🏆 Clasificación</a>
                 <a href={ruta("/estadisticas")}>📊 Estadísticas</a>
                 <a href={ruta("/mvp")}>🥇 MVP</a>
+                <SelectorTemporada claro />
 
               </div>
             )}

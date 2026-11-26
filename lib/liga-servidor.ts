@@ -6,6 +6,7 @@ import {
   normalizarEquipos,
   type EquipoLiga,
   type Liga,
+  type TemporadaLiga,
 } from "@/lib/liga";
 
 /**
@@ -14,7 +15,7 @@ import {
  * así el layout y la página no consultan dos veces.
  */
 export const obtenerLiga = cache(
-  async (slug: string): Promise<{ liga: Liga; equipos: EquipoLiga[] } | null> => {
+  async (slug: string): Promise<{ liga: Liga; equipos: EquipoLiga[]; temporadas: TemporadaLiga[] } | null> => {
     const limpio = decodeURIComponent(slug).trim().toLowerCase();
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(limpio)) return null;
 
@@ -31,14 +32,19 @@ export const obtenerLiga = cache(
     }
     if (!liga) return null;
 
-    const { data: equipos } = await supabase
-      .from("equipos")
-      .select(columnasEquipo)
-      .eq("liga_id", liga.id);
+    const [{ data: equipos }, { data: temporadas }] = await Promise.all([
+      supabase.from("equipos").select(columnasEquipo).eq("liga_id", liga.id),
+      supabase
+        .from("admin_temporadas")
+        .select("id, nombre, activa, fecha_inicio")
+        .eq("liga_id", liga.id)
+        .order("id", { ascending: false }),
+    ]);
 
     return {
       liga: { ...liga, configuracion: liga.configuracion ?? {} },
       equipos: normalizarEquipos(equipos, liga),
+      temporadas: (temporadas ?? []) as TemporadaLiga[],
     };
   }
 );

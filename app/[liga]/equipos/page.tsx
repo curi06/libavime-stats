@@ -59,7 +59,7 @@ const ESTILOS_EQUIPOS: Record<
 };
 
 export default function Equipos() {
-  const { liga, equipos, ruta, nombre: nombreLiga, temporada } = useLiga();
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada, temporadaId } = useLiga();
   const [posiciones, setPosiciones] = useState<
     EquipoPosicion[]
   >([]);
@@ -75,6 +75,7 @@ export default function Equipos() {
           await supabase
             .from("partidos")
             .select("*")
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
             .eq("estado", "Finalizado");
 

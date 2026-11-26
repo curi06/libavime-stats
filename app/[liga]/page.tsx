@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import GaleriaDisenos from "@/app/components/GaleriaDisenos";
 import PortadaFinales from "@/app/components/PortadaFinales";
+import SelectorTemporada from "@/app/components/SelectorTemporada";
 import { partesFecha } from "@/lib/finales";
 import { useLiga } from "@/app/components/LigaContext";
 
@@ -33,8 +34,12 @@ type EstadisticaPartido = {
 };
 
 export default function Home() {
-  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga } = useLiga();
+  const { liga, equipos, ruta, nombre: nombreLiga, temporada, logo: logoDeLiga, temporadaId, temporadaSeleccionada, esTemporadaActiva } = useLiga();
   const config = liga.configuracion;
+  // Inicio de la temporada que se está viendo (activa o una anterior).
+  const inicioTemporadaVista = esTemporadaActiva
+    ? config.inicio_temporada
+    : temporadaSeleccionada?.fecha_inicio ?? undefined;
   const [jugadores, setJugadores] = useState<any[]>([]);
   // Todos los jugadores de la liga: los resúmenes de partido y la tabla de
   // posiciones deben contar TODOS los partidos, no solo los de finalistas.
@@ -65,6 +70,7 @@ useEffect(() => {
         .select(
           "jugador_id, partido_id, puntos, rebotes, asistencias, estado"
         )
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id),
       supabase
         .from("partidos")
@@ -81,6 +87,7 @@ useEffect(() => {
           fase,
           temporada_id
         `)
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
         .order("fecha", { ascending: true })
         .order("hora", { ascending: true }),
@@ -366,7 +373,7 @@ useEffect(() => {
     ).getTime();
   };
 
-  const FECHA_INICIO_SERIE_REGULAR = config.inicio_temporada ?? "0000-01-01";
+  const FECHA_INICIO_SERIE_REGULAR = inicioTemporadaVista ?? "0000-01-01";
 
   // La fase guardada en Supabase es la fuente oficial. Los partidos
   // de finales nunca se mezclan con la Serie Regular, aunque sean posteriores.
@@ -627,7 +634,7 @@ useEffect(() => {
 
   if (!fechaPartido) return 0;
 
-  const inicio = new Date(`${config.inicio_temporada ?? "1970-01-01"}T00:00:00`);
+  const inicio = new Date(`${inicioTemporadaVista ?? "1970-01-01"}T00:00:00`);
   const fecha = new Date(`${fechaPartido}T00:00:00`);
 
   const diferenciaDias = Math.floor(
@@ -1099,6 +1106,10 @@ const resultadosFinales = resumenesPartidosFinales
 >
   
   <div className="max-w-5xl mx-auto">
+
+  <div className="mt-4 flex justify-end">
+    <SelectorTemporada />
+  </div>
 
   <PortadaFinales partidos={partidosActuales} ahora={ahora} />
 

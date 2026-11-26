@@ -63,11 +63,40 @@ export const temporadaLiga = (liga: Pick<Liga, "configuracion">) =>
 export const logoLiga = (liga: Pick<Liga, "logo_url">) =>
   liga.logo_url?.trim() || LOGO_POR_DEFECTO;
 
-/** "/estadisticas" → "/liga-x/estadisticas"; "/" → "/liga-x". */
-export function rutaLiga(slug: string, ruta = "/") {
+/**
+ * "/estadisticas" → "/liga-x/estadisticas"; "/" → "/liga-x".
+ * Si se indica una temporada (distinta de la activa), se conserva en el
+ * enlace como ?temporada=<id>.
+ */
+export function rutaLiga(slug: string, ruta = "/", temporada?: number | null) {
   const limpia = ruta.startsWith("/") ? ruta : `/${ruta}`;
-  return limpia === "/" ? `/${slug}` : `/${slug}${limpia}`;
+  const base = limpia === "/" ? `/${slug}` : `/${slug}${limpia}`;
+  if (!temporada) return base;
+  const [camino, hash = ""] = base.split("#");
+  const separador = camino.includes("?") ? "&" : "?";
+  return `${camino}${separador}temporada=${temporada}${hash ? `#${hash}` : ""}`;
 }
+
+export type TemporadaLiga = {
+  id: number;
+  nombre: string;
+  activa: boolean;
+  fecha_inicio: string | null;
+};
+
+/** Temporada activa (o la más reciente si ninguna está marcada). */
+export function temporadaActivaDe(temporadas: TemporadaLiga[]) {
+  return temporadas.find((t) => t.activa) ?? temporadas[0] ?? null;
+}
+
+/** Temporada pedida en ?temporada=, si es de esta liga; si no, la activa. */
+export function resolverTemporada(temporadas: TemporadaLiga[], parametro: unknown) {
+  const id = Number(Array.isArray(parametro) ? parametro[0] : parametro);
+  return temporadas.find((t) => t.id === id) ?? temporadaActivaDe(temporadas);
+}
+
+/** Id de temporada para filtrar consultas (-1 si la liga no tiene: no muestra nada). */
+export const idTemporada = (t: TemporadaLiga | null) => t?.id ?? -1;
 
 /** Normaliza la ruta de un logo guardado en la base de datos. */
 export function rutaLogo(logo: string | null | undefined, respaldo = LOGO_POR_DEFECTO) {

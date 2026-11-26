@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { obtenerLiga } from "@/lib/liga-servidor";
-import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga, idTemporada, resolverTemporada, temporadaActivaDe } from "@/lib/liga";
 import Navbar from "@/app/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,16 +26,25 @@ type EstadisticaPartido = {
 
 export default async function JugadorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ liga: string; slug: string }>;
+  searchParams: Promise<{ temporada?: string }>;
 }) {
   const { slug, liga: slugLiga } = await params;
   const datosLiga = await obtenerLiga(slugLiga);
   if (!datosLiga) notFound();
   const { liga, equipos } = datosLiga;
-  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  // Temporada que se está viendo (?temporada= o la activa).
+  const temporadaVista = resolverTemporada(datosLiga.temporadas, (await searchParams).temporada);
+  const temporadaId = idTemporada(temporadaVista);
+  const enlaceTemporada =
+    temporadaVista && temporadaVista.id !== temporadaActivaDe(datosLiga.temporadas)?.id ? temporadaVista.id : null;
+  const ruta = (r: string) => rutaLiga(liga.slug, r, enlaceTemporada);
   const nombreLiga = nombreCortoLiga(liga);
-  const temporada = temporadaLiga(liga);
+  const temporada = enlaceTemporada && temporadaVista
+    ? temporadaVista.nombre.replace(/^temporada\s+/i, "").trim() || temporadaVista.nombre
+    : temporadaLiga(liga);
   void ruta; void nombreLiga; void temporada; void equipos;
 
   // BUSCAR JUGADOR
@@ -83,6 +92,7 @@ export default async function JugadorPage({
       asistencias,
       partido_id
     `)
+      .eq("temporada_id", temporadaId)
       .eq("liga_id", liga.id)
     .eq("jugador_id", jugador.id);
 
