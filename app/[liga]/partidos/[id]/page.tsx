@@ -70,8 +70,27 @@ export async function generateMetadata({
   const titulo = finalizado
     ? `${p.equipo_local} ${p.puntos_local} - ${p.puntos_visitante} ${p.equipo_visitante}`
     : `${p.equipo_local} vs ${p.equipo_visitante}`;
-  return { title: titulo, description: finalizado ? `Box score del partido del ${p.fecha}.` : `Partido programado para el ${p.fecha}.` };
+  return metadatosCompartir(
+    titulo,
+    nombreCortoLiga(datos.liga),
+    finalizado ? `Box score del partido del ${p.fecha}.` : `Partido programado para el ${p.fecha}.`,
+    datos.liga.slug
+  );
 }
+
+/** Metadatos para compartir: título con la liga y descripción propia. */
+function metadatosCompartir(titulo: string, ligaNombre: string, descripcion: string, slugLiga: string): Metadata {
+  const completo = `${titulo} · ${ligaNombre}`;
+  // Al definir openGraph aquí se pierde la imagen del layout: se agrega la de la liga.
+  const imagen = `/${slugLiga}/opengraph-image`;
+  return {
+    title: { absolute: completo },
+    description: descripcion,
+    openGraph: { title: completo, description: descripcion, siteName: "Quinteto Pro", locale: "es_DO", type: "website", images: [imagen] },
+    twitter: { card: "summary_large_image", title: completo, description: descripcion, images: [imagen] },
+  };
+}
+
 
 export default async function PartidoPage({ params }: { params: Promise<{ liga: string; id: string }> }) {
   const { id, liga: slugLiga } = await params;

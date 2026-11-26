@@ -14,7 +14,8 @@ const SITIO = process.env.NEXT_PUBLIC_SITIO_URL?.trim() || "https://libavime.ver
 async function logoComoDato(ruta: string): Promise<string | null> {
   try {
     const url = ruta.startsWith("http") ? ruta : `${SITIO}${ruta}`;
-    const respuesta = await fetch(url, { cache: "force-cache" });
+    // Si el logo tarda, se usan las iniciales: la vista previa no debe fallar.
+    const respuesta = await fetch(url, { cache: "force-cache", signal: AbortSignal.timeout(4000) });
     const tipo = respuesta.headers.get("content-type") ?? "";
     if (!respuesta.ok || !tipo.startsWith("image/")) return null;
     const bytes = Buffer.from(await respuesta.arrayBuffer());
@@ -45,7 +46,14 @@ export default async function ImagenLiga({ params }: { params: Promise<{ liga: s
   const primario = liga?.color_primario ?? "#1e3a8a";
   const secundario = liga?.color_secundario ?? "#f97316";
   const logo = liga ? await logoComoDato(logoLiga(liga)) : null;
-  const iniciales = nombre.split(/\s+/).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
+  const PEQUENAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "a"]);
+  const iniciales = nombre
+    .split(/\s+/)
+    .filter((p) => p && !PEQUENAS.has(p.toLowerCase()))
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 3)
+    .toUpperCase();
 
   return new ImageResponse(
     (

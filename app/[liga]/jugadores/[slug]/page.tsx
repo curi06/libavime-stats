@@ -41,9 +41,23 @@ export async function generateMetadata({
     .eq("liga_id", datos.liga.id)
     .maybeSingle();
   return data?.nombre
-    ? { title: data.nombre, description: `Estadísticas de ${data.nombre}${data.equipo ? ` (${data.equipo})` : ""}.` }
+    ? metadatosCompartir(data.nombre, nombreCortoLiga(datos.liga), `Estadísticas de ${data.nombre}${data.equipo ? ` (${data.equipo})` : ""}.`, datos.liga.slug)
     : {};
 }
+
+/** Metadatos para compartir: título con la liga y descripción propia. */
+function metadatosCompartir(titulo: string, ligaNombre: string, descripcion: string, slugLiga: string): Metadata {
+  const completo = `${titulo} · ${ligaNombre}`;
+  // Al definir openGraph aquí se pierde la imagen del layout: se agrega la de la liga.
+  const imagen = `/${slugLiga}/opengraph-image`;
+  return {
+    title: { absolute: completo },
+    description: descripcion,
+    openGraph: { title: completo, description: descripcion, siteName: "Quinteto Pro", locale: "es_DO", type: "website", images: [imagen] },
+    twitter: { card: "summary_large_image", title: completo, description: descripcion, images: [imagen] },
+  };
+}
+
 
 export default async function JugadorPage({
   params,

@@ -123,11 +123,26 @@ export async function generateMetadata({
   params: Promise<{ liga: string; slug: string }>;
 }): Promise<Metadata> {
   const { liga: slugLiga, slug } = await params;
-  const equipo = (await obtenerLiga(slugLiga))?.equipos.find((e) => e.slug === slug);
-  return equipo
-    ? { title: equipo.nombre, description: `Plantilla, estadísticas y resultados de ${equipo.nombre}.` }
+  const datos = await obtenerLiga(slugLiga);
+  const equipo = datos?.equipos.find((e) => e.slug === slug);
+  return datos && equipo
+    ? metadatosCompartir(equipo.nombre, nombreCortoLiga(datos.liga), `Plantilla, estadísticas y resultados de ${equipo.nombre}.`, datos.liga.slug)
     : {};
 }
+
+/** Metadatos para compartir: título con la liga y descripción propia. */
+function metadatosCompartir(titulo: string, ligaNombre: string, descripcion: string, slugLiga: string): Metadata {
+  const completo = `${titulo} · ${ligaNombre}`;
+  // Al definir openGraph aquí se pierde la imagen del layout: se agrega la de la liga.
+  const imagen = `/${slugLiga}/opengraph-image`;
+  return {
+    title: { absolute: completo },
+    description: descripcion,
+    openGraph: { title: completo, description: descripcion, siteName: "Quinteto Pro", locale: "es_DO", type: "website", images: [imagen] },
+    twitter: { card: "summary_large_image", title: completo, description: descripcion, images: [imagen] },
+  };
+}
+
 
 export default async function EquipoPage({
   params,
