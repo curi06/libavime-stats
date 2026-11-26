@@ -33,6 +33,9 @@ type EstadisticaPartido = {
 
 export default function Home() {
   const [jugadores, setJugadores] = useState<any[]>([]);
+  // Todos los jugadores: los resúmenes de partido y la tabla de posiciones
+  // deben contar TODOS los partidos, no solo los de los finalistas.
+  const [todosLosJugadores, setTodosLosJugadores] = useState<any[]>([]);
   const [partidosActuales, setPartidosActuales] = useState<Partido[]>([]);
   const [estadisticasPartido, setEstadisticasPartido] = useState<EstadisticaPartido[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -197,6 +200,7 @@ useEffect(() => {
     );
 
     setJugadores(jugadoresConEstadisticas);
+    setTodosLosJugadores(jugadoresData ?? []);
     setPartidosActuales(partidosConFormato);
     setEstadisticasPartido(
       (estadisticasData ?? []).map((estadistica: any) => ({
@@ -418,7 +422,7 @@ useEffect(() => {
 
     const porJugador = estadisticas.reduce(
       (acumulado: Record<string, any>, estadistica) => {
-        const jugador = jugadores.find(
+        const jugador = todosLosJugadores.find(
           (item) => String(item.id) === String(estadistica.jugador_id)
         );
 
