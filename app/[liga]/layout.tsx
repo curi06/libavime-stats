@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { LigaProvider } from "@/app/components/LigaContext";
 import { obtenerLiga } from "@/lib/liga-servidor";
-import { logoLiga, nombreCortoLiga } from "@/lib/liga";
+import { LIGA_HISTORICA, logoLiga, nombreCortoLiga } from "@/lib/liga";
 
 type Props = {
   children: React.ReactNode;
@@ -20,7 +20,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: { default: nombre, template: `%s · ${nombre}` },
     description: descripcion,
-    icons: { icon: logoLiga(datos.liga) },
+    icons: {
+      icon: logoLiga(datos.liga),
+      // Ícono al agregar la liga a la pantalla de inicio del iPhone.
+      apple:
+        datos.liga.slug === LIGA_HISTORICA
+          ? "/icons/apple-touch-icon.png"
+          : `/${datos.liga.slug}/icono/180`,
+    },
+    // "App" propia de la liga en Android (nombre, ícono, abre en su página).
+    manifest: `/${datos.liga.slug}/manifest.webmanifest`,
+    appleWebApp: { capable: true, title: nombre, statusBarStyle: "default" },
     // La imagen la genera app/[liga]/opengraph-image.tsx.
     openGraph: {
       title: nombre,
@@ -31,6 +41,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: { card: "summary_large_image", title: nombre, description: descripcion },
   };
+}
+
+export async function generateViewport({ params }: Props): Promise<Viewport> {
+  const datos = await obtenerLiga((await params).liga);
+  return { themeColor: datos?.liga.color_primario ?? "#111827" };
 }
 
 export default async function LayoutLiga({ children, params }: Props) {
