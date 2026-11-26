@@ -1280,7 +1280,7 @@ export default async function EquipoPage({
 
               <div className="text-center md:text-right">
                 <p className="font-semibold">
-                  Liga de Baloncesto de Visitadores Médicos
+                  {liga.nombre}
                 </p>
 
                 <p className="text-blue-300 text-sm mt-1">

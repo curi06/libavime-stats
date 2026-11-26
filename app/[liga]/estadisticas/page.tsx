@@ -996,7 +996,7 @@ export default function Estadisticas() {
         doc.setFontSize(12);
 
         doc.text(
-          "LIGA DE BALONCESTO DE VISITADORES MÉDICOS",
+          liga.nombre.toUpperCase(),
           centro,
           24,
           {
@@ -1982,7 +1982,7 @@ export default function Estadisticas() {
       ficha.textAlign = "center";
       ficha.fillStyle = estilo.textoSuave;
       ficha.font = "900 20px Arial, Helvetica, sans-serif";
-      ficha.fillText("LIGA DE BALONCESTO DE VISITADORES MÉDICOS", 450, 1245);
+      ficha.fillText(liga.nombre.toUpperCase(), 450, 1245);
       ficha.font = "700 19px Arial, Helvetica, sans-serif";
       ficha.fillText(`TORNEO ${nombreLiga} ${temporada}`, 450, 1290);
       ficha.font = "700 18px Arial, Helvetica, sans-serif";
@@ -2304,7 +2304,7 @@ export default function Estadisticas() {
 
                                       <div className={`mt-7 border-t pt-4 text-center ${equipo.nombre === "Espartanos" ? "border-black/20" : "border-white/30"}`}>
                                         <p className={`text-[10px] font-black uppercase tracking-[0.25em] ${color.textoSuave}`}>
-                                          LIGA DE BALONCESTO DE VISITADORES MÉDICOS
+                                          {liga.nombre.toUpperCase()}
                                         </p>
                                         <p className={`mt-1 text-[9px] font-semibold ${color.textoSuave}`}>
                                           TORNEO {nombreLiga} {temporada}

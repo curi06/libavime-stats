@@ -304,7 +304,7 @@ export default function Calendario() {
                     {/* PIE */}
                     <div className="border-t border-white/10 bg-black/20 px-5 py-3 text-center">
                       <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                        Liga de Baloncesto de Visitadores a Médicos
+                        {liga.nombre}
                       </p>
                     </div>
                   </article>
