@@ -12,7 +12,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Dirección pública del sitio, para armar enlaces e imágenes absolutos
+// al compartir (WhatsApp, Instagram…).
+const SITIO = process.env.NEXT_PUBLIC_SITIO_URL?.trim() || "https://libavime.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITIO),
+  openGraph: { siteName: "Quinteto Pro", locale: "es_DO", type: "website" },
+  twitter: { card: "summary_large_image" },
   title: "Quinteto Pro",
   description: "Plataforma de estadísticas para ligas de baloncesto",
   icons: {

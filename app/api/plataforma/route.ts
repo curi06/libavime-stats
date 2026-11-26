@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verificarAdminPlataforma } from "@/lib/plataforma-auth";
 import { supabaseServicio } from "@/lib/liga-api";
-import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { LIGA_HISTORICA } from "@/lib/liga";
 
 export const runtime = "nodejs";
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       }
       const { data: liga } = await servicio.from("ligas").select("slug").eq("id", cuerpo.liga_id).maybeSingle();
       if (!liga) return NextResponse.json({ error: "La liga no existe." }, { status: 404 });
-      if (liga.slug === LIGA_PRINCIPAL && cuerpo.estado !== "activa") {
+      if (liga.slug === LIGA_HISTORICA && cuerpo.estado !== "activa") {
         return NextResponse.json({ error: "La liga principal no se puede desactivar desde aquí." }, { status: 409 });
       }
       const { error } = await servicio

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { obtenerLiga } from "@/lib/liga-servidor";
@@ -23,6 +24,26 @@ type EstadisticaPartido = {
   asistencias: number | null;
   partido_id: number | null;
 };
+
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ liga: string; slug: string }>;
+}): Promise<Metadata> {
+  const { liga: slugLiga, slug } = await params;
+  const datos = await obtenerLiga(slugLiga);
+  if (!datos) return {};
+  const { data } = await supabase
+    .from("jugadores")
+    .select("nombre, equipo")
+    .eq("slug", slug)
+    .eq("liga_id", datos.liga.id)
+    .maybeSingle();
+  return data?.nombre
+    ? { title: data.nombre, description: `Estadísticas de ${data.nombre}${data.equipo ? ` (${data.equipo})` : ""}.` }
+    : {};
+}
 
 export default async function JugadorPage({
   params,

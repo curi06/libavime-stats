@@ -64,6 +64,8 @@ const esPartidoFinalizado = (estado: string | null) => {
     "completed",
   ].includes(valor);
 };
+export const metadata = { title: "Candidatos a MVP" };
+
 
   export default async function MVPPage({
   params,

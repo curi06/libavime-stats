@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { LIGA_HISTORICA } from "@/lib/liga";
 
 /** Cliente con la clave de servidor (ignora RLS): solo para rutas /api. */
 export function supabaseServicio() {
@@ -16,13 +16,13 @@ export type LigaApi = { id: string; slug: string };
 
 /**
  * Obtiene la liga indicada por la petición (?liga=slug o campo "liga" del
- * cuerpo). Si no se indica, usa la liga principal para no romper llamadas
- * antiguas. Devuelve una respuesta de error si la liga no existe.
+ * cuerpo). Si no se indica, usa LIBAVIME (llamadas antiguas). Devuelve una respuesta de error si la liga no existe.
  */
 export async function resolverLiga(
   slug: string | null | undefined
 ): Promise<{ liga: LigaApi; respuesta?: undefined } | { liga?: undefined; respuesta: NextResponse }> {
-  const limpio = String(slug ?? "").trim().toLowerCase() || LIGA_PRINCIPAL;
+  // Las llamadas antiguas sin ?liga= son de LIBAVIME.
+  const limpio = String(slug ?? "").trim().toLowerCase() || LIGA_HISTORICA;
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(limpio)) {
     return { respuesta: NextResponse.json({ error: "Liga no válida." }, { status: 400 }) };
   }

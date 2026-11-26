@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { obtenerLiga } from "@/lib/liga-servidor";
@@ -113,6 +114,19 @@ function obtenerFoto(
   }
 
   return LOGO_POR_DEFECTO;
+}
+
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ liga: string; slug: string }>;
+}): Promise<Metadata> {
+  const { liga: slugLiga, slug } = await params;
+  const equipo = (await obtenerLiga(slugLiga))?.equipos.find((e) => e.slug === slug);
+  return equipo
+    ? { title: equipo.nombre, description: `Plantilla, estadísticas y resultados de ${equipo.nombre}.` }
+    : {};
 }
 
 export default async function EquipoPage({

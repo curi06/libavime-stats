@@ -128,7 +128,10 @@ export default function RegistroPage() {
               >
                 {enviando ? "Enviando…" : "Enviar solicitud"}
               </button>
-              <p className="text-center text-sm text-slate-500">Gratis durante el lanzamiento.</p>
+              <p className="text-center text-sm text-slate-500">
+                Gratis durante el lanzamiento ·{" "}
+                <Link href="/quinteto" className="font-bold text-orange-600 underline">¿Qué incluye?</Link>
+              </p>
             </form>
           )}
         </div>

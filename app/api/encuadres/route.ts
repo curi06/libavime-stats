@@ -6,7 +6,7 @@ import path from "node:path";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
 import { verificarAdministrador } from "@/lib/admin-auth";
 import { resolverLiga, type LigaApi } from "@/lib/liga-api";
-import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { LIGA_HISTORICA } from "@/lib/liga";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ const CLAVE = "encuadres_jugadores";
 // La liga principal conserva la clave histórica; las demás usan una
 // clave propia mientras libavime_configuracion tenga "clave" como llave.
 const claveDe = (liga: LigaApi) =>
-  liga.slug === LIGA_PRINCIPAL ? CLAVE : `${CLAVE}:${liga.id}`;
+  liga.slug === LIGA_HISTORICA ? CLAVE : `${CLAVE}:${liga.id}`;
 
 function obtenerSupabaseServidor() {
   if (!supabaseUrl || !serviceRoleKey) {
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
 
     // El archivo de respaldo solo contiene encuadres de la liga principal.
     const respaldo =
-      ligaRes.liga.slug === LIGA_PRINCIPAL
+      ligaRes.liga.slug === LIGA_HISTORICA
         ? await leerRespaldo()
         : { version: 1, jugadores: {} };
     return NextResponse.json(respaldo, {

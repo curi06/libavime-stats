@@ -5,6 +5,8 @@ import { obtenerLiga } from "@/lib/liga-servidor";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
 import { nombreCortoLiga, rutaLiga } from "@/lib/liga";
 
+export const metadata = { title: "Administración", robots: { index: false } };
+
 export default async function AdminLayout({
   children,
   params,

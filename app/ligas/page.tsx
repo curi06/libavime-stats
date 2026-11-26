@@ -23,6 +23,9 @@ export default async function LigasPage() {
           <p className="text-5xl">🏀</p>
           <h1 className="mt-2 text-4xl font-black text-slate-900">Ligas en Quinteto Pro</h1>
           <p className="mt-2 text-slate-600">Estadísticas, calendario y resultados de cada liga.</p>
+          <Link href="/quinteto" className="mt-3 inline-block font-bold text-orange-600 underline">
+            ¿Qué es Quinteto Pro?
+          </Link>
         </header>
 
         <section className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

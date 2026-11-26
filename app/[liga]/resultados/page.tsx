@@ -30,6 +30,8 @@ function obtenerEquipo(equipos: EquipoLiga[], nombre: string | null | undefined)
   );
 }
 
+export const metadata = { title: "Resultados" };
+
 export default async function ResultadosPage({
   params,
   searchParams,

@@ -6,7 +6,7 @@ import { toJpeg, toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 import { construirSerieFinal, type SerieFinal } from "@/lib/finales";
 import RutaFinal from "@/app/components/instagram/RutaFinal";
-import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { LIGA_HISTORICA } from "@/lib/liga";
 import { useLiga } from "@/app/components/LigaContext";
 
 type Tipo =
@@ -122,7 +122,7 @@ const FOTOS_LOCALES: Record<string, string> = {
 
 // Fotos recortadas propias de la liga principal (public/backgrounds).
 function obtenerRutaFotoInstagram(nombreJugador: string, slugLiga: string) {
-  if (slugLiga !== LIGA_PRINCIPAL) return "";
+  if (slugLiga !== LIGA_HISTORICA) return "";
   const nombre = nombreJugador
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

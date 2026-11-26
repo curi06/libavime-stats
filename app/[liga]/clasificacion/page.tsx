@@ -20,6 +20,8 @@ function normalizar(valor: string | null | undefined) {
   return String(valor ?? "").trim().toLowerCase();
 }
 
+export const metadata = { title: "Clasificación" };
+
 export default async function ClasificacionPage({
   params,
   searchParams,

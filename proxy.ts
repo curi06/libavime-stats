@@ -10,15 +10,16 @@ export async function proxy(request: NextRequest) {
 
   // Direcciones antiguas sin liga (/estadisticas, /admin/partidos, ...):
   // redirigen a la liga principal para no romper enlaces compartidos.
-  if (primero && SECCIONES.has(primero)) {
+  if (LIGA_PRINCIPAL && primero && SECCIONES.has(primero)) {
     const destino = request.nextUrl.clone();
     destino.pathname = `/${LIGA_PRINCIPAL}${pathname}`;
     destino.search = search;
     return NextResponse.redirect(destino, 308);
   }
 
-  // La portada del dominio actual sigue mostrando la liga principal.
-  if (!primero) {
+  // La portada del dominio muestra la liga principal; sin liga principal,
+  // se muestra la presentación de Quinteto Pro (app/page.tsx).
+  if (!primero && LIGA_PRINCIPAL) {
     const destino = request.nextUrl.clone();
     destino.pathname = `/${LIGA_PRINCIPAL}`;
     return NextResponse.rewrite(destino);

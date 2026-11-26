@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
@@ -47,6 +48,29 @@ function obtenerEquipo(equipos: EquipoLiga[], nombre: string | null | undefined)
 function obtenerFoto(foto: string | null) {
   if (foto && (foto.startsWith("/") || foto.startsWith("http://") || foto.startsWith("https://"))) return foto;
   return LOGO_POR_DEFECTO;
+}
+
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ liga: string; id: string }>;
+}): Promise<Metadata> {
+  const { liga: slugLiga, id } = await params;
+  const datos = await obtenerLiga(slugLiga);
+  if (!datos || !/^\d+$/.test(id)) return {};
+  const { data: p } = await supabase
+    .from("partidos")
+    .select("equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado, fecha")
+    .eq("id", id)
+    .eq("liga_id", datos.liga.id)
+    .maybeSingle();
+  if (!p) return {};
+  const finalizado = String(p.estado ?? "").toLowerCase() === "finalizado";
+  const titulo = finalizado
+    ? `${p.equipo_local} ${p.puntos_local} - ${p.puntos_visitante} ${p.equipo_visitante}`
+    : `${p.equipo_local} vs ${p.equipo_visitante}`;
+  return { title: titulo, description: finalizado ? `Box score del partido del ${p.fecha}.` : `Partido programado para el ${p.fecha}.` };
 }
 
 export default async function PartidoPage({ params }: { params: Promise<{ liga: string; id: string }> }) {

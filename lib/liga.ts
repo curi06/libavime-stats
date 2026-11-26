@@ -1,7 +1,22 @@
 // Tipos y utilidades de la liga activa (sirven en servidor y navegador).
 
+/**
+ * Liga que se muestra en la portada del dominio ("/") y a la que se
+ * redirigen las direcciones antiguas sin liga (/estadisticas…).
+ * NEXT_PUBLIC_LIGA_PRINCIPAL=ninguna → la portada es la presentación de
+ * Quinteto Pro (para cuando la plataforma tenga dominio propio).
+ */
+const ligaPrincipalConfigurada = process.env.NEXT_PUBLIC_LIGA_PRINCIPAL?.trim();
 export const LIGA_PRINCIPAL =
-  process.env.NEXT_PUBLIC_LIGA_PRINCIPAL?.trim() || "libavime";
+  ligaPrincipalConfigurada === "ninguna" ? "" : ligaPrincipalConfigurada || "libavime";
+
+/**
+ * Liga fundadora (LIBAVIME). Conserva comportamientos históricos que no
+ * dependen de la portada: la clave antigua de encuadres, sus fotos
+ * recortadas, el respaldo por correo de su administradora y la protección
+ * contra suspensiones accidentales.
+ */
+export const LIGA_HISTORICA = "libavime";
 
 // Secciones de cada liga. Las direcciones antiguas sin liga (por ejemplo
 // /estadisticas) se redirigen a la liga principal.

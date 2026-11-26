@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { crearSupabaseServidor } from "@/lib/supabase-server";
-import { LIGA_PRINCIPAL } from "@/lib/liga";
+import { LIGA_HISTORICA } from "@/lib/liga";
 import type { LigaApi } from "@/lib/liga-api";
 
 type ResultadoVerificacion =
@@ -40,7 +40,7 @@ export async function verificarAdministrador(
   // Respaldo histórico solo para la liga principal (LIBAVIME).
   const correoAdministrador = process.env.LIBAVIME_ADMIN_EMAIL?.trim().toLowerCase();
   const esCorreoAdministrador =
-    liga.slug === LIGA_PRINCIPAL &&
+    liga.slug === LIGA_HISTORICA &&
     Boolean(correoAdministrador) &&
     user.email?.trim().toLowerCase() === correoAdministrador;
 

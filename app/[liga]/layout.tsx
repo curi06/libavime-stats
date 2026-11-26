@@ -14,10 +14,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!datos) return { title: "Liga no encontrada · Quinteto Pro" };
 
   const nombre = nombreCortoLiga(datos.liga);
+  const descripcion =
+    datos.liga.descripcion ??
+    `Estadísticas, resultados, calendario y MVP de ${datos.liga.nombre}.`;
   return {
     title: { default: nombre, template: `%s · ${nombre}` },
-    description: datos.liga.descripcion ?? datos.liga.nombre,
+    description: descripcion,
     icons: { icon: logoLiga(datos.liga) },
+    // La imagen la genera app/[liga]/opengraph-image.tsx.
+    openGraph: {
+      title: nombre,
+      description: descripcion,
+      siteName: "Quinteto Pro",
+      locale: "es_DO",
+      type: "website",
+    },
+    twitter: { card: "summary_large_image", title: nombre, description: descripcion },
   };
 }
 
