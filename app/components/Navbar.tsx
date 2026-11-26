@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useLiga } from "@/app/components/LigaContext";
 
 export default function Navbar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const { ruta, nombre, logo } = useLiga();
 
   return (
     <nav className="absolute top-0 left-0 right-0 z-20 px-4 pt-2">
@@ -17,21 +19,21 @@ export default function Navbar() {
           <div className="hidden md:flex items-center justify-center gap-8 text-white font-semibold py-4">
 
             <Image
-              src="/logos/LIBAVIME.png"
-              alt="LIBAVIME"
+              src={logo}
+              alt={nombre}
               width={42}
               height={42}
               className="object-contain"
             />
 
-            <a href="/">🏠 Inicio</a>
-            <a href="/equipos">🏀 Equipos</a>
-            <a href="/jugadores">👤 Jugadores</a>
-            <a href="/calendario">📅 Calendario</a>
-            <a href="/resultados">🏆 Resultados</a>
-            <a href="/clasificacion">🏆 Clasificación</a>
-            <a href="/estadisticas">📊 Estadísticas</a>
-            <a href="/mvp">🥇 MVP</a>
+            <a href={ruta("/")}>🏠 Inicio</a>
+            <a href={ruta("/equipos")}>🏀 Equipos</a>
+            <a href={ruta("/jugadores")}>👤 Jugadores</a>
+            <a href={ruta("/calendario")}>📅 Calendario</a>
+            <a href={ruta("/resultados")}>🏆 Resultados</a>
+            <a href={ruta("/clasificacion")}>🏆 Clasificación</a>
+            <a href={ruta("/estadisticas")}>📊 Estadísticas</a>
+            <a href={ruta("/mvp")}>🥇 MVP</a>
 
           </div>
 
@@ -45,15 +47,15 @@ export default function Navbar() {
               <div className="flex-1 flex justify-center items-center gap-3">
 
                 <Image
-                  src="/logos/LIBAVIME.png"
-                  alt="LIBAVIME"
+                  src={logo}
+                  alt={nombre}
                   width={38}
                   height={38}
                   className="object-contain"
                 />
 
                 <span className="font-black text-lg">
-                  LIBAVIME
+                  {nombre}
                 </span>
 
               </div>
@@ -66,14 +68,14 @@ export default function Navbar() {
             {menuAbierto && (
               <div className="flex flex-col text-center text-white pb-4 gap-3">
 
-                <a href="/">🏠 Inicio</a>
-                <a href="/equipos">🏀 Equipos</a>
-                <a href="/jugadores">👤 Jugadores</a>
-                <a href="/calendario">📅 Calendario</a>
-                <a href="/resultados">🏆 Resultados</a>
-                <a href="/clasificacion">🏆 Clasificación</a>
-                <a href="/estadisticas">📊 Estadísticas</a>
-                <a href="/mvp">🥇 MVP</a>
+                <a href={ruta("/")}>🏠 Inicio</a>
+                <a href={ruta("/equipos")}>🏀 Equipos</a>
+                <a href={ruta("/jugadores")}>👤 Jugadores</a>
+                <a href={ruta("/calendario")}>📅 Calendario</a>
+                <a href={ruta("/resultados")}>🏆 Resultados</a>
+                <a href={ruta("/clasificacion")}>🏆 Clasificación</a>
+                <a href={ruta("/estadisticas")}>📊 Estadísticas</a>
+                <a href={ruta("/mvp")}>🥇 MVP</a>
 
               </div>
             )}

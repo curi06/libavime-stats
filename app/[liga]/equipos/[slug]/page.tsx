@@ -1,8 +1,10 @@
 import { supabase } from "@/lib/supabase";
-import Navbar from "../../components/Navbar";
+import { notFound } from "next/navigation";
+import { obtenerLiga } from "@/lib/liga-servidor";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import Navbar from "@/app/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
-import { equipos } from "../../../data/equipos";
 
 type Jugador = {
   id: number;
@@ -83,10 +85,18 @@ function normalizarEquipo(
     .toLowerCase();
 }
 
-function obtenerEstilo(nombreEquipo: string) {
+function obtenerEstilo(nombreEquipo: string, color?: string | null) {
+  // Estilos propios de LIBAVIME; los equipos de otras ligas usan un
+  // fondo neutro con el color registrado para el equipo.
+  const acento = color?.trim() || "#3B82F6";
   return (
-    ESTILOS[nombreEquipo] ??
-    ESTILOS.Espartanos
+    ESTILOS[nombreEquipo] ?? {
+      fondo: "from-slate-700 via-slate-800 to-slate-950",
+      fondoClaro: "#F1F5F9",
+      texto: "#FFFFFF",
+      acento,
+      borde: acento,
+    }
   );
 }
 
@@ -102,17 +112,24 @@ function obtenerFoto(
     return foto;
   }
 
-  return "/logos/LIBAVIME.png";
+  return LOGO_POR_DEFECTO;
 }
 
 export default async function EquipoPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ liga: string; slug: string }>;
   searchParams: Promise<{ partido?: string }>;
 }) {
-  const { slug } = await params;
+  const { slug, liga: slugLiga } = await params;
+  const datosLiga = await obtenerLiga(slugLiga);
+  if (!datosLiga) notFound();
+  const { liga, equipos } = datosLiga;
+  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  const nombreLiga = nombreCortoLiga(liga);
+  const temporada = temporadaLiga(liga);
+  void ruta; void nombreLiga; void temporada; void equipos;
   const { partido: partidoSeleccionadoParam } = await searchParams;
 
   const equipoData = (
@@ -135,7 +152,7 @@ export default async function EquipoPage({
             </p>
 
             <Link
-              href="/equipos"
+              href={ruta("/equipos")}
               className="inline-block mt-7 bg-blue-950 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-800 transition"
             >
               ← Volver a equipos
@@ -148,7 +165,10 @@ export default async function EquipoPage({
 
   const nombreEquipo = equipoData.nombre;
 
-  const estilo = obtenerEstilo(nombreEquipo);
+  const estilo = obtenerEstilo(
+    nombreEquipo,
+    equipos.find((e) => e.slug === slug)?.color
+  );
 
   /* =========================================
      JUGADORES
@@ -162,6 +182,7 @@ export default async function EquipoPage({
     .select(
       "id, nombre, slug, numero, posicion, equipo, foto"
     )
+      .eq("liga_id", liga.id)
     .ilike("equipo", nombreEquipo);
 
   /* =========================================
@@ -175,7 +196,8 @@ export default async function EquipoPage({
     .from("estadisticas_jugadores")
     .select(
       "jugador_id, ppg, rpg, apg, partidos_jugados"
-    );
+    )
+      .eq("liga_id", liga.id);
 
   /* =========================================
      BOXSCORE / ESTADÍSTICAS POR PARTIDO
@@ -186,7 +208,8 @@ export default async function EquipoPage({
     error: estadisticasPartidoError,
   } = await supabase
     .from("estadisticas_partido")
-    .select("jugador_id, partido_id, puntos, rebotes, asistencias");
+    .select("jugador_id, partido_id, puntos, rebotes, asistencias")
+      .eq("liga_id", liga.id);
 
   /* =========================================
      PARTIDOS
@@ -200,6 +223,7 @@ export default async function EquipoPage({
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
+      .eq("liga_id", liga.id)
     .eq("estado", "Finalizado");
 
   if (jugadoresError) {
@@ -633,7 +657,7 @@ export default async function EquipoPage({
 
               <div className="flex-1 text-center md:text-left">
                 <p className="text-sm md:text-base font-black tracking-[0.3em] uppercase opacity-90">
-                  LIBAVIME 2026
+                  {nombreLiga} {temporada}
                 </p>
 
                 <h1 className="text-5xl md:text-7xl font-black uppercase leading-none mt-3 drop-shadow-lg">
@@ -717,7 +741,7 @@ export default async function EquipoPage({
               </div>
 
               <Link
-                href="/estadisticas"
+                href={ruta("/estadisticas")}
                 className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700 hover:text-blue-900 whitespace-nowrap transition"
               >
                 📊
@@ -725,7 +749,7 @@ export default async function EquipoPage({
               </Link>
 
               <Link
-                href="/calendario"
+                href={ruta("/calendario")}
                 className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700 hover:text-blue-900 whitespace-nowrap transition"
               >
                 📅
@@ -733,7 +757,7 @@ export default async function EquipoPage({
               </Link>
 
               <Link
-                href="/resultados"
+                href={ruta("/resultados")}
                 className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700 hover:text-blue-900 whitespace-nowrap transition"
               >
                 🏆
@@ -741,7 +765,7 @@ export default async function EquipoPage({
               </Link>
 
               <Link
-                href="/jugadores"
+                href={ruta("/jugadores")}
                 className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700 hover:text-blue-900 whitespace-nowrap transition"
               >
                 👤
@@ -788,7 +812,7 @@ export default async function EquipoPage({
                   return (
                     <Link
                       key={partido.id}
-                      href={`/equipos/${slug}?partido=${partido.id}`}
+                      href={ruta(`/equipos/${slug}?partido=${partido.id}`)}
                       className={`rounded-2xl border-2 p-4 transition-all shadow-sm hover:-translate-y-0.5 hover:shadow-lg ${
                         esSeleccionado
                           ? "border-blue-700 bg-blue-50 shadow-md"
@@ -943,7 +967,7 @@ export default async function EquipoPage({
 
                           <td className="px-5 py-3">
                             <Link
-                              href={`/jugadores/${jugador.slug}`}
+                              href={ruta(`/jugadores/${jugador.slug}`)}
                               className="flex items-center gap-3 group"
                             >
                               <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-white" style={{ borderColor: estilo.borde }}>
@@ -1051,7 +1075,7 @@ export default async function EquipoPage({
                 return (
                   <Link
                     key={jugador.id}
-                    href={`/jugadores/${jugador.slug}`}
+                    href={ruta(`/jugadores/${jugador.slug}`)}
                     className="group block"
                   >
                     <article
@@ -1209,7 +1233,7 @@ export default async function EquipoPage({
 
           <div className="flex justify-center mt-10">
             <Link
-              href="/equipos"
+              href={ruta("/equipos")}
               className="inline-flex items-center gap-2 bg-blue-950 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-800 transition shadow-lg"
             >
               ← Volver a equipos
@@ -1226,8 +1250,8 @@ export default async function EquipoPage({
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
               <div className="flex items-center gap-4">
                 <Image
-                  src="/logos/LIBAVIME.png"
-                  alt="LIBAVIME"
+                  src={logoLiga(liga)}
+                  alt={nombreLiga}
                   width={70}
                   height={70}
                   className="object-contain"
@@ -1235,7 +1259,7 @@ export default async function EquipoPage({
 
                 <div>
                   <p className="text-2xl font-black">
-                    LIBAVIME
+                    {nombreLiga}
                   </p>
 
                   <p className="text-cyan-400 font-black">
@@ -1257,7 +1281,7 @@ export default async function EquipoPage({
 
             <div className="border-t border-white/10 mt-8 pt-5 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-blue-300">
               <p>
-                © 2026 LIBAVIME · Todos los derechos
+                © {temporada} {nombreLiga} · Todos los derechos
                 reservados.
               </p>
 

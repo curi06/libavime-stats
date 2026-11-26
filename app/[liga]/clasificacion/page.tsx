@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import Navbar from "../components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { supabase } from "@/lib/supabase";
-import { equipos } from "../../data/equipos";
+import { notFound } from "next/navigation";
+import { obtenerLiga } from "@/lib/liga-servidor";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
 export const dynamic = "force-dynamic";
 
 type Partido = {
@@ -18,12 +20,25 @@ function normalizar(valor: string | null | undefined) {
   return String(valor ?? "").trim().toLowerCase();
 }
 
-export default async function ClasificacionPage() {
+export default async function ClasificacionPage({
+  params,
+}: {
+  params: Promise<{ liga: string }>;
+}) {
+  const { liga: slugLiga } = await params;
+  const datosLiga = await obtenerLiga(slugLiga);
+  if (!datosLiga) notFound();
+  const { liga, equipos } = datosLiga;
+  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  const nombreLiga = nombreCortoLiga(liga);
+  const temporada = temporadaLiga(liga);
+  void ruta; void nombreLiga; void temporada; void equipos;
   const { data, error } = await supabase
     .from("partidos")
     .select(
       "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
     )
+      .eq("liga_id", liga.id)
     .eq("estado", "Finalizado")
     .eq("fase", "serie_regular");
 
@@ -191,7 +206,7 @@ export default async function ClasificacionPage() {
         <div className="mx-auto max-w-6xl">
           <header className="mb-8 text-center">
             <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-700">
-              LIBAVIME 2026
+              {nombreLiga} {temporada}
             </p>
 
             <h1 className="mt-2 text-4xl font-black text-blue-950 md:text-5xl">
@@ -232,7 +247,7 @@ export default async function ClasificacionPage() {
 
                       <td className="px-4 py-4">
                         <Link
-                          href={`/equipos/${equipo.slug}`}
+                          href={ruta(`/equipos/${equipo.slug}`)}
                           className="flex items-center gap-3 font-black text-blue-950 hover:text-blue-700"
                         >
                           <Image
@@ -289,7 +304,7 @@ export default async function ClasificacionPage() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/equipos"
+              href={ruta("/equipos")}
               className="inline-flex rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800"
             >
               ← Ver equipos

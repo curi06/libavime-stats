@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Quinteto Pro">
+  <circle cx="60" cy="60" r="56" fill="#f97316" stroke="#7c2d12" stroke-width="5"/>
+  <path d="M60 4v112M4 60h112" stroke="#7c2d12" stroke-width="5" fill="none"/>
+  <path d="M22 18c18 14 18 70 0 84M98 18c-18 14-18 70 0 84" stroke="#7c2d12" stroke-width="5" fill="none"/>
+</svg>

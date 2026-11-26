@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../../data/equipos";
-import Navbar from "../components/Navbar";
+import Navbar from "@/app/components/Navbar";
 
 type EquipoPosicion = {
   nombre: string;

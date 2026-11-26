@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import Navbar from "../components/Navbar";
+import { notFound } from "next/navigation";
+import { obtenerLiga } from "@/lib/liga-servidor";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import Navbar from "@/app/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
 export const dynamic = "force-dynamic";
@@ -62,7 +65,19 @@ const esPartidoFinalizado = (estado: string | null) => {
   ].includes(valor);
 };
 
-  export default async function MVPPage() {
+  export default async function MVPPage({
+  params,
+}: {
+  params: Promise<{ liga: string }>;
+}) {
+  const { liga: slugLiga } = await params;
+  const datosLiga = await obtenerLiga(slugLiga);
+  if (!datosLiga) notFound();
+  const { liga, equipos: equiposLiga } = datosLiga;
+  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  const nombreLiga = nombreCortoLiga(liga);
+  const temporada = temporadaLiga(liga);
+  void ruta; void nombreLiga; void temporada; void equiposLiga;
 
   const [
     { data: jugadoresData, error: jugadoresError },
@@ -71,7 +86,8 @@ const esPartidoFinalizado = (estado: string | null) => {
   ] = await Promise.all([
     supabase
       .from("jugadores")
-      .select("id, slug, nombre, equipo, foto"),
+      .select("id, slug, nombre, equipo, foto")
+      .eq("liga_id", liga.id),
     supabase
       .from("estadisticas_partido")
 .select(`
@@ -81,12 +97,14 @@ const esPartidoFinalizado = (estado: string | null) => {
   rebotes,
   asistencias,
   estado
-`),
+`)
+      .eq("liga_id", liga.id),
     supabase
       .from("partidos")
 .select(
   "id, equipo_local, equipo_visitante, puntos_local, puntos_visitante, estado"
-),
+)
+      .eq("liga_id", liga.id),
   ]);
 
   if (
@@ -430,7 +448,7 @@ return {
           <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-10">
             <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-2xl py-5 px-6 mb-10 mt-8 md:mt-12 text-center">
               <h1 className="text-3xl md:text-5xl font-black text-white">
-                🏆 MVP LIBAVIME 2026
+                🏆 MVP {nombreLiga} {temporada}
               </h1>
               <p className="text-white/90 mt-2 font-bold text-lg">
                 Candidatos a MVP de la Serie Regular
@@ -444,7 +462,7 @@ return {
                   (candidato.foto.startsWith("http") ||
                     candidato.foto.startsWith("/"))
                     ? candidato.foto
-                    : "/logos/LIBAVIME.png";
+                    : LOGO_POR_DEFECTO;
 
                 const posicionTexto =
                   candidato.posicion_equipo > 0
@@ -603,7 +621,7 @@ return {
 
                       {candidato.slug && (
                         <Link
-                          href={`/jugadores/${candidato.slug}`}
+                          href={ruta(`/jugadores/${candidato.slug}`)}
                           className="inline-block mt-6 bg-blue-900 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-800 transition"
                         >
                           Ver Perfil

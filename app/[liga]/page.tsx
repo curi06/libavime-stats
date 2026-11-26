@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { equipos } from "../data/equipos";
-import GaleriaDisenos from "./components/GaleriaDisenos";
-import PortadaFinales from "./components/PortadaFinales";
+import GaleriaDisenos from "@/app/components/GaleriaDisenos";
+import PortadaFinales from "@/app/components/PortadaFinales";
 
 type Partido = {
   id: number;

@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import Navbar from "../../components/Navbar";
+import { notFound } from "next/navigation";
+import { obtenerLiga } from "@/lib/liga-servidor";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
+import Navbar from "@/app/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -24,15 +27,23 @@ type EstadisticaPartido = {
 export default async function JugadorPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ liga: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug, liga: slugLiga } = await params;
+  const datosLiga = await obtenerLiga(slugLiga);
+  if (!datosLiga) notFound();
+  const { liga, equipos } = datosLiga;
+  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  const nombreLiga = nombreCortoLiga(liga);
+  const temporada = temporadaLiga(liga);
+  void ruta; void nombreLiga; void temporada; void equipos;
 
   // BUSCAR JUGADOR
   const { data: jugador, error: jugadorError } =
     await supabase
       .from("jugadores")
       .select("*")
+      .eq("liga_id", liga.id)
       .eq("slug", slug)
       .single();
 
@@ -48,7 +59,7 @@ export default async function JugadorPage({
             </h1>
 
             <Link
-              href="/jugadores"
+              href={ruta("/jugadores")}
               className="inline-block mt-6 bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
             >
               Volver a jugadores
@@ -72,6 +83,7 @@ export default async function JugadorPage({
       asistencias,
       partido_id
     `)
+      .eq("liga_id", liga.id)
     .eq("jugador_id", jugador.id);
 
   if (estadisticasError) {
@@ -161,7 +173,7 @@ export default async function JugadorPage({
       jugador.foto.startsWith("/")
     )
       ? jugador.foto
-      : "/logos/LIBAVIME.png";
+      : LOGO_POR_DEFECTO;
 
       // COLOR DEL EQUIPO
 const equipoNormalizado =

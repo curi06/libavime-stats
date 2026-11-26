@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import Navbar from "../../components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { supabase } from "@/lib/supabase";
-import { equipos } from "../../../data/equipos";
+import { notFound } from "next/navigation";
+import { obtenerLiga } from "@/lib/liga-servidor";
+import { LOGO_POR_DEFECTO, logoLiga, nombreCortoLiga, rutaLiga, temporadaLiga, type EquipoLiga } from "@/lib/liga";
 
 type Partido = {
   id: number;
@@ -38,31 +40,41 @@ function normalizar(valor: string | null | undefined) {
   return String(valor ?? "").trim().toLowerCase();
 }
 
-function obtenerEquipo(nombre: string | null | undefined) {
+function obtenerEquipo(equipos: EquipoLiga[], nombre: string | null | undefined) {
   return equipos.find((equipo) => normalizar(equipo.nombre) === normalizar(nombre));
 }
 
 function obtenerFoto(foto: string | null) {
   if (foto && (foto.startsWith("/") || foto.startsWith("http://") || foto.startsWith("https://"))) return foto;
-  return "/logos/LIBAVIME.png";
+  return LOGO_POR_DEFECTO;
 }
 
-export default async function PartidoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function PartidoPage({ params }: { params: Promise<{ liga: string; id: string }> }) {
+  const { id, liga: slugLiga } = await params;
+  const datosLiga = await obtenerLiga(slugLiga);
+  if (!datosLiga) notFound();
+  const { liga, equipos } = datosLiga;
+  const ruta = (r: string) => rutaLiga(liga.slug, r);
+  const nombreLiga = nombreCortoLiga(liga);
+  const temporada = temporadaLiga(liga);
+  void ruta; void nombreLiga; void temporada; void equipos;
   const partidoId = Number(id);
 
   const [{ data: partidoData, error: partidoError }, { data: jugadoresData, error: jugadoresError }, { data: estadisticasData, error: estadisticasError }] = await Promise.all([
     supabase
       .from("partidos")
       .select("id, equipo_local, equipo_visitante, fecha, hora, cancha, puntos_local, puntos_visitante, estado")
+      .eq("liga_id", liga.id)
       .eq("id", partidoId)
       .maybeSingle(),
     supabase
       .from("jugadores")
-      .select("id, nombre, slug, numero, posicion, equipo, foto"),
+      .select("id, nombre, slug, numero, posicion, equipo, foto")
+      .eq("liga_id", liga.id),
     supabase
       .from("estadisticas_partido")
       .select("jugador_id, partido_id, puntos, rebotes, asistencias")
+      .eq("liga_id", liga.id)
       .eq("partido_id", partidoId),
   ]);
 
@@ -80,15 +92,15 @@ export default async function PartidoPage({ params }: { params: Promise<{ id: st
           <div className="mx-auto max-w-xl rounded-3xl bg-white p-10 text-center shadow-xl">
             <h1 className="text-3xl font-black text-blue-950">Partido no encontrado</h1>
             <p className="mt-3 text-gray-600">No pudimos encontrar el partido solicitado.</p>
-            <Link href="/resultados" className="mt-7 inline-block rounded-xl bg-blue-950 px-6 py-3 font-black text-white">← Volver a resultados</Link>
+            <Link href={ruta("/resultados")} className="mt-7 inline-block rounded-xl bg-blue-950 px-6 py-3 font-black text-white">← Volver a resultados</Link>
           </div>
         </main>
       </>
     );
   }
 
-  const localEquipo = obtenerEquipo(partido.equipo_local);
-  const visitanteEquipo = obtenerEquipo(partido.equipo_visitante);
+  const localEquipo = obtenerEquipo(equipos, partido.equipo_local);
+  const visitanteEquipo = obtenerEquipo(equipos, partido.equipo_visitante);
   const jugadores = (jugadoresData ?? []) as Jugador[];
   const estadisticas = (estadisticasData ?? []) as Estadistica[];
 
@@ -125,7 +137,7 @@ export default async function PartidoPage({ params }: { params: Promise<{ id: st
     <tr key={jugador.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
       <td className="px-3 py-3 text-center font-black text-blue-950">{index + 1}</td>
       <td className="px-3 py-3">
-        <Link href={`/jugadores/${jugador.slug}`} className="flex items-center gap-3 font-black text-slate-800 hover:text-blue-700">
+        <Link href={ruta(`/jugadores/${jugador.slug}`)} className="flex items-center gap-3 font-black text-slate-800 hover:text-blue-700">
           <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-blue-600 bg-white">
             <Image src={obtenerFoto(jugador.foto)} alt={jugador.nombre} fill sizes="44px" className="object-cover" style={{ transform: "scale(1.35)", objectPosition: "50% 42%" }} />
           </div>
@@ -168,7 +180,7 @@ export default async function PartidoPage({ params }: { params: Promise<{ id: st
       <main className="min-h-screen bg-slate-100 px-4 pb-16 pt-28 md:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 p-6 text-white shadow-2xl md:p-10">
-            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-blue-200">LIBAVIME · BOX SCORE OFICIAL</p>
+            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-blue-200">{nombreLiga} · BOX SCORE OFICIAL</p>
             <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-8">
               <div className="text-center">
                 {localEquipo?.logo ? <Image src={localEquipo.logo} alt={partido.equipo_local ?? "Local"} width={110} height={110} className="mx-auto h-20 w-20 object-contain md:h-28 md:w-28" /> : null}
@@ -201,7 +213,7 @@ export default async function PartidoPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mt-8 text-center">
-            <Link href="/resultados" className="inline-flex rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800">← Volver a resultados</Link>
+            <Link href={ruta("/resultados")} className="inline-flex rounded-xl bg-blue-950 px-6 py-3 font-black text-white shadow hover:bg-blue-800">← Volver a resultados</Link>
           </div>
         </div>
       </main>
